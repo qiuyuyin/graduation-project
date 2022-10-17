@@ -80,6 +80,7 @@ ParserContext *get_context(yyscan_t scanner)
         TRX_BEGIN
         TRX_COMMIT
         TRX_ROLLBACK
+        DATE_T
         INT_T
         STRING_T
         FLOAT_T
@@ -120,6 +121,7 @@ ParserContext *get_context(yyscan_t scanner)
 %token <string> SSS
 %token <string> STAR
 %token <string> STRING_V
+%token <string> DATE_STR
 //非终结符
 
 %type <number> type;
@@ -267,7 +269,8 @@ number:
 type:
 	INT_T { $$=INTS; }
        | STRING_T { $$=CHARS; }
-       | FLOAT_T { $$=FLOATS; }
+       | FLOAT_T  { $$=FLOATS; }
+       | DATE_T   { $$=DATES; }
        ;
 ID_get:
 	ID 
@@ -308,6 +311,15 @@ value:
     |FLOAT{
   		value_init_float(&CONTEXT->values[CONTEXT->value_length++], $1);
 		}
+	|DATE_STR{
+            $1 = substr($1,1,strlen($1)-2);
+  		int ret = value_init_date(&CONTEXT->values[CONTEXT->value_length++], $1);
+  		if (ret){
+			// TODO: find an elegant way to do this
+			CONTEXT->ssql->flag = SCF_ERROR;
+			return -1;
+        }
+	    }
     |SSS {
 			$1 = substr($1,1,strlen($1)-2);
   		value_init_string(&CONTEXT->values[CONTEXT->value_length++], $1);

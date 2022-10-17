@@ -54,6 +54,9 @@ public:
     case CHARS: {
       return compare_string((void *)v1, attr_length_, (void *)v2, attr_length_);
     }
+    case DATES:{
+      return compare_date((void *)v1, (void *)v2);
+    }
     default:{
       LOG_ERROR("unknown attr type. %d", attr_type_);
       abort();
@@ -113,6 +116,12 @@ public:
       break;
     case FLOATS: {
       return std::to_string(*(float*)v);
+    }
+    case DATES:{
+      Date d = *(Date*)v;
+      char date_c_str[11];
+      sprintf(date_c_str, "%0.4d-%0.2d-%0.2d", d.year, d.day, d.day);
+      return date_c_str;
     }
     case CHARS: {
       std::string str;
