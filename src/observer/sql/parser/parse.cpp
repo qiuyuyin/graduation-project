@@ -53,6 +53,7 @@ int value_init_date(Value *value, const char *v)
   int y, m, d;
   sscanf(v, "%d-%d-%d", &y, &m, &d);
   if (!check_date(y, m, d)) {
+    LOG_ERROR("Failed to init %s as date", v);
     return -1;
   }
   value->data = malloc(sizeof (Date));
@@ -60,13 +61,14 @@ int value_init_date(Value *value, const char *v)
   date_ptr->year = y;
   date_ptr->month = m;
   date_ptr->day = d;
+  return 0;
 }
 // init from
 int value_init_date_from_integer(Value *value, int v){
   value->type = DATES;
   Date *dv = reinterpret_cast<Date *>(&v);
   if (!check_date(dv->year, dv->month, dv->day)) {
-    return -1;
+    return RC::INVALID_ARGUMENT;
   }
   value->data = malloc(sizeof (Date));
   memcpy(value->data, dv, sizeof(Date));

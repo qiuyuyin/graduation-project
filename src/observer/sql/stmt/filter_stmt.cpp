@@ -124,5 +124,9 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   filter_unit->set_right(right);
 
   // 检查两个类型是否能够比较
+  // TODO: typecast
+  if(left->type() != right->type()){
+    return RC::INVALID_ARGUMENT;
+  }
   return rc;
 }
