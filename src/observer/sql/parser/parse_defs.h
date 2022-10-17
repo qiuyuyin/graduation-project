@@ -90,6 +90,8 @@ typedef struct {
 typedef struct {
   char *relation_name;    // Relation to insert into
   size_t value_num;       // Length of values
+  size_t tuple_num;
+  int tuple_size[MAX_NUM];
   Value values[MAX_NUM];  // values to insert
 } Inserts;
 
