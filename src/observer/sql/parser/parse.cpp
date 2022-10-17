@@ -9,7 +9,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by Meiyi 
+// Created by Meiyi
 //
 
 #include <mutex>
@@ -40,6 +40,37 @@ void relation_attr_destroy(RelAttr *relation_attr)
   relation_attr->attribute_name = nullptr;
 }
 
+static bool check_date(int y, int m, int d)
+{
+  static int mon[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  bool leap = (y % 400 == 0 || (y % 100 && y % 4 == 0));
+
+  return y > 0 && (m > 0) && (m <= 12) && (d > 0) && (d <= ((m == 2 && leap) ? 1 : 0) + mon[m]);
+}
+int value_init_date(Value *value, const char *v)
+{
+  value->type = DATES;
+  int y, m, d;
+  sscanf(v, "%d-%d-%d", &y, &m, &d);
+  if (!check_date(y, m, d)) {
+    return -1;
+  }
+  value->data = malloc(sizeof (Date));
+  auto date_ptr = static_cast<Date *>(value->data);
+  date_ptr->year = y;
+  date_ptr->month = m;
+  date_ptr->day = d;
+}
+// init from
+int value_init_date_from_integer(Value *value, int v){
+  value->type = DATES;
+  Date *dv = reinterpret_cast<Date *>(&v);
+  if (!check_date(dv->year, dv->month, dv->day)) {
+    return -1;
+  }
+  value->data = malloc(sizeof (Date));
+  memcpy(value->data, dv, sizeof(Date));
+}
 void value_init_integer(Value *value, int v)
 {
   value->type = INTS;
