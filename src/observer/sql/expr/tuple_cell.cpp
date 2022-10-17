@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by WangYunlai on 2022/07/05.
 //
 
+#include <iomanip>
 #include "sql/expr/tuple_cell.h"
 #include "storage/common/field.h"
 #include "common/log/log.h"
@@ -36,6 +37,14 @@ void TupleCell::to_string(std::ostream &os) const
       os << data_[i];
     }
   } break;
+  case DATES:{
+    Date v = *(Date*)data_;
+    os << std::setw(4) << std::setfill('0') << static_cast<int>(v.year)
+       << '-'
+       << std::setw(2) << std::setfill('0') << static_cast<int>(v.month)
+       << '-'
+       << std::setw(2) << std::setfill('0')<< static_cast<int>(v.day);
+  } break;
   default: {
     LOG_WARN("unsupported attr type: %d", attr_type_);
   } break;
@@ -49,6 +58,7 @@ int TupleCell::compare(const TupleCell &other) const
     case INTS: return compare_int(this->data_, other.data_);
     case FLOATS: return compare_float(this->data_, other.data_);
     case CHARS: return compare_string(this->data_, this->length_, other.data_, other.length_);
+    case DATES: return compare_date(this->data_, other.data_);
     default: {
       LOG_WARN("unsupported type: %d", this->attr_type_);
     }
