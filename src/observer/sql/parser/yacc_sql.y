@@ -313,7 +313,12 @@ value:
 		}
 	|DATE_STR{
             $1 = substr($1,1,strlen($1)-2);
-  		value_init_date(&CONTEXT->values[CONTEXT->value_length++], $1);
+  		int ret = value_init_date(&CONTEXT->values[CONTEXT->value_length++], $1);
+  		if (ret){
+			// TODO: find an elegant way to do this
+			CONTEXT->ssql->flag = SCF_ERROR;
+			return -1;
+        }
 	    }
     |SSS {
 			$1 = substr($1,1,strlen($1)-2);
