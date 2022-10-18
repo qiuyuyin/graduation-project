@@ -172,6 +172,9 @@ void DefaultStorageStage::handle_event(StageEvent *event)
       char *relation_name = sql->sstr.drop_table.relation_name;
       RC rc = handler_->drop_table(dbname,relation_name);
       snprintf(response,sizeof(response),"%s\n", rc == RC::SUCCESS ? "SUCCESS" : "FAILURE");
+      session_event->set_response(response);
+      LOG_TRACE("Exit\n");
+      return; // TODO : trx drop
       break;
     }
     default:
