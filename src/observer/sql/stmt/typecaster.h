@@ -20,9 +20,11 @@ public:
 
   static int s2i(const char *s)
   {
-    int v = 0;
-    sscanf(s, "%d", &v);
-    return v;
+    // shit!
+    // int v = 0;
+    // sscanf(s, "%d", &v);
+    // return v;
+    return f2i(s2f(s));
   }
 
   static float s2f(const char *s)
