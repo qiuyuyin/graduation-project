@@ -194,6 +194,7 @@ enum RC {
   INVALID_ARGUMENT, /* Invalid argument */
   UNIMPLENMENT,     /* not implenment yet */
   SQL_SYNTAX,       /* SQL Syntax error */
+  TYPECAST,         /* Typecast fail */
   BUFFERPOOL,       /* Buffer pool error*/
   RECORD,           /* Record error */
   INTERNAL,         /* Internal logic error in SQL */
