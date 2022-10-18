@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse_defs.h"
 #include "sql/stmt/stmt.h"
 #include "sql/expr/expression.h"
+#include "common/log/log.h"
 
 class Db;
 class Table;
@@ -39,6 +40,45 @@ public:
       delete right_;
       right_ = nullptr;
     }
+  }
+
+  bool compare(Tuple* t1, Tuple* t2 = nullptr) {
+    TupleCell left_cell, right_cell;
+    left_->get_value(*t1, left_cell);
+    if (t2 == nullptr) {
+      right_->get_value(*t1, right_cell);
+    } else {
+      right_->get_value(*t2, right_cell);
+    }
+    const int compare = left_cell.compare(right_cell);
+    bool filter_result = false;
+    switch (comp_) {
+      case EQUAL_TO: {
+        filter_result = (0 == compare);
+      } break;
+      case LESS_EQUAL: {
+        filter_result = (compare <= 0);
+      } break;
+      case NOT_EQUAL: {
+        filter_result = (compare != 0);
+      } break;
+      case LESS_THAN: {
+        filter_result = (compare < 0);
+      } break;
+      case GREAT_EQUAL: {
+        filter_result = (compare >= 0);
+      } break;
+      case GREAT_THAN: {
+        filter_result = (compare > 0);
+      } break;
+      default: {
+        LOG_WARN("invalid compare type: %d", comp_);
+      } break;
+    }
+    if (!filter_result) {
+      return false;
+    }
+    return true;
   }
   
   void set_comp(CompOp comp) {

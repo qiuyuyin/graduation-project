@@ -18,6 +18,9 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "storage/common/db.h"
 #include "storage/common/table.h"
+#include <algorithm>
+
+using namespace std;
 
 SelectStmt::~SelectStmt()
 {
@@ -136,6 +139,24 @@ RC SelectStmt::create(Db *db, const Selects &select_sql, Stmt *&stmt)
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;
+  }
+
+  // 如果table的数量超过1，则交换顺序
+  if (tables.size() > 1) {
+    std::reverse(tables.begin(), tables.end());
+    vector<vector<Field>> swap_query_fields(tables.size());
+    for (auto field : query_fields) {
+      for (int i = 0; i < tables.size(); ++i) {
+        if (strcmp(tables[i]->name(), field.table_name()) == 0) {
+          swap_query_fields[i].push_back(field);
+        }
+      }
+    }
+    vector<Field> res;
+    for (auto temp : swap_query_fields) {
+      res.insert(res.end(), temp.begin(), temp.end());
+    }
+    query_fields = res;
   }
 
   // everything alright
