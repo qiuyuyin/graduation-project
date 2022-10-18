@@ -120,6 +120,39 @@ RC Table::create(
   return rc;
 }
 
+RC Table::destroy(const char *dir)
+{
+  RC rc = sync();  //是否实现刷新脏页?
+
+  if(rc != RC::SUCCESS){
+    return rc;
+  }
+
+  std::string meta_file_path = table_meta_file(dir,name());
+  if(unlink(meta_file_path.c_str())!=0){
+    LOG_ERROR("Failed to remove meta file = %s, errno = %d",meta_file_path.c_str(),errno);
+    return RC::GENERIC_ERROR;
+  }
+
+  std::string data_file_path = table_data_file(dir,name());
+  if(unlink(data_file_path.c_str())!=0){
+    LOG_ERROR("Failed to remove data file = %s, errno = %d",data_file_path.c_str(),errno);
+    return RC::GENERIC_ERROR;
+  }
+
+  const int index_num = table_meta_.index_num();
+  for(int i = 0; i<index_num; ++i){
+    ((BplusTreeIndex*)indexes_[i])->close();
+    const IndexMeta *index_meta = table_meta_.index(i);
+    std::string index_file_path = table_index_file(dir,name(),index_meta->name());
+    if(unlink(index_file_path.c_str()) != 0) {
+      LOG_ERROR("Failed to remove index file=%s, errno=%d", index_file_path.c_str(), errno);
+      return RC::GENERIC_ERROR;
+    }
+  }
+  return RC::SUCCESS;
+}
+
 RC Table::open(const char *meta_file, const char *base_dir, CLogManager *clog_manager)
 {
   // 加载元数据文件
@@ -636,6 +669,113 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
   LOG_INFO("Successfully added a new index (%s) on the table (%s)", index_name, name());
 
   return rc;
+}
+
+RC Table::delete_index(Trx *trx, const char *index_name) {
+  if (common::is_blank(index_name)) {
+    LOG_INFO("Invalid input arguments, table name is %s, index_name is blank", name());
+    return RC::INVALID_ARGUMENT;
+  }
+  const int index_num = table_meta_.index_num();
+  for (int i = 0; i < index_num; ++i) {
+    if (strcmp(table_meta_.index(i)->name(), index_name) == 0) {
+      indexes_[i]->sync();
+      ((BplusTreeIndex*)indexes_[i])->close();
+      const IndexMeta *index_meta = table_meta_.index(i);
+      std::string index_path = table_index_file(base_dir_.c_str(), name(), index_meta->name());
+      if (unlink(index_path.c_str()) != 0) {
+        LOG_ERROR("Failed to remove index file=%s, errno=%d", index_path.c_str(), errno);
+        return GENERIC_ERROR;
+      }
+      return SUCCESS;
+    }
+  }
+  LOG_INFO("[table::delete_index] error, the index_name[%s] of table[%s] doesn't exist", index_name, name());
+  return GENERIC_ERROR;
+}
+
+RC Table::delete_all_index(Trx *trx) {
+  const int index_num = table_meta_.index_num();
+  for (int i = 0; i < index_num; ++i) {
+    indexes_[i]->sync();
+    ((BplusTreeIndex*)indexes_[i])->close();
+    const IndexMeta* index_meta = table_meta_.index(i);
+    std::string index_path = table_index_file(base_dir_.c_str(), name(), index_meta->name());
+    if (unlink(index_path.c_str()) != 0) {
+      LOG_ERROR("[Table::delete_all_index] error, Failed to remove index file=%s, errno=%d", index_path.c_str(), errno);
+      return RC::GENERIC_ERROR;
+    }
+  }
+  return RC::SUCCESS;
+}
+
+RC Table::update_record(Trx *trx, Record *record,const char *attribute_name, const Value *value)
+{
+  //parameter
+  if (attribute_name == nullptr || value == nullptr) {
+    LOG_WARN("[Table::update_record] attribute_name or value is nullptr");
+    return GENERIC_ERROR;
+  }
+  const FieldMeta *field = table_meta_.field(attribute_name);
+  if (field == nullptr) {
+    LOG_WARN("[Table::update_record] find field by attribute_name[%s] error", attribute_name);
+    return GENERIC_ERROR;
+  }
+  if (field->type() != value->type) {
+    LOG_WARN("[table::update_record] the type of attribute[%s] and value[%s] are different", field->type(), value->type);
+    return GENERIC_ERROR;
+  }
+
+  if (trx != nullptr) {
+    LOG_WARN("[Table::update_record] not support method with trx");
+    return UNIMPLENMENT;
+  } else {
+    //delete index
+    RC rc = delete_entry_of_indexes(record->data(), record->rid(), false);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to delete indexes of record (rid=%d.%d). rc=%d:%s",record->rid().page_num, record->rid().slot_num, rc, strrc(rc));
+      return rc;
+    }
+
+    //update record
+    int record_size = table_meta_.record_size();
+    char *record_data = record->data();
+    size_t copy_len = field->len();
+    if (field->type() == CHARS) {
+      const size_t data_len = strlen((const char *)value->data);
+      if (copy_len > data_len) {
+        copy_len = data_len + 1;
+      }
+    }
+    memcpy(record_data + field->offset(), value->data, copy_len);
+    record->set_data(record_data);
+    rc = record_handler_->update_record(record);
+    if (rc != SUCCESS) {
+      LOG_WARN("[Table::update_record] record_handler更新record失败");
+      return rc;
+    }
+
+    //insert index
+    rc = insert_entry_of_indexes(record->data(), record->rid());
+    if (rc != RC::SUCCESS) {
+      RC rc2 = delete_entry_of_indexes(record->data(), record->rid(), true);
+      if (rc2 != RC::SUCCESS) {
+        LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
+            name(),
+            rc2,
+            strrc(rc2));
+      }
+      rc2 = record_handler_->delete_record(&record->rid());
+      if (rc2 != RC::SUCCESS) {
+        LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
+            name(),
+            rc2,
+            strrc(rc2));
+      }
+      return rc;
+    }
+  }
+  return SUCCESS;
 }
 
 RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value, int condition_num,

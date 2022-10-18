@@ -48,6 +48,8 @@ public:
   RC create(const char *path, const char *name, const char *base_dir, int attribute_count, const AttrInfo attributes[],
       CLogManager *clog_manager);
 
+  RC destroy(const char *dir);
+
   /**
    * 打开一个表
    * @param meta_file 保存表元数据的文件完整路径
@@ -57,6 +59,7 @@ public:
   RC open(const char *meta_file, const char *base_dir, CLogManager *clog_manager);
 
   RC insert_record(Trx *trx, int value_num, const Value *values);
+  RC update_record(Trx *trx, Record *record, const char *attribute_name, const Value *value);
   RC update_record(Trx *trx, const char *attribute_name, const Value *value, int condition_num,
       const Condition conditions[], int *updated_count);
   RC delete_record(Trx *trx, ConditionFilter *filter, int *deleted_count);
@@ -67,6 +70,10 @@ public:
       void (*record_reader)(const char *data, void *context));
 
   RC create_index(Trx *trx, const char *index_name, const char *attribute_name);
+
+  RC delete_index(Trx *trx, const char *index_name);
+
+  RC delete_all_index(Trx *trx);
 
   RC get_record_scanner(RecordFileScanner &scanner);
 
