@@ -36,12 +36,20 @@ static void chars_to_floats(Value *value)
   value_destroy(value);
   value_init_float(value, v);
 }
+static void floats_to_chars(Value *value)
+{
+  char buf[20];
+  Typecaster::f2s(buf, *static_cast<float *>(value->data));
+  value_destroy(value);
+  value_init_string(value, buf);
+}
 TypecastTable Typecaster::available_cast_ = {
     {{AttrType::CHARS, AttrType::INTS}, chars_to_ints},
     {{AttrType::INTS, AttrType::CHARS}, ints_to_chars},
     {{AttrType::INTS, AttrType::FLOATS}, ints_to_floats},
     {{AttrType::FLOATS, AttrType::INTS}, floats_to_ints},
     {{AttrType::CHARS, AttrType::FLOATS}, chars_to_floats},
+    {{AttrType::FLOATS, AttrType::CHARS}, floats_to_chars},
 };
 
 RC Typecaster::attr_cast(Value *value, AttrType target_type)

@@ -15,7 +15,8 @@ insert into typecast_table values(4.3, '123', 4.4);
 insert into typecast_table values(4.5, '123', 5.5);
 -- chars to float
 insert into typecast_table values(6, '123', '6.6');
-
+-- float to chars
+insert into typecast_table values(7, 123.0, 7.7);
 -- selection test
 -- compare of char and int
 select * from typecast_table where 123 = str;

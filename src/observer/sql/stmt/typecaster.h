@@ -31,9 +31,13 @@ public:
     sscanf(s, "%f", &v);
     return v;
   }
-  static int i2s(char buf[], int i)
+  static void i2s(char buf[], int i)
   {
     snprintf(buf, 20, "%d", i);
+  }
+  static void f2s(char buf[], float f)
+  {
+    snprintf(buf, 20, "%g", f);
   }
   static float i2f(int i)
   {
