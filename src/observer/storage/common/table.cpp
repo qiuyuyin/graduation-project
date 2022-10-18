@@ -671,6 +671,44 @@ RC Table::create_index(Trx *trx, const char *index_name, const char *attribute_n
   return rc;
 }
 
+RC Table::delete_index(Trx *trx, const char *index_name) {
+  if (common::is_blank(index_name)) {
+    LOG_INFO("Invalid input arguments, table name is %s, index_name is blank", name());
+    return RC::INVALID_ARGUMENT;
+  }
+  const int index_num = table_meta_.index_num();
+  for (int i = 0; i < index_num; ++i) {
+    if (strcmp(table_meta_.index(i)->name(), index_name) == 0) {
+      indexes_[i]->sync();
+      ((BplusTreeIndex*)indexes_[i])->close();
+      const IndexMeta *index_meta = table_meta_.index(i);
+      std::string index_path = table_index_file(base_dir_.c_str(), name(), index_meta->name());
+      if (unlink(index_path.c_str()) != 0) {
+        LOG_ERROR("Failed to remove index file=%s, errno=%d", index_path.c_str(), errno);
+        return GENERIC_ERROR;
+      }
+      return SUCCESS;
+    }
+  }
+  LOG_INFO("[table::delete_index] error, the index_name[%s] of table[%s] doesn't exist", index_name, name());
+  return GENERIC_ERROR;
+}
+
+RC Table::delete_all_index(Trx *trx) {
+  const int index_num = table_meta_.index_num();
+  for (int i = 0; i < index_num; ++i) {
+    indexes_[i]->sync();
+    ((BplusTreeIndex*)indexes_[i])->close();
+    const IndexMeta* index_meta = table_meta_.index(i);
+    std::string index_path = table_index_file(base_dir_.c_str(), name(), index_meta->name());
+    if (unlink(index_path.c_str()) != 0) {
+      LOG_ERROR("[Table::delete_all_index] error, Failed to remove index file=%s, errno=%d", index_path.c_str(), errno);
+      return RC::GENERIC_ERROR;
+    }
+  }
+  return RC::SUCCESS;
+}
+
 RC Table::update_record(Trx *trx, Record *record,const char *attribute_name, const Value *value)
 {
   //parameter
