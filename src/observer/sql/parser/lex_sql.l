@@ -77,6 +77,7 @@ QUOTE            [\'\"]
 ")"                                                  RETURN_TOKEN(RBRACE);
 
 ","                                                  RETURN_TOKEN(COMMA);
+"!="                                                 RETURN_TOKEN(NE);
 "="                                                  RETURN_TOKEN(EQ);
 "<="                                                 RETURN_TOKEN(LE);
 "<>"                                                 RETURN_TOKEN(NE);
