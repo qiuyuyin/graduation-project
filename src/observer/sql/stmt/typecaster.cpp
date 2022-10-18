@@ -5,61 +5,34 @@
 #include "typecaster.h"
 #include "common/log/log.h"
 #include "storage/common/field_meta.h"
-namespace cast {
-static int s2i(const char *s)
-{
-  int v = 0;
-  sscanf(s, "%d", &v);
-  return v;
-}
-
-static float s2f(const char *s)
-{
-  float v = 0.0;
-  sscanf(s, "%f", &v);
-  return v;
-}
-static int i2s(char buf[], int i)
-{
-  snprintf(buf, 20, "%d", i);
-}
-static float i2f(int i)
-{
-  return i;
-}
-static int f2i(float f)
-{
-  return f + 0.5;
-}
-};  // namespace cast
 static void chars_to_ints(Value *value)
 {
-  int v = cast::s2i(static_cast<const char *>(value->data));
+  int v = Typecaster::s2i(static_cast<const char *>(value->data));
   value_destroy(value);
   value_init_integer(value, v);
 }
 static void ints_to_chars(Value *value)
 {
   char buf[20];
-  cast::i2s(buf, *static_cast<int *>(value->data));
+  Typecaster::i2s(buf, *static_cast<int *>(value->data));
   value_destroy(value);
   value_init_string(value, buf);
 }
 static void ints_to_floats(Value *value)
 {
-  float v = cast::i2f(*static_cast<int *>(value->data));
+  float v = Typecaster::i2f(*static_cast<int *>(value->data));
   value_destroy(value);
   value_init_float(value, v);
 }
 static void floats_to_ints(Value *value)
 {
-  int v = cast::f2i(*static_cast<float *>(value->data));
+  int v = Typecaster::f2i(*static_cast<float *>(value->data));
   value_destroy(value);
   value_init_integer(value, v);
 }
 static void chars_to_floats(Value *value)
 {
-  float v = cast::s2f(static_cast<const char *>(value->data));
+  float v = Typecaster::s2f(static_cast<const char *>(value->data));
   value_destroy(value);
   value_init_float(value, v);
 }
@@ -84,4 +57,10 @@ RC Typecaster::attr_cast(Value *value, AttrType target_type)
   auto caster = available_cast_[{value->type, target_type}];
   caster(value);
   return RC::SUCCESS;
+}
+RC Typecaster::expr_cast(Expression *&left,AttrType left_attr_type, Expression *&right, AttrType right_attr_type)
+{
+  if (left_attr_type == right_attr_type){
+    return RC::SUCCESS;
+  }
 }

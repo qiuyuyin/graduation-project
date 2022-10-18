@@ -101,3 +101,22 @@ public:
 private:
   TupleCell tuple_cell_;
 };
+
+// class CastedExpr: public FieldExpr, public ValueExpr{
+// public:
+//   CastedExpr(Expression *expr):expr_origin_(expr){}
+//   virtual ~CastedExpr() = default;
+//   RC get_value(const Tuple &tuple, TupleCell &cell) const override
+//   {
+//     RC rc = expr_origin_->get_value(tuple, cell);
+//     if(rc != RC::SUCCESS){
+//       return rc;
+//     }
+//     Value attr_value;
+//   }
+//
+// private:
+//   AttrType old_type_;
+//   AttrType new_type_;
+//   Expression *expr_origin_;
+// };

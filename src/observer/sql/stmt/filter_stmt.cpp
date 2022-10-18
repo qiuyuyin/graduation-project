@@ -124,15 +124,16 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     right = new ValueExpr(condition.right_value);
   }
 
+  // 检查两个类型是否能够比较
+  // TODO: not elegant to check date type here
+  if(left_type != right_type && (left_type == DATES || right_type == DATES)){
+    return RC::INVALID_ARGUMENT;
+  }
+
   filter_unit = new FilterUnit;
   filter_unit->set_comp(comp);
   filter_unit->set_left(left);
   filter_unit->set_right(right);
 
-  // 检查两个类型是否能够比较
-  // TODO: typecast
-  if(left_type != right_type){
-    return RC::INVALID_ARGUMENT;
-  }
   return rc;
 }
