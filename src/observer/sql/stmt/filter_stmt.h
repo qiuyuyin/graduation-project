@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/stmt.h"
 #include "sql/expr/expression.h"
 #include "common/log/log.h"
+#include "sql/expr/tuple.h"
 
 class Db;
 class Table;
@@ -42,13 +43,28 @@ public:
     }
   }
 
-  bool compare(Tuple* t1, Tuple* t2 = nullptr) {
+  bool compare(Tuple* t1 = nullptr, Tuple* t2 = nullptr) {
     TupleCell left_cell, right_cell;
-    left_->get_value(*t1, left_cell);
-    if (t2 == nullptr) {
-      right_->get_value(*t1, right_cell);
+    if (t1 == nullptr && t2 == nullptr) {
+      if (left_->type() != ExprType::VALUE || right_->type() != ExprType::VALUE) {
+        //todo 错误处理
+        LOG_WARN("[FilterUnit::compare] invalid parameter, if params are null, the exprType of filterUnit both should be value");
+        return false;
+      }
+      RowTuple temp;
+      left_->get_value(temp, left_cell);
+      right_->get_value(temp, right_cell);
+    } else if (t1 != nullptr && t2 == nullptr) {
+      left_->get_value(*t1, left_cell);
+      if (t2 == nullptr) {
+        right_->get_value(*t1, right_cell);
+      } else {
+        right_->get_value(*t2, right_cell);
+      }
     } else {
-      right_->get_value(*t2, right_cell);
+      //todo 错误处理
+      LOG_WARN("[FilterUnit::compare] invalid parameter");
+      return false;
     }
     const int compare = left_cell.compare(right_cell);
     bool filter_result = false;

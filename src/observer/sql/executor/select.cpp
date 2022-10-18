@@ -104,6 +104,7 @@ RC print_tuple_sets(stringstream& ss, vector<Operator*>& tuple_sets, SelectStmt&
   vector<vector<Field>> projections(tables.size());
   vector<vector<FilterUnit*>> single_filters(tables.size());
   vector<FilterUnit*> cross_filters;
+  vector<FilterUnit*> both_value_filters;
   for (auto filter_unit : select_stmt.filter_stmt()->filter_units()) {
     Expression *left = filter_unit->left();
     Expression *right = filter_unit->right();
@@ -115,7 +116,10 @@ RC print_tuple_sets(stringstream& ss, vector<Operator*>& tuple_sets, SelectStmt&
       fieldExpr = (FieldExpr *)left;
     } else if (left->type() == ExprType::VALUE && right->type() == ExprType::FIELD) {
       fieldExpr = (FieldExpr *)right;
-    } else {
+    } else if (left->type() == ExprType::VALUE && right->type() == ExprType::VALUE) {
+      both_value_filters.push_back(filter_unit);
+      continue;
+    }else {
       LOG_WARN("[print_tuple_sets] mismatch field type, both are value type");
       continue;
     }
@@ -133,8 +137,18 @@ RC print_tuple_sets(stringstream& ss, vector<Operator*>& tuple_sets, SelectStmt&
       ss << string(filed.table_name()) + "." << string(filed.field_name()) + " | ";
     }
   }
-  vector<Tuple*> merge_tuple;
-  dfs(ss, tuple_sets, table_index, projections, single_filters, cross_filters, merge_tuple, 0);
+
+  bool flag = true;
+  for (auto value_filter : both_value_filters) {
+    if (!value_filter->compare()) {
+      flag = false;
+      break;
+    }
+  }
+  if (flag) {
+    vector<Tuple*> merge_tuple;
+    dfs(ss, tuple_sets, table_index, projections, single_filters, cross_filters, merge_tuple, 0);
+  }
   return SUCCESS;
 }
 

@@ -90,6 +90,8 @@ ParserContext *get_context(yyscan_t scanner)
         INTO
         VALUES
         FROM
+        INNER
+        JOIN
         WHERE
         AND
         SET
@@ -418,6 +420,12 @@ rel_list:
     | COMMA ID rel_list {
 				selects_append_relation(&CONTEXT->ssql->sstr.selection, $2);
 		  }
+    | INNER JOIN ID ON condition condition_list rel_list {
+                selects_append_relation(&CONTEXT->ssql->sstr.selection, $3);
+          }
+    | INNER JOIN ID rel_list {
+                selects_append_relation(&CONTEXT->ssql->sstr.selection, $3);
+          }
     ;
 where:
     /* empty */
