@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #define __OBSERVER_SQL_PARSER_PARSE_DEFS_H__
 
 #include <stddef.h>
+#include <stdint.h>
 
 #define MAX_NUM 20
 #define MAX_REL_NAME 20
@@ -23,7 +24,7 @@ See the Mulan PSL v2 for more details. */
 #define MAX_ERROR_MESSAGE 20
 #define MAX_DATA 50
 
-//属性结构体
+// 属性结构体
 typedef struct {
   char *relation_name;   // relation name (may be NULL) 表名
   char *attribute_name;  // attribute name              属性名
@@ -39,16 +40,25 @@ typedef enum {
   NO_OP
 } CompOp;
 
-//属性值类型
-typedef enum
-{
+// 属性值类型
+typedef enum {
   UNDEFINED,
   CHARS,
   INTS,
-  FLOATS
+  FLOATS,
+  DATES,
+  NUM_OF_ATTRTYPE,
 } AttrType;
 
-//属性值
+// 属性值
+// layout of date is quite important!
+// 小端法
+typedef struct _Date {
+  int8_t day;
+  int8_t month;
+  int16_t year;
+} Date;
+
 typedef struct _Value {
   AttrType type;  // type of value
   void *data;     // value
@@ -80,6 +90,8 @@ typedef struct {
 typedef struct {
   char *relation_name;    // Relation to insert into
   size_t value_num;       // Length of values
+  size_t tuple_num;
+  int tuple_size[MAX_NUM];
   Value values[MAX_NUM];  // values to insert
 } Inserts;
 
@@ -187,6 +199,8 @@ extern "C" {
 void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name);
 void relation_attr_destroy(RelAttr *relation_attr);
 
+int value_init_date(Value *value, const char *v);
+int value_init_date_from_integer(Value *value, int v);
 void value_init_integer(Value *value, int v);
 void value_init_float(Value *value, float v);
 void value_init_string(Value *value, const char *v);

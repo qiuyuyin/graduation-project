@@ -80,6 +80,7 @@ ParserContext *get_context(yyscan_t scanner)
         TRX_BEGIN
         TRX_COMMIT
         TRX_ROLLBACK
+        DATE_T
         INT_T
         STRING_T
         FLOAT_T
@@ -114,12 +115,13 @@ ParserContext *get_context(yyscan_t scanner)
 }
 
 %token <number> NUMBER
-%token <floats> FLOAT 
+%token <floats> FLOAT
 %token <string> ID
 %token <string> PATH
 %token <string> SSS
 %token <string> STAR
 %token <string> STRING_V
+%token <string> DATE_STR
 //非终结符
 
 %type <number> type;
@@ -135,7 +137,7 @@ commands:		//commands or sqls. parser starts here.
     ;
 
 command:
-	  select  
+	  select
 	| insert
 	| update
 	| delete
@@ -143,7 +145,7 @@ command:
 	| drop_table
 	| show_tables
 	| desc_table
-	| create_index	
+	| create_index
 	| drop_index
 	| sync
 	| begin
@@ -154,7 +156,7 @@ command:
 	| exit
     ;
 
-exit:			
+exit:
     EXIT SEMICOLON {
         CONTEXT->ssql->flag=SCF_EXIT;//"exit";
     };
@@ -208,7 +210,7 @@ desc_table:
     ;
 
 create_index:		/*create index 语句的语法解析树*/
-    CREATE INDEX ID ON ID LBRACE ID RBRACE SEMICOLON 
+    CREATE INDEX ID ON ID LBRACE ID RBRACE SEMICOLON
 		{
 			CONTEXT->ssql->flag = SCF_CREATE_INDEX;//"create_index";
 			create_index_init(&CONTEXT->ssql->sstr.create_index, $3, $5, $7);
@@ -216,19 +218,19 @@ create_index:		/*create index 语句的语法解析树*/
     ;
 
 drop_index:			/*drop index 语句的语法解析树*/
-    DROP INDEX ID  SEMICOLON 
+    DROP INDEX ID  SEMICOLON
 		{
 			CONTEXT->ssql->flag=SCF_DROP_INDEX;//"drop_index";
 			drop_index_init(&CONTEXT->ssql->sstr.drop_index, $3);
 		}
     ;
 create_table:		/*create table 语句的语法解析树*/
-    CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE SEMICOLON 
+    CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE SEMICOLON
 		{
 			CONTEXT->ssql->flag=SCF_CREATE_TABLE;//"create_table";
 			// CONTEXT->ssql->sstr.create_table.attribute_count = CONTEXT->value_length;
 			create_table_init_name(&CONTEXT->ssql->sstr.create_table, $3);
-			//临时变量清零	
+			//临时变量清零
 			CONTEXT->value_length = 0;
 		}
     ;
@@ -236,16 +238,16 @@ attr_def_list:
     /* empty */
     | COMMA attr_def attr_def_list {    }
     ;
-    
+
 attr_def:
-    ID_get type LBRACE number RBRACE 
+    ID_get type LBRACE number RBRACE
 		{
 			AttrInfo attribute;
 			attr_info_init(&attribute, CONTEXT->id, $2, $4);
 			create_table_append_attribute(&CONTEXT->ssql->sstr.create_table, &attribute);
 			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name =(char*)malloc(sizeof(char));
-			// strcpy(CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name, CONTEXT->id); 
-			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].type = $2;  
+			// strcpy(CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name, CONTEXT->id);
+			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].type = $2;
 			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length = $4;
 			CONTEXT->value_length++;
 		}
@@ -255,8 +257,8 @@ attr_def:
 			attr_info_init(&attribute, CONTEXT->id, $2, 4);
 			create_table_append_attribute(&CONTEXT->ssql->sstr.create_table, &attribute);
 			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name=(char*)malloc(sizeof(char));
-			// strcpy(CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name, CONTEXT->id); 
-			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].type=$2;  
+			// strcpy(CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name, CONTEXT->id);
+			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].type=$2;
 			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length=4; // default attribute length
 			CONTEXT->value_length++;
 		}
@@ -267,19 +269,20 @@ number:
 type:
 	INT_T { $$=INTS; }
        | STRING_T { $$=CHARS; }
-       | FLOAT_T { $$=FLOATS; }
+       | FLOAT_T  { $$=FLOATS; }
+       | DATE_T   { $$=DATES; }
        ;
 ID_get:
-	ID 
+	ID
 	{
-		char *temp=$1; 
+		char *temp=$1;
 		snprintf(CONTEXT->id, sizeof(CONTEXT->id), "%s", temp);
 	}
 	;
 
-	
+
 insert:				/*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE SEMICOLON 
+    INSERT INTO ID VALUES value_tuple value_tuple_list SEMICOLON
 		{
 			// CONTEXT->values[CONTEXT->value_length++] = *$6;
 
@@ -289,37 +292,59 @@ insert:				/*insert   语句的语法解析树*/
 			// for(i = 0; i < CONTEXT->value_length; i++){
 			// 	CONTEXT->ssql->sstr.insertion.values[i] = CONTEXT->values[i];
       // }
-			inserts_init(&CONTEXT->ssql->sstr.insertion, $3, CONTEXT->values, CONTEXT->value_length);
-
+            inserts_init(&CONTEXT->ssql->sstr.insertion, $3, CONTEXT->values, CONTEXT->value_length);
       //临时变量清零
       CONTEXT->value_length=0;
     }
 
+value_tuple:
+    LBRACE value value_list RBRACE {
+        CONTEXT->ssql->sstr.insertion.tuple_size[CONTEXT->ssql->sstr.insertion.tuple_num]++;
+        CONTEXT->ssql->sstr.insertion.tuple_num++;
+    }
+    ;
+
+value_tuple_list:
+    /* empty */
+    | COMMA value_tuple value_tuple_list {
+    }
+    ;
+
 value_list:
     /* empty */
-    | COMMA value value_list  { 
+    | COMMA value value_list  {
   		// CONTEXT->values[CONTEXT->value_length++] = *$2;
+  		CONTEXT->ssql->sstr.insertion.tuple_size[CONTEXT->ssql->sstr.insertion.tuple_num]++;
 	  }
     ;
 value:
-    NUMBER{	
+    NUMBER{
   		value_init_integer(&CONTEXT->values[CONTEXT->value_length++], $1);
 		}
     |FLOAT{
   		value_init_float(&CONTEXT->values[CONTEXT->value_length++], $1);
 		}
+	|DATE_STR{
+            $1 = substr($1,1,strlen($1)-2);
+  		int ret = value_init_date(&CONTEXT->values[CONTEXT->value_length++], $1);
+  		if (ret){
+			// TODO: find an elegant way to do this
+			CONTEXT->ssql->flag = SCF_ERROR;
+			return -1;
+        }
+	    }
     |SSS {
 			$1 = substr($1,1,strlen($1)-2);
   		value_init_string(&CONTEXT->values[CONTEXT->value_length++], $1);
 		}
     ;
-    
+
 delete:		/*  delete 语句的语法解析树*/
-    DELETE FROM ID where SEMICOLON 
+    DELETE FROM ID where SEMICOLON
 		{
 			CONTEXT->ssql->flag = SCF_DELETE;//"delete";
 			deletes_init_relation(&CONTEXT->ssql->sstr.deletion, $3);
-			deletes_set_conditions(&CONTEXT->ssql->sstr.deletion, 
+			deletes_set_conditions(&CONTEXT->ssql->sstr.deletion,
 					CONTEXT->conditions, CONTEXT->condition_length);
 			CONTEXT->condition_length = 0;	
     }
@@ -329,7 +354,7 @@ update:			/*  update 语句的语法解析树*/
 		{
 			CONTEXT->ssql->flag = SCF_UPDATE;//"update";
 			Value *value = &CONTEXT->values[0];
-			updates_init(&CONTEXT->ssql->sstr.update, $2, $4, value, 
+			updates_init(&CONTEXT->ssql->sstr.update, $2, $4, value,
 					CONTEXT->conditions, CONTEXT->condition_length);
 			CONTEXT->condition_length = 0;
 		}
@@ -354,7 +379,7 @@ select:				/*  select 语句的语法解析树*/
 	;
 
 select_attr:
-    STAR {  
+    STAR {
 			RelAttr attr;
 			relation_attr_init(&attr, NULL, "*");
 			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
@@ -390,13 +415,13 @@ attr_list:
 
 rel_list:
     /* empty */
-    | COMMA ID rel_list {	
+    | COMMA ID rel_list {
 				selects_append_relation(&CONTEXT->ssql->sstr.selection, $2);
 		  }
     ;
 where:
-    /* empty */ 
-    | WHERE condition condition_list {	
+    /* empty */
+    | WHERE condition condition_list {
 				// CONTEXT->conditions[CONTEXT->condition_length++]=*$2;
 			}
     ;
@@ -407,7 +432,7 @@ condition_list:
 			}
     ;
 condition:
-    ID comOp value 
+    ID comOp value
 		{
 			RelAttr left_attr;
 			relation_attr_init(&left_attr, NULL, $1);
@@ -428,7 +453,7 @@ condition:
 			// $$->right_value = *$3;
 
 		}
-		|value comOp value 
+		|value comOp value
 		{
 			Value *left_value = &CONTEXT->values[CONTEXT->value_length - 2];
 			Value *right_value = &CONTEXT->values[CONTEXT->value_length - 1];
@@ -448,7 +473,7 @@ condition:
 			// $$->right_value = *$3;
 
 		}
-		|ID comOp ID 
+		|ID comOp ID
 		{
 			RelAttr left_attr;
 			relation_attr_init(&left_attr, NULL, $1);
@@ -484,11 +509,11 @@ condition:
 			// $$->left_attr.attribute_name=NULL;
 			// $$->left_value = *$1;
 			// $$->comp=CONTEXT->comp;
-			
+
 			// $$->right_is_attr = 1;
 			// $$->right_attr.relation_name=NULL;
 			// $$->right_attr.attribute_name=$3;
-		
+
 		}
     |ID DOT ID comOp value
 		{
@@ -508,8 +533,8 @@ condition:
 			// $$->right_is_attr = 0;   //属性值
 			// $$->right_attr.relation_name=NULL;
 			// $$->right_attr.attribute_name=NULL;
-			// $$->right_value =*$5;			
-							
+			// $$->right_value =*$5;
+
     }
     |value comOp ID DOT ID
 		{
@@ -530,7 +555,7 @@ condition:
 			// $$->right_is_attr = 1;//属性
 			// $$->right_attr.relation_name = $3;
 			// $$->right_attr.attribute_name = $5;
-									
+
     }
     |ID DOT ID comOp ID DOT ID
 		{
