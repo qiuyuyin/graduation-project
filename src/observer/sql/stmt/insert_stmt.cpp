@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "storage/common/db.h"
 #include "storage/common/table.h"
+#include "sql/stmt/typecaster.h"
 
 InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount, int tuple_size)
     : table_(table), values_(values), value_amount_(value_amount), tuple_size_(tuple_size) {}
@@ -45,7 +46,7 @@ RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt) {
   }
 
   // check the fields number
-  const Value *values = inserts.values;
+  Value *values = (Value *)inserts.values;
   const int value_num = inserts.value_num;
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num() - table_meta.sys_field_num();
@@ -60,11 +61,17 @@ RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt) {
     const FieldMeta *field_meta = table_meta.field((i%size) + sys_field_num);
     const AttrType field_type = field_meta->type();
     const AttrType value_type = values[i].type;
-    if (field_type != value_type) { // TODO try to convert the value type to field type
+    RC rc = Typecaster::attr_cast(values+i, field_type);
+    if (RC::TYPECAST == rc){
       LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
           table_name, field_meta->name(), field_type, value_type);
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
     }
+    // if (field_type != value_type) { // TODO try to convert the value type to field type
+    //   LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
+    //       table_name, field_meta->name(), field_type, value_type);
+    //   return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+    // }
   }
 
   // everything alright

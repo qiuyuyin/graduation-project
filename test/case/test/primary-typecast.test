@@ -1,0 +1,26 @@
+create table typecast_table(id int, str char, f float);
+
+-- insert test
+
+-- chars to int
+insert into typecast_table values('1', '123', 1.1);
+-- int to char
+insert into typecast_table values(2, 123, 2.2);
+-- int to float
+insert into typecast_table values(3, '123', 3.3);
+-- float to int
+-- downcast
+insert into typecast_table values(4.3, '123', 4.4);
+-- upcast
+insert into typecast_table values(4.5, '123', 5.5);
+-- chars to float
+insert into typecast_table values(6, '123', '6.6');
+-- float to chars
+insert into typecast_table values(7, 123.0, 7.7);
+-- selection test
+-- compare of char and int
+select * from typecast_table where 123 = str;
+select * from typecast_table where id <= '3';
+-- compare of float and char
+select * from typecast_table where '3.3' = f;
+select * from typecast_table where str = 123.0;

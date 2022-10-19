@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 #include <sstream>
+
 #include "execute_stage.h"
 
 #include "common/io/io.h"
@@ -358,8 +359,6 @@ RC ExecuteStage::do_show_tables(SQLStageEvent *sql_event)
   }
   return RC::SUCCESS;
 }
-
-
 
 RC ExecuteStage::do_desc_table(SQLStageEvent *sql_event)
 {
