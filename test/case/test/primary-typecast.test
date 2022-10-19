@@ -1,7 +1,7 @@
 create table typecast_table(id int, str char, f float);
 
 -- insert test
-
+insert into typecast_table values(1, '123', 1.1);
 -- chars to int
 insert into typecast_table values('1', '123', 1.1);
 -- int to char
@@ -24,3 +24,8 @@ select * from typecast_table where id <= '3';
 -- compare of float and char
 select * from typecast_table where '3.3' = f;
 select * from typecast_table where str = 123.0;
+
+select * from typecast_table where id<'1.5a';
+select * from typecast_table where id>='3a';
+SELECT * FROM typecast_table WHERE '1.5a'=2;
+SELECT * FROM typecast_table WHERE '1.5a'<2.1;
