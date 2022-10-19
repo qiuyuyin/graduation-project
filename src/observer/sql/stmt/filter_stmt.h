@@ -20,6 +20,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse_defs.h"
 #include "sql/stmt/stmt.h"
 #include "sql/expr/expression.h"
+#include "common/log/log.h"
+#include "sql/expr/tuple.h"
 
 class Db;
 class Table;
@@ -39,6 +41,59 @@ public:
       delete right_;
       right_ = nullptr;
     }
+  }
+
+  bool compare(Tuple* t1 = nullptr, Tuple* t2 = nullptr) {
+    TupleCell left_cell, right_cell;
+    if (t1 == nullptr && t2 == nullptr) {
+      if (left_->type() != ExprType::VALUE || right_->type() != ExprType::VALUE) {
+        //todo 错误处理
+        LOG_WARN("[FilterUnit::compare] invalid parameter, if params are null, the exprType of filterUnit both should be value");
+        return false;
+      }
+      RowTuple temp;
+      left_->get_value(temp, left_cell);
+      right_->get_value(temp, right_cell);
+    } else if (t1 != nullptr && t2 != nullptr) {
+      left_->get_value(*t1, left_cell);
+      right_->get_value(*t2, right_cell);
+    } else if (t1 != nullptr && t2 == nullptr){
+      left_->get_value(*t1, left_cell);
+      right_->get_value(*t1, right_cell);
+    } else {
+      //todo 错误处理
+      LOG_WARN("[FilterUnit::compare] invalid parameter");
+      return false;
+    }
+    const int compare = left_cell.compare(right_cell);
+    bool filter_result = false;
+    switch (comp_) {
+      case EQUAL_TO: {
+        filter_result = (0 == compare);
+      } break;
+      case LESS_EQUAL: {
+        filter_result = (compare <= 0);
+      } break;
+      case NOT_EQUAL: {
+        filter_result = (compare != 0);
+      } break;
+      case LESS_THAN: {
+        filter_result = (compare < 0);
+      } break;
+      case GREAT_EQUAL: {
+        filter_result = (compare >= 0);
+      } break;
+      case GREAT_THAN: {
+        filter_result = (compare > 0);
+      } break;
+      default: {
+        LOG_WARN("invalid compare type: %d", comp_);
+      } break;
+    }
+    if (!filter_result) {
+      return false;
+    }
+    return true;
   }
   
   void set_comp(CompOp comp) {
