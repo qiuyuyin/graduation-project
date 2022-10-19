@@ -36,6 +36,7 @@
 #include "storage/trx/trx.h"
 #include "storage/clog/clog.h"
 #include "map"
+#include <numeric>
 
 using namespace std;
 
@@ -57,6 +58,8 @@ void dfs(stringstream& ss, vector<Operator*>& tuple_sets, unordered_map<string, 
   int table_num = static_cast<int>(table_index.size());
   if (step == table_num) {
     if (check_cross_condition(merge_tuple, cross_filters, table_index)) {
+      int projection_num = 0;
+      for_each(projection_fields.begin(), projection_fields.end(), [&](vector<Field> &a){projection_num += a.size();});
       for (int i = 0; i < table_num; ++i) {
         Tuple *&tuple = merge_tuple[i];
         for (int j = 0; j < projection_fields[i].size(); ++j) {
@@ -64,7 +67,7 @@ void dfs(stringstream& ss, vector<Operator*>& tuple_sets, unordered_map<string, 
           TupleCell tuple_cell;
           tuple->find_cell(field, tuple_cell);
           tuple_cell.to_string(ss);
-          if (i == table_num-1 && j == projection_fields[i].size()-1) {
+          if (--projection_num == 0) {
             ss << "\n";
           } else {
             ss << " | ";
