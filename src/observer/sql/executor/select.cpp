@@ -40,40 +40,25 @@
 
 using namespace std;
 
-bool check_cross_condition(vector<Tuple*> &merge_tuple, vector<FilterUnit*>& cross_filters, unordered_map<string, int>& table_index) {
-  for (auto filter : cross_filters) {
-    FieldExpr &left = *(FieldExpr *)filter->left();
-    FieldExpr &right = *(FieldExpr *)filter->right();
-    Tuple*& left_tuple = merge_tuple[table_index[string(left.table_name())]];
-    Tuple*& right_tuple = merge_tuple[table_index[string(right.table_name())]];
-    if (!filter->compare(left_tuple, right_tuple)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 void dfs(stringstream& ss, vector<Operator*>& tuple_sets, unordered_map<string, int>& table_index, vector<vector<Field>>& projection_fields,
-    vector<vector<FilterUnit*>> &single_filters, vector<FilterUnit*>& cross_filters, vector<Tuple*>& merge_tuple, int step) {
+    vector<vector<FilterUnit*>> &single_filters, unordered_map<int, vector<pair<int, FilterUnit*>>>& cross_filters, vector<Tuple*>& merge_tuple, int step) {
   int table_num = static_cast<int>(table_index.size());
   if (step == table_num) {
-    if (check_cross_condition(merge_tuple, cross_filters, table_index)) {
-      int projection_num = 0;
-      for (auto projection : projection_fields) {
-        projection_num += projection.size();
-      }
-      for (int i = 0; i < table_num; ++i) {
-        Tuple *&tuple = merge_tuple[i];
-        for (int j = 0; j < projection_fields[i].size(); ++j) {
-          auto field = projection_fields[i][j];
-          TupleCell tuple_cell;
-          tuple->find_cell(field, tuple_cell);
-          tuple_cell.to_string(ss);
-          if (--projection_num == 0) {
-            ss << "\n";
-          } else {
-            ss << " | ";
-          }
+    int projection_num = 0;
+    for (auto projection : projection_fields) {
+      projection_num += projection.size();
+    }
+    for (int i = 0; i < table_num; ++i) {
+      Tuple *&tuple = merge_tuple[i];
+      for (int j = 0; j < projection_fields[i].size(); ++j) {
+        auto field = projection_fields[i][j];
+        TupleCell tuple_cell;
+        tuple->find_cell(field, tuple_cell);
+        tuple_cell.to_string(ss);
+        if (--projection_num == 0) {
+          ss << "\n";
+        } else {
+          ss << " | ";
         }
       }
     }
@@ -84,16 +69,35 @@ void dfs(stringstream& ss, vector<Operator*>& tuple_sets, unordered_map<string, 
   current_operator->open();
   RC rc = RC::SUCCESS;
   while ((rc = current_operator->next()) == RC::SUCCESS) {
-    Tuple *tuple = current_operator->current_tuple();
+    Tuple *current_tuple = current_operator->current_tuple();
     bool flag = true;
     for (auto filter_unit : single_filters[step]) {
-      if (!filter_unit->compare(tuple)) {
+      if (!filter_unit->compare(current_tuple)) {
         flag = false;
         break;
       }
     }
+
+    for (auto p : cross_filters[step]) {
+      int prev_index = p.first;
+      Tuple *&prev_tuple = merge_tuple[prev_index];
+      auto filter_unit = p.second;
+      int &left_index = table_index[string((*(FieldExpr *)filter_unit->left()).table_name())];
+      if (prev_index == left_index) {
+        if (!filter_unit->compare(prev_tuple, current_tuple)) {
+          flag = false;
+          break;
+        }
+      } else {
+        if (!filter_unit->compare(current_tuple, prev_tuple)) {
+          flag = false;
+          break;
+        }
+      }
+    }
+
     if (flag) {
-      merge_tuple.push_back(tuple);
+      merge_tuple.push_back(current_tuple);
       dfs(ss, tuple_sets, table_index, projection_fields, single_filters, cross_filters, merge_tuple, step+1);
       merge_tuple.pop_back();
     }
@@ -108,14 +112,24 @@ RC print_tuple_sets(stringstream& ss, vector<Operator*>& tuple_sets, SelectStmt&
   }
   vector<vector<Field>> projections(tables.size());
   vector<vector<FilterUnit*>> single_filters(tables.size());
-  vector<FilterUnit*> cross_filters;
+  unordered_map<int, vector<pair<int, FilterUnit*>>> cross_filters;
+
+
   vector<FilterUnit*> both_value_filters;
   for (auto filter_unit : select_stmt.filter_stmt()->filter_units()) {
     Expression *left = filter_unit->left();
     Expression *right = filter_unit->right();
     FieldExpr* fieldExpr = nullptr;
     if (left->type() == ExprType::FIELD && right->type() == ExprType::FIELD) {
-      cross_filters.push_back(filter_unit);
+      int index_left = table_index[string(((FieldExpr*)left)->table_name())];
+      int index_right = table_index[string(((FieldExpr*)right)->table_name())];
+      int bigger_index = max(index_left, index_right);
+      int smaller_index = min(index_left, index_right);
+      if (cross_filters.count(bigger_index) == 0) {
+        vector<pair<int, FilterUnit*>> temp;
+        cross_filters[bigger_index] = vector<pair<int, FilterUnit*>>();
+      }
+      cross_filters[bigger_index].push_back({smaller_index, filter_unit});
       continue;
     } else if (left->type() == ExprType::FIELD && right->type() == ExprType::VALUE) {
       fieldExpr = (FieldExpr *)left;
