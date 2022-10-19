@@ -54,13 +54,12 @@ public:
       RowTuple temp;
       left_->get_value(temp, left_cell);
       right_->get_value(temp, right_cell);
-    } else if (t1 != nullptr && t2 == nullptr) {
+    } else if (t1 != nullptr && t2 != nullptr) {
       left_->get_value(*t1, left_cell);
-      if (t2 == nullptr) {
-        right_->get_value(*t1, right_cell);
-      } else {
-        right_->get_value(*t2, right_cell);
-      }
+      right_->get_value(*t2, right_cell);
+    } else if (t1 != nullptr && t2 == nullptr){
+      left_->get_value(*t1, left_cell);
+      right_->get_value(*t1, right_cell);
     } else {
       //todo 错误处理
       LOG_WARN("[FilterUnit::compare] invalid parameter");
