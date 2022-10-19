@@ -59,7 +59,9 @@ void dfs(stringstream& ss, vector<Operator*>& tuple_sets, unordered_map<string, 
   if (step == table_num) {
     if (check_cross_condition(merge_tuple, cross_filters, table_index)) {
       int projection_num = 0;
-      for_each(projection_fields.begin(), projection_fields.end(), [&](vector<Field> &a){projection_num += a.size();});
+      for (auto projection : projection_fields) {
+        projection_num += projection.size();
+      }
       for (int i = 0; i < table_num; ++i) {
         Tuple *&tuple = merge_tuple[i];
         for (int j = 0; j < projection_fields[i].size(); ++j) {
