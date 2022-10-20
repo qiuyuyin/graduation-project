@@ -22,6 +22,23 @@ RC parse(char *st, Query *sqln);
 #ifdef __cplusplus
 extern "C" {
 #endif  // __cplusplus
+
+void relation_attr_add_aggregation(RelAttr *relation_attr, const char *aggregation_type) {
+  if (aggregation_type != nullptr) {
+    if (strcmp("max", aggregation_type) == 0 || strcmp("MAX", aggregation_type) == 0) {
+      relation_attr->aggregation_type = AggregationType::MAX;
+    }else if (strcmp("min", aggregation_type) == 0 || strcmp("MIN", aggregation_type) == 0) {
+      relation_attr->aggregation_type = AggregationType::MIN;
+    }else if (strcmp("count", aggregation_type) == 0 || strcmp("COUNT", aggregation_type) == 0) {
+      relation_attr->aggregation_type = AggregationType::COUNT;
+    }else if (strcmp("avg", aggregation_type) == 0 || strcmp("AVG", aggregation_type) == 0) {
+      relation_attr->aggregation_type = AggregationType::AVG;
+    }else if (strcmp("sum", aggregation_type) == 0 || strcmp("SUM", aggregation_type) == 0) {
+      relation_attr->aggregation_type = AggregationType::SUM;
+    }
+  }
+}
+
 void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name)
 {
   if (relation_name != nullptr) {
@@ -30,6 +47,7 @@ void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const
     relation_attr->relation_name = nullptr;
   }
   relation_attr->attribute_name = strdup(attribute_name);
+  relation_attr->aggregation_type = AggregationType::NO_Aggregation;
 }
 
 void relation_attr_destroy(RelAttr *relation_attr)

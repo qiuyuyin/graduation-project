@@ -29,6 +29,7 @@ ID               [A-Za-z_]+[A-Za-z0-9_]*
 DOT              \.
 QUOTE            [\'\"]
 %x STR
+AGGREGATION_FUNC MAX|max|MIN|min|COUNT|count|AVG|avg|SUM|sum
 
 %%
 
@@ -37,6 +38,8 @@ QUOTE            [\'\"]
 
 [\-]?{DIGIT}+                                        yylval->number=atoi(yytext); RETURN_TOKEN(NUMBER);
 [\-]?{DIGIT}+{DOT}{DIGIT}+                           yylval->floats=(float)(atof(yytext)); RETURN_TOKEN(FLOAT);
+
+
 
 ";"                                                  RETURN_TOKEN(SEMICOLON);
 {DOT}                                                RETURN_TOKEN(DOT);
@@ -76,6 +79,7 @@ QUOTE            [\'\"]
 [Ii][Nn][Ff][Ii][Ll][Ee]                             RETURN_TOKEN(INFILE);
 [Nn][Oo][Tt]                                         RETURN_TOKEN(NOT);
 [Ll][Ii][Kk][Ee]                                     RETURN_TOKEN(LIKE_);
+{AGGREGATION_FUNC}                                   yylval->string=strdup(yytext); RETURN_TOKEN(AGGREGATION_FUNC);
 {ID}                                                 yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("                                                  RETURN_TOKEN(LBRACE);
 ")"                                                  RETURN_TOKEN(RBRACE);
