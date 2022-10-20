@@ -27,6 +27,7 @@ struct PageHeader {
   int32_t record_real_size;     // 每条记录的实际大小
   int32_t record_size;          // 每条记录占用实际空间大小(可能对齐)
   int32_t first_record_offset;  // 第一条记录的偏移量
+  bool has_next;  //是否有下一页(针对text设计)
 };
 
 class RecordPageHandler;
@@ -81,9 +82,14 @@ public:
 
   RC get_record(const RID *rid, Record *rec);
 
+  RC get_first_record(Record *rec);
+  RC get_next_record(Record *rec);
+
   PageNum get_page_num() const;
 
   bool is_full() const;
+
+  void set_has_next(bool flag);
 
 protected:
   char *get_record_data(SlotNum slot_num)
@@ -122,6 +128,9 @@ public:
    * 插入一个新的记录到指定文件中，pData为指向新纪录内容的指针，返回该记录的标识符rid
    */
   RC insert_record(const char *data, int record_size, RID *rid);
+
+  RC insert_large_record(const char *data, int record_size, RID *rid); //to solve text type
+
   RC recover_insert_record(const char *data, int record_size, RID *rid);
 
   /**
@@ -148,6 +157,7 @@ private:
 private:
   DiskBufferPool *disk_buffer_pool_ = nullptr;
   std::unordered_set<PageNum>  free_pages_; // 没有填充满的页面集合
+  RecordPageHandler   record_page_handler_;        // 目前只有insert record使用
 };
 
 class RecordFileScanner {
