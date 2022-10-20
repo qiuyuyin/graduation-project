@@ -9,6 +9,7 @@
 #include "map"
 #include <numeric>
 #include "sql/stmt/typecaster.h"
+#include "util/util.h"
 
 using namespace std;
 
@@ -218,14 +219,14 @@ RC print_aggregation_tuple(stringstream& ss, Operator* op, SelectStmt& select_st
       break;
     case AVG:
       ss << "avg(" << field.field_name() << ")\n";
-      ss << sum/(float)count << "\n";
+      ss << double2string(sum/(float)count) << "\n";
       break;
     case SUM:
       ss << "sum(" << field.field_name() << ")\n";
       if (field.attr_type() == AttrType::INTS || field.attr_type() == AttrType::CHARS) {
         ss << (int)sum << "\n";
       } else {
-        ss << sum << "\n";
+        ss << double2string(sum) << "\n";
       }
       break;
     default:
