@@ -4,39 +4,11 @@
 
 #include <string>
 #include <sstream>
-
+#include <limits>
 #include "execute_stage.h"
-#include "string"
-#include "common/io/io.h"
-#include "common/log/log.h"
-#include "common/lang/defer.h"
-#include "common/seda/timer_stage.h"
-#include "common/lang/string.h"
-#include "session/session.h"
-#include "event/storage_event.h"
-#include "event/sql_event.h"
-#include "event/session_event.h"
-#include "sql/expr/tuple.h"
-#include "sql/operator/table_scan_operator.h"
-#include "sql/operator/index_scan_operator.h"
-#include "sql/operator/predicate_operator.h"
-#include "sql/operator/delete_operator.h"
-#include "sql/operator/project_operator.h"
-#include "sql/stmt/stmt.h"
-#include "sql/stmt/select_stmt.h"
-#include "sql/stmt/update_stmt.h"
-#include "sql/stmt/delete_stmt.h"
-#include "sql/stmt/insert_stmt.h"
-#include "sql/stmt/filter_stmt.h"
-#include "storage/common/table.h"
-#include "storage/common/field.h"
-#include "storage/index/index.h"
-#include "storage/default/default_handler.h"
-#include "storage/common/condition_filter.h"
-#include "storage/trx/trx.h"
-#include "storage/clog/clog.h"
 #include "map"
 #include <numeric>
+#include "sql/stmt/typecaster.h"
 
 using namespace std;
 
@@ -171,11 +143,96 @@ RC print_tuple_sets(stringstream& ss, vector<Operator*>& tuple_sets, SelectStmt&
   return SUCCESS;
 }
 
+
+
+RC print_aggregation_tuple(stringstream& ss, Operator* op, SelectStmt& select_stmt) {
+  //todo(hjh) 目前只考虑只有一个聚合函数的情况
+  auto field = select_stmt.query_fields()[0];
+  auto aggregation_type = select_stmt.aggregation_funcs()[0];
+  op->open();
+  RC rc;
+  float max_num = numeric_limits<float>::min();
+  float min_num = numeric_limits<float>::max();
+  float sum = 0;
+  int count = 0;
+
+  while ((rc = op->next()) == RC::SUCCESS) {
+    if (aggregation_type == AggregationType::COUNT) {
+      if (strcmp(field.field_name(), "1") != 0 && strcmp(field.field_name(), "*") != 0) {
+        if (select_stmt.tables()[0]->table_meta().field(field.field_name()) == nullptr) {
+          LOG_WARN("%s isn't the field of table %s", field.field_name(), select_stmt.tables()[0]->name());
+          return INVALID_ARGUMENT;
+        }
+      }
+      count += 1;
+      continue;
+    }
+    Tuple *tuple = op->current_tuple();
+    TupleCell tupleCell;
+    tuple->find_cell(field, tupleCell);
+    float data = 0;
+    if (field.attr_type() == AttrType::INTS) {
+      data = (float)*(int *)tupleCell.data();
+    } else if (field.attr_type() == AttrType::FLOATS) {
+      data = *(float *)tupleCell.data();
+    } else if (field.attr_type() == AttrType::CHARS) {
+      data = Typecaster::s2f(tupleCell.data());
+    }
+    max_num = max(max_num, data);
+    min_num = min(min_num, data);
+    count += 1;
+    sum += data;
+  }
+  switch (aggregation_type) {
+    case MAX:
+      ss << "max(" << field.field_name() << ")\n";
+      if (field.attr_type() == AttrType::INTS || field.attr_type() == AttrType::CHARS) {
+        ss << (int)max_num << "\n";
+      } else {
+        ss << max_num << "\n";
+      }
+      break;
+    case MIN:
+      ss << "min(" << field.field_name() << ")\n";
+      if (field.attr_type() == AttrType::INTS || field.attr_type() == AttrType::CHARS) {
+        ss << (int)min_num << "\n";
+      } else {
+        ss << min_num << "\n";
+      }
+      break;
+    case COUNT:
+      ss << "count(" << field.field_name() << ")\n";
+      ss << count << "\n";
+      break;
+    case AVG:
+      ss << "avg(" << field.field_name() << ")\n";
+      ss << sum/(float)count << "\n";
+      break;
+    case SUM:
+      ss << "sum(" << field.field_name() << ")\n";
+      if (field.attr_type() == AttrType::INTS || field.attr_type() == AttrType::CHARS) {
+        ss << (int)sum << "\n";
+      } else {
+        ss << sum << "\n";
+      }
+      break;
+    default:
+      LOG_WARN("no support aggregation_type %d", aggregation_type);
+      return INVALID_ARGUMENT;
+  }
+  op->close();
+  return SUCCESS;
+}
+
+
 RC ExecuteStage::do_select(SQLStageEvent *sql_event)
 {
   SelectStmt *select_stmt = (SelectStmt *)(sql_event->stmt());
   SessionEvent *session_event = sql_event->session_event();
   RC rc = RC::SUCCESS;
+  stringstream ss;
+
+  // 多表的查询
   if (select_stmt->tables().size() != 1) {
     int table_num = select_stmt->tables().size();
     vector<Operator*> tuple_list;
@@ -184,13 +241,16 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
       Operator* scan_oper = new TableScanOperator(select_stmt->tables()[i]);
       tuple_list.push_back(scan_oper);
     }
-    stringstream ss;
-    print_tuple_sets(ss, tuple_list, *select_stmt);
+    rc = print_tuple_sets(ss, tuple_list, *select_stmt);
     for (auto oper : tuple_list) {
       oper->close();
       delete oper;
     }
-    session_event->set_response(ss.str());
+    if (rc == SUCCESS) {
+      session_event->set_response(ss.str());
+    } else {
+      session_event->set_response("FAILURE\n");
+    }
     return rc;
   }
 
@@ -200,9 +260,20 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
   }
 
   DEFER([&] () {delete scan_oper;});
-
   PredicateOperator pred_oper(select_stmt->filter_stmt());
   pred_oper.add_child(scan_oper);
+
+  // 聚合函数查询
+  if (select_stmt->aggregation_funcs().size() > 0) {
+    rc = print_aggregation_tuple(ss, &pred_oper, *select_stmt);
+    if (rc == SUCCESS) {
+      session_event->set_response(ss.str());
+    } else {
+      session_event->set_response("FAILURE\n");
+    }
+    return rc;
+  }
+
   ProjectOperator project_oper;
   project_oper.add_child(&pred_oper);
   for (const Field &field : select_stmt->query_fields()) {
@@ -214,7 +285,6 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
     return rc;
   }
 
-  std::stringstream ss;
   print_tuple_header(ss, project_oper);
   while ((rc = project_oper.next()) == RC::SUCCESS) {
     // get current record

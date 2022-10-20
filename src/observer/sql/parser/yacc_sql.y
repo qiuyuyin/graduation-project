@@ -122,6 +122,8 @@ ParserContext *get_context(yyscan_t scanner)
 %token <number> NUMBER
 %token <floats> FLOAT
 %token <string> ID
+%token <string> AGGREGATION_FUNC
+%token <string> AGGREGATION_FUNC_VALUE
 %token <string> PATH
 %token <string> SSS
 %token <string> STAR
@@ -411,7 +413,60 @@ select_attr:
 			relation_attr_init(&attr, $1, $3);
 			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
 		}
+    | AGGREGATION_FUNC LBRACE ID RBRACE aggregation_func_list {
+            RelAttr attr;
+            relation_attr_init(&attr, NULL, $3);
+            relation_attr_add_aggregation(&attr, $1);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+
+        }
+    | AGGREGATION_FUNC LBRACE STAR RBRACE aggregation_func_list {
+            RelAttr attr;
+            relation_attr_init(&attr, NULL, $3);
+            relation_attr_add_aggregation(&attr, $1);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+
+        }
+    | AGGREGATION_FUNC LBRACE number RBRACE aggregation_func_list {
+          RelAttr attr;
+          if($3 != 1) {
+              // TODO: find an elegant way to do this
+              CONTEXT->ssql->flag = SCF_ERROR;
+              return -1;
+          }
+          relation_attr_init(&attr, NULL, "1");
+          relation_attr_add_aggregation(&attr, $1);
+          selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+    }
     ;
+
+aggregation_func_list:
+    /* empty */
+    | COMMA AGGREGATION_FUNC LBRACE ID RBRACE aggregation_func_list {
+            RelAttr attr;
+            relation_attr_init(&attr, NULL, $4);
+            relation_attr_add_aggregation(&attr, $2);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+        }
+    | COMMA AGGREGATION_FUNC LBRACE STAR RBRACE aggregation_func_list {
+            RelAttr attr;
+            relation_attr_init(&attr, NULL, $4);
+            relation_attr_add_aggregation(&attr, $2);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+        }
+    | COMMA AGGREGATION_FUNC LBRACE number RBRACE aggregation_func_list {
+            RelAttr attr;
+            if($4 != 1) {
+                // TODO: find an elegant way to do this
+                CONTEXT->ssql->flag = SCF_ERROR;
+                return -1;
+            }
+            relation_attr_init(&attr, NULL, "1");
+            relation_attr_add_aggregation(&attr, $2);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+        }
+    ;
+
 attr_list:
     /* empty */
     | COMMA ID attr_list {
