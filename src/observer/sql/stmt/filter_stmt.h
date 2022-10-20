@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/expression.h"
 #include "common/log/log.h"
 #include "sql/expr/tuple.h"
+#include "util/comparator.h"
 
 class Db;
 class Table;
@@ -65,6 +66,19 @@ public:
       LOG_WARN("[FilterUnit::compare] invalid parameter");
       return false;
     }
+
+    if (comp_ == LIKE || comp_ == NOT_LIKE) {
+      if (left_cell.attr_type() == AttrType::CHARS && right_cell.attr_type() == AttrType::CHARS) {
+        bool flag = compare_string((void *)left_cell.data(), left_cell.length(), (void *)right_cell.data(), right_cell.length(), true);
+        if ((comp_ == LIKE && flag) || (comp_ == NOT_LIKE && !flag)) {
+          return true;
+        }
+      }
+      //todo(hjh) 这里到底是返回client failure还是false
+      return false;
+    }
+
+
     const int compare = left_cell.compare(right_cell);
     bool filter_result = false;
     switch (comp_) {

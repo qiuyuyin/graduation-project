@@ -12,10 +12,22 @@ See the Mulan PSL v2 for more details. */
 // Created by wangyunlai on 2021/6/11.
 //
 
-#include <string.h>
+#include <string>
 #include <algorithm>
+#include <regex>
 
+using namespace std;
 const double epsilon = 1E-6;
+
+void string_replace_all(string& s1, const string& s2, const string& s3) {
+  string::size_type pos = 0;
+  string::size_type a = s2.size();
+  string::size_type b = s3.size();
+  while ((pos = s1.find(s2, pos)) != string::npos) {
+    s1.replace(pos, a, s3);
+    pos += b;
+  }
+}
 
 int compare_int(void *arg1, void *arg2)
 {
@@ -42,22 +54,36 @@ int compare_float(void *arg1, void *arg2)
   return 0;
 }
 
-int compare_string(void *arg1, int arg1_max_length, void *arg2, int arg2_max_length)
+int compare_string(void *arg1, int arg1_max_length, void *arg2, int arg2_max_length, bool like = false)
 {
   const char *s1 = (const char *)arg1;
   const char *s2 = (const char *)arg2;
   int maxlen = std::min(arg1_max_length, arg2_max_length);
-  int result = strncmp(s1, s2, maxlen);
-  if (0 != result) {
-    return result;
-  }
+  if (like) {
+    string regex_str(s2);
+    string_replace_all(regex_str, "%", "*");
+    string_replace_all(regex_str, "_", ".");
+    bool flag;
+    try {
+      regex rule(regex_str);
+      flag = regex_match(s1, rule);
+    } catch (regex_error &e) {
+      return false;
+    }
+    return flag;
+  } else{
+    int result = strncmp(s1, s2, maxlen);
+    if (0 != result) {
+      return result;
+    }
 
-  if (arg1_max_length > maxlen) {
-    return s1[maxlen] - 0;
-  }
+    if (arg1_max_length > maxlen) {
+      return s1[maxlen] - 0;
+    }
 
-  if (arg2_max_length > maxlen) {
-    return 0 - s2[maxlen];
+    if (arg2_max_length > maxlen) {
+      return 0 - s2[maxlen];
+    }
+    return 0;
   }
-  return 0;
 }
