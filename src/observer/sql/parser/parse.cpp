@@ -132,6 +132,11 @@ void condition_destroy(Condition *condition)
 void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t length)
 {
   attr_info->name = strdup(name);
+  if(type == TEXT){
+    attr_info->type = CHARS;
+    attr_info->length = 4096;
+    return;
+  }
   attr_info->type = type;
   attr_info->length = length;
 }

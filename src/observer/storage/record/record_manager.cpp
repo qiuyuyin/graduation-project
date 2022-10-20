@@ -143,6 +143,7 @@ RC RecordPageHandler::init_empty_page(DiskBufferPool &buffer_pool, PageNum page_
   int page_size = BP_PAGE_DATA_SIZE;
   int record_phy_size = align8(record_size);
   page_header_->record_num = 0;
+  page_header_->has_next = false;
   page_header_->record_capacity = page_record_capacity(page_size, record_phy_size);
   page_header_->record_real_size = record_size;
   page_header_->record_size = record_phy_size;
@@ -306,6 +307,11 @@ bool RecordPageHandler::is_full() const
   return page_header_->record_num >= page_header_->record_capacity;
 }
 
+void RecordPageHandler::set_has_next(bool flag)
+{
+  page_header_->has_next = flag;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 RC RecordFileHandler::init(DiskBufferPool *buffer_pool)
@@ -358,6 +364,11 @@ RC RecordFileHandler::init_free_pages()
 
 RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid)
 {
+
+  if(record_size>BP_PAGE_SIZE){
+    return insert_large_record(data,record_size,rid);
+  }
+
   RC ret = RC::SUCCESS;
   // 找到没有填满的页面
 
@@ -404,6 +415,76 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid)
 
   // 找到空闲位置
   return record_page_handler.insert_record(data, rid);
+}
+
+RC RecordFileHandler::insert_large_record(const char *data, int record_size, RID *rid)
+{
+  RC ret = RC::SUCCESS;
+  Frame *first_frame = nullptr;
+  if ((ret = disk_buffer_pool_->allocate_page(&first_frame)) != RC::SUCCESS) {
+    LOG_ERROR("Failed to allocate page while inserting record. ret:%d", ret);
+    return ret;
+  }
+
+  //第一页
+  const int first_page_data_size = BP_PAGE_SIZE - 128;
+  PageNum first_page_num = first_frame->page_num();
+  record_page_handler_.cleanup();
+  ret = record_page_handler_.init_empty_page(*disk_buffer_pool_,first_page_num,first_page_data_size);
+  if (ret != RC::SUCCESS)
+  {
+    LOG_ERROR("Failed to init empty page.");
+    if (RC::SUCCESS != disk_buffer_pool_->unpin_page(first_frame))
+    {
+      LOG_ERROR("Failed to unpin page.");
+    }
+    return ret;
+  }
+  if (RC::SUCCESS != disk_buffer_pool_->unpin_page(first_frame))
+  {
+    LOG_ERROR("Failed to unpin page.");
+  }
+  char *first_data = new char[first_page_data_size];
+  memset(first_data, 0, first_page_data_size);
+  memcpy(first_data, data, first_page_data_size);
+  ret = record_page_handler_.insert_record(first_data, rid);
+  if (ret != RC::SUCCESS) {
+    LOG_ERROR("Insert first half failed!");
+  }
+  // 第一页的下一页标记置为1
+  record_page_handler_.set_has_next(true);
+
+  //第二页
+  Frame *second_frame = nullptr;
+  if ((ret = disk_buffer_pool_->allocate_page(&second_frame)) != RC::SUCCESS) {
+    LOG_ERROR("Failed to allocate page while inserting record. ret:%d", ret);
+    return ret;
+  }
+  PageNum second_page_num = second_frame->page_num();
+  const int second_page_data_size = record_size - first_page_data_size;
+  LOG_INFO("first_data_size: %d", first_page_data_size);
+  LOG_INFO("second_data_size: %d", second_page_data_size);
+  LOG_INFO("total size: %d", first_page_data_size + second_page_data_size);
+  record_page_handler_.cleanup();
+  ret = record_page_handler_.init_empty_page(*disk_buffer_pool_,second_page_num,second_page_data_size);
+  if (ret != RC::SUCCESS)
+  {
+    LOG_ERROR("Failed to init empty page.");
+    if (RC::SUCCESS != disk_buffer_pool_->unpin_page(second_frame))
+    {
+      LOG_ERROR("Failed to unpin page.");
+    }
+    return ret;
+  }
+  if (RC::SUCCESS != disk_buffer_pool_->unpin_page(first_frame))
+  {
+    LOG_ERROR("Failed to unpin page.");
+  }
+  char *second_data = new char[second_page_data_size];
+  memset(second_data,0,second_page_data_size);
+  memcpy(second_data,data+first_page_data_size,second_page_data_size);
+  RID tmp_rid;
+  return record_page_handler_.insert_record(second_data, &tmp_rid);
 }
 
 RC RecordFileHandler::recover_insert_record(const char *data, int record_size, RID *rid)
@@ -464,6 +545,7 @@ RC RecordFileHandler::get_record(const RID *rid, Record *rec)
 
   return page_handler.get_record(rid, rec);
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -49,6 +49,7 @@ typedef enum {
   INTS,
   FLOATS,
   DATES,
+  TEXT,
   NUM_OF_ATTRTYPE,
 } AttrType;
 
