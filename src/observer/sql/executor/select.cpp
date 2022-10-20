@@ -149,27 +149,22 @@ RC print_aggregation_tuple(stringstream& ss, Operator* op, SelectStmt& select_st
   //todo(hjh) 目前只考虑只有一个聚合函数的情况
   auto field = select_stmt.query_fields()[0];
   auto aggregation_type = select_stmt.aggregation_funcs()[0];
+
+  if ((aggregation_type == AggregationType::COUNT) &&
+      ((strcmp(field.field_name(), "1") != 0 && strcmp(field.field_name(), "*") != 0)) &&
+      ((select_stmt.tables()[0]->table_meta().field(field.field_name()) == nullptr))) {
+      LOG_WARN("%s isn't the field of table %s", field.field_name(), select_stmt.tables()[0]->name());
+      return INVALID_ARGUMENT;
+  }
+
   op->open();
   RC rc;
-  float max_num = numeric_limits<float>::min();
-  float min_num = numeric_limits<float>::max();
+  TupleCell max_cell, min_cell, temp_cell;
+  Tuple* tuple = nullptr;
   float sum = 0;
   int count = 0;
 
-  while ((rc = op->next()) == RC::SUCCESS) {
-    if (aggregation_type == AggregationType::COUNT) {
-      if (strcmp(field.field_name(), "1") != 0 && strcmp(field.field_name(), "*") != 0) {
-        if (select_stmt.tables()[0]->table_meta().field(field.field_name()) == nullptr) {
-          LOG_WARN("%s isn't the field of table %s", field.field_name(), select_stmt.tables()[0]->name());
-          return INVALID_ARGUMENT;
-        }
-      }
-      count += 1;
-      continue;
-    }
-    Tuple *tuple = op->current_tuple();
-    TupleCell tupleCell;
-    tuple->find_cell(field, tupleCell);
+  auto tuple_value2float = [&](TupleCell& tupleCell){
     float data = 0;
     if (field.attr_type() == AttrType::INTS) {
       data = (float)*(int *)tupleCell.data();
@@ -178,27 +173,44 @@ RC print_aggregation_tuple(stringstream& ss, Operator* op, SelectStmt& select_st
     } else if (field.attr_type() == AttrType::CHARS) {
       data = Typecaster::s2f(tupleCell.data());
     }
-    max_num = max(max_num, data);
-    min_num = min(min_num, data);
+    return data;
+  };
+
+  if ((rc = op->next()) == RC::SUCCESS) {
     count += 1;
-    sum += data;
+    if (aggregation_type != AggregationType::COUNT) {
+      tuple = op->current_tuple();
+      tuple->find_cell(field, temp_cell);
+      max_cell = temp_cell;
+      min_cell = temp_cell;
+      sum += tuple_value2float(temp_cell);
+    }
+  }
+
+  while ((rc = op->next()) == RC::SUCCESS) {
+    if (aggregation_type == AggregationType::COUNT) {
+      count += 1;
+      continue;
+    }
+    tuple = op->current_tuple();
+    tuple->find_cell(field, temp_cell);
+    if (temp_cell.compare(max_cell) > 0) { max_cell = temp_cell; }
+    if (temp_cell.compare(min_cell) <0 ) { min_cell = temp_cell; }
+    count += 1;
+    sum += tuple_value2float(temp_cell);
   }
   switch (aggregation_type) {
     case MAX:
       ss << "max(" << field.field_name() << ")\n";
-      if (field.attr_type() == AttrType::INTS || field.attr_type() == AttrType::CHARS) {
-        ss << (int)max_num << "\n";
-      } else {
-        ss << max_num << "\n";
-      }
+      if (count > 0) { max_cell.to_string(ss); }
+      else ss << "0";
+      ss << "\n";
       break;
     case MIN:
       ss << "min(" << field.field_name() << ")\n";
-      if (field.attr_type() == AttrType::INTS || field.attr_type() == AttrType::CHARS) {
-        ss << (int)min_num << "\n";
-      } else {
-        ss << min_num << "\n";
-      }
+      if (count > 0) { min_cell.to_string(ss); }
+      else ss << "0";
+      ss << "\n";
       break;
     case COUNT:
       ss << "count(" << field.field_name() << ")\n";
