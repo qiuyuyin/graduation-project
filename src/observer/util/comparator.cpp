@@ -61,7 +61,7 @@ int compare_string(void *arg1, int arg1_max_length, void *arg2, int arg2_max_len
   int maxlen = std::min(arg1_max_length, arg2_max_length);
   if (like) {
     string regex_str(s2);
-    string_replace_all(regex_str, "%", "*");
+    string_replace_all(regex_str, "%", ".*");
     string_replace_all(regex_str, "_", ".");
     bool flag;
     try {
