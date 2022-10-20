@@ -420,7 +420,7 @@ select_attr:
         }
     | AGGREGATION_FUNC LBRACE STAR RBRACE aggregation_func_list {
             RelAttr attr;
-            relation_attr_init(&attr, NULL, $3);
+            relation_attr_init(&attr, NULL, "*");
             relation_attr_add_aggregation(&attr, $1);
             selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
 
@@ -448,7 +448,7 @@ aggregation_func_list:
         }
     | COMMA AGGREGATION_FUNC LBRACE STAR RBRACE aggregation_func_list {
             RelAttr attr;
-            relation_attr_init(&attr, NULL, $4);
+            relation_attr_init(&attr, NULL, "*");
             relation_attr_add_aggregation(&attr, $2);
             selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
         }
