@@ -92,20 +92,22 @@ extern int yydebug;
     LOAD = 293,                    /* LOAD  */
     DATA = 294,                    /* DATA  */
     INFILE = 295,                  /* INFILE  */
-    EQ = 296,                      /* EQ  */
-    LT = 297,                      /* LT  */
-    GT = 298,                      /* GT  */
-    LE = 299,                      /* LE  */
-    GE = 300,                      /* GE  */
-    NE = 301,                      /* NE  */
-    NUMBER = 302,                  /* NUMBER  */
-    FLOAT = 303,                   /* FLOAT  */
-    ID = 304,                      /* ID  */
-    PATH = 305,                    /* PATH  */
-    SSS = 306,                     /* SSS  */
-    STAR = 307,                    /* STAR  */
-    STRING_V = 308,                /* STRING_V  */
-    DATE_STR = 309                 /* DATE_STR  */
+    NOT = 296,                     /* NOT  */
+    LIKE_ = 297,                   /* LIKE_  */
+    EQ = 298,                      /* EQ  */
+    LT = 299,                      /* LT  */
+    GT = 300,                      /* GT  */
+    LE = 301,                      /* LE  */
+    GE = 302,                      /* GE  */
+    NE = 303,                      /* NE  */
+    NUMBER = 304,                  /* NUMBER  */
+    FLOAT = 305,                   /* FLOAT  */
+    ID = 306,                      /* ID  */
+    PATH = 307,                    /* PATH  */
+    SSS = 308,                     /* SSS  */
+    STAR = 309,                    /* STAR  */
+    STRING_V = 310,                /* STRING_V  */
+    DATE_STR = 311                 /* DATE_STR  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -114,7 +116,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 109 "yacc_sql.y"
+#line 111 "yacc_sql.y"
 
   struct _Attr *attr;
   struct _Condition *condition1;
@@ -124,7 +126,7 @@ union YYSTYPE
   float floats;
 	char *position;
 
-#line 128 "yacc_sql.tab.h"
+#line 130 "yacc_sql.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/record/record.h"
 #include "sql/stmt/filter_stmt.h"
 #include "storage/common/field.h"
+#include "util/comparator.h"
 
 RC PredicateOperator::open()
 {
@@ -73,6 +74,16 @@ bool PredicateOperator::do_predicate(RowTuple &tuple)
     TupleCell right_cell;
     left_expr->get_value(tuple, left_cell);
     right_expr->get_value(tuple, right_cell);
+
+    if (comp == LIKE || comp == NOT_LIKE) {
+      if (left_cell.attr_type() == AttrType::CHARS && right_cell.attr_type() == AttrType::CHARS) {
+        bool flag = compare_string((void *)left_cell.data(), left_cell.length(), (void *)right_cell.data(), right_cell.length(), true);
+        if ((comp == LIKE && flag) || (comp == NOT_LIKE && !flag)) {
+          continue;
+        }
+      }
+      return false;
+    }
 
     const int compare = left_cell.compare(right_cell);
     bool filter_result = false;
