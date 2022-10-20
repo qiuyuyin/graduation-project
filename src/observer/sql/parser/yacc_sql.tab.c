@@ -1710,7 +1710,7 @@ yyreduce:
 #line 421 "yacc_sql.y"
                                                                 {
             RelAttr attr;
-            relation_attr_init(&attr, NULL, (yyvsp[-2].string));
+            relation_attr_init(&attr, NULL, "*");
             relation_attr_add_aggregation(&attr, (yyvsp[-4].string));
             selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
 
@@ -1749,7 +1749,7 @@ yyreduce:
 #line 449 "yacc_sql.y"
                                                                       {
             RelAttr attr;
-            relation_attr_init(&attr, NULL, (yyvsp[-2].string));
+            relation_attr_init(&attr, NULL, "*");
             relation_attr_add_aggregation(&attr, (yyvsp[-4].string));
             selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
         }
