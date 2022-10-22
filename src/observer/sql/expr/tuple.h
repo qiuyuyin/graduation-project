@@ -24,9 +24,12 @@ See the Mulan PSL v2 for more details. */
 #include "storage/record/record.h"
 
 class Table;
+class VTuple;
 
-class TupleCellSpec
-{
+class TupleCellSpec {
+
+  friend VTuple;
+
 public:
   TupleCellSpec() = default;
   TupleCellSpec(Expression *expr) : expression_(expr)
@@ -57,23 +60,22 @@ public:
 private:
   const char *alias_ = nullptr;
   Expression *expression_ = nullptr;
+  size_t offset;
 };
 
-class Tuple
-{
+class Tuple {
 public:
   Tuple() = default;
   virtual ~Tuple() = default;
 
-  virtual int cell_num() const = 0; 
-  virtual RC  cell_at(int index, TupleCell &cell) const = 0;
-  virtual RC  find_cell(const Field &field, TupleCell &cell) const = 0;
+  virtual int cell_num() const = 0;
+  virtual RC cell_at(int index, TupleCell &cell) const = 0;
+  virtual RC find_cell(const Field &field, TupleCell &cell) const = 0;
 
-  virtual RC  cell_spec_at(int index, const TupleCellSpec *&spec) const = 0;
+  virtual RC cell_spec_at(int index, const TupleCellSpec *&spec) const = 0;
 };
 
-class RowTuple : public Tuple
-{
+class RowTuple : public Tuple {
 public:
   RowTuple() = default;
   virtual ~RowTuple()
@@ -83,7 +85,7 @@ public:
     }
     speces_.clear();
   }
-  
+
   void set_record(Record *record)
   {
     this->record_ = record;
@@ -128,10 +130,10 @@ public:
 
     const char *field_name = field.field_name();
     for (size_t i = 0; i < speces_.size(); ++i) {
-      const FieldExpr * field_expr = (const FieldExpr *)speces_[i]->expression();
+      const FieldExpr *field_expr = (const FieldExpr *)speces_[i]->expression();
       const Field &field = field_expr->field();
       if (0 == strcmp(field_name, field.field_name())) {
-	return cell_at(i, cell);
+        return cell_at(i, cell);
       }
     }
     return RC::NOTFOUND;
@@ -156,17 +158,128 @@ public:
   {
     return *record_;
   }
+
 private:
   Record *record_ = nullptr;
   const Table *table_ = nullptr;
   std::vector<TupleCellSpec *> speces_;
 };
 
+class VTuple : public Tuple {
+public:
+  ~VTuple() override = default;
+  int cell_num() const override
+  {
+    return speces_.size();
+  }
+  RC cell_at(int index, TupleCell &cell) const override
+  {
+    if (index < 0 || index >= static_cast<int>(speces_.size())) {
+      LOG_WARN("invalid argument. index=%d", index);
+      return RC::INVALID_ARGUMENT;
+    }
+
+    const TupleCellSpec *spec = speces_[index];
+    switch (spec->expression()->type()) {
+      case ExprType::FIELD: {
+        FieldExpr *field_expr = (FieldExpr *)spec->expression();
+        const FieldMeta *field_meta = field_expr->field().meta();
+        cell.set_type(field_meta->type());
+        cell.set_data(this->data_ + spec->offset);
+        cell.set_length(field_meta->len());
+        return RC::SUCCESS;
+      }
+      case ExprType::VALUE: {
+        ValueExpr *value_expr = (ValueExpr *)spec->expression();
+        value_expr->get_tuple_cell(cell);
+        return RC::SUCCESS;
+      }
+    }
+  }
+  RC find_cell(const Field &field, TupleCell &cell) const override
+  {
+
+    const char *field_name = field.field_name();
+    for (size_t i = 0; i < speces_.size(); ++i) {
+      if(speces_[i]->expression()->type() == ExprType::FIELD){
+        const FieldExpr *field_expr = (const FieldExpr *)speces_[i]->expression();
+        const Field &field = field_expr->field();
+        if (0 == strcmp(field_name, field.field_name())) {
+          return cell_at(i, cell);
+        }
+      }
+    }
+    return RC::NOTFOUND;
+  }
+  RC find_cell(const TupleCellSpec& spec, TupleCell& cell) {
+    switch (spec.expression()->type()) {
+      case ExprType::FIELD:{
+        auto expr = static_cast<FieldExpr*>(spec.expression());
+        return find_cell(expr->field(), cell);
+      }
+      case ExprType::VALUE:{
+        auto expr = static_cast<ValueExpr*>(spec.expression());
+        expr->get_tuple_cell(cell);
+        return RC::SUCCESS;
+      }
+      default:
+        return RC:: UNIMPLENMENT;
+    }
+  }
+  RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
+  {
+    if (index < 0 || index >= static_cast<int>(speces_.size())) {
+      LOG_WARN("invalid argument. index=%d", index);
+      return RC::INVALID_ARGUMENT;
+    }
+    spec = speces_[index];
+    return RC::SUCCESS;
+  }
+  std::vector<TupleCellSpec *> schema()
+  {
+    return speces_;
+  }
+  RC merge(VTuple &other, VTuple &out)
+  {
+    size_t data_len = data_len_ + other.data_len_;
+    int offset = 0;
+    char *const data = new char[data_len];
+    size_t this_sz = speces_.size();
+    size_t other_sz = other.speces_.size();
+
+    out.data_len_ = data_len;
+    out.data_ = data;
+    out.speces_.resize(speces_.size() + other.speces_.size());
+    for (int i = 0; i < this_sz; ++i) {
+      out.speces_[i] = speces_[i];
+      out.speces_[i]->offset = offset;
+      if (out.speces_[i]->expression()->type() == ExprType::FIELD) {
+        auto field_expr = static_cast<FieldExpr *>(out.speces_[i]->expression());
+        offset += field_expr->field().meta()->len();
+      }
+    }
+    for (int i = 0; i < other_sz; i++) {
+      int idx = i + this_sz;
+      out.speces_[idx] = other.speces_[idx];
+      if (out.speces_[idx]->expression()->type() == ExprType::FIELD) {
+        auto field_expr = static_cast<FieldExpr *>(out.speces_[idx]->expression());
+        offset += field_expr->field().meta()->len();
+      }
+    }
+    memcpy(data, data_, data_len_);
+    memcpy(data+data_len_, other.data_, other.data_len_);
+  }
+
+private:
+  char *data_ = nullptr;
+  size_t data_len_ = 0;
+  std::vector<TupleCellSpec *> speces_;
+};
 /*
 class CompositeTuple : public Tuple
 {
 public:
-  int cell_num() const override; 
+  int cell_num() const override;
   RC  cell_at(int index, TupleCell &cell) const = 0;
 private:
   int cell_num_ = 0;
@@ -174,8 +287,7 @@ private:
 };
 */
 
-class ProjectTuple : public Tuple
-{
+class ProjectTuple : public Tuple {
 public:
   ProjectTuple() = default;
   virtual ~ProjectTuple()
@@ -225,6 +337,7 @@ public:
     spec = speces_[index];
     return RC::SUCCESS;
   }
+
 private:
   std::vector<TupleCellSpec *> speces_;
   Tuple *tuple_ = nullptr;
