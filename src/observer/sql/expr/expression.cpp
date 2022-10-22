@@ -25,3 +25,15 @@ RC ValueExpr::get_value(const Tuple &tuple, TupleCell & cell) const
   cell = tuple_cell_;
   return RC::SUCCESS;
 }
+std::string ValueExpr::get_name() const
+{
+  return "";
+}
+RC VarExpr::get_value(const Tuple &tuple, TupleCell &cell) const
+{
+  return value_.get_value(tuple, cell);
+}
+std::string VarExpr::get_name() const
+{
+  return name_;
+}

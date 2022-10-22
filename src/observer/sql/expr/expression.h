@@ -19,25 +19,27 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/tuple_cell.h"
 
 class Tuple;
+class TupleCellSpec;
 
 enum class ExprType {
   NONE,
   FIELD,
   VALUE,
+  VAR,
+  CALCULATE,
 };
 
-class Expression
-{
-public: 
+class Expression {
+public:
   Expression() = default;
   virtual ~Expression() = default;
-  
+
   virtual RC get_value(const Tuple &tuple, TupleCell &cell) const = 0;
+  virtual std::string get_name() const = 0;
   virtual ExprType type() const = 0;
 };
 
-class FieldExpr : public Expression
-{
+class FieldExpr : public Expression {
 public:
   FieldExpr() = default;
   FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field)
@@ -65,18 +67,25 @@ public:
     return field_.table_name();
   }
 
+  std::string get_name() const
+  {
+    return field_.field_name();
+  }
   const char *field_name() const
   {
     return field_.field_name();
   }
 
   RC get_value(const Tuple &tuple, TupleCell &cell) const override;
+
 private:
   Field field_;
 };
 
-class ValueExpr : public Expression
-{
+class ValueExpr : public Expression {
+  friend TupleCellSpec;
+  friend TupleCell;
+
 public:
   ValueExpr() = default;
   ValueExpr(const Value &value) : tuple_cell_(value.type, (char *)value.data)
@@ -87,14 +96,15 @@ public:
   }
 
   virtual ~ValueExpr() = default;
-
-  RC get_value(const Tuple &tuple, TupleCell & cell) const override;
+  std::string get_name() const override;
+  RC get_value(const Tuple &tuple, TupleCell &cell) const override;
   ExprType type() const override
   {
     return ExprType::VALUE;
   }
 
-  void get_tuple_cell(TupleCell &cell) const {
+  virtual void get_tuple_cell(TupleCell &cell) const
+  {
     cell = tuple_cell_;
   }
 
@@ -102,21 +112,49 @@ private:
   TupleCell tuple_cell_;
 };
 
-// class CastedExpr: public FieldExpr, public ValueExpr{
+class VarExpr : public Expression, public ValueExpr {
+public:
+  VarExpr(const Value &value, std::string name) : value_(value), name_(name)
+  {}
+
+  ExprType type() const
+  {
+    return ExprType::VAR;
+  }
+  ~VarExpr() override = default;
+  RC get_value(const Tuple &tuple, TupleCell &cell) const override;
+  std::string get_name() const override;
+  virtual void get_tuple_cell(TupleCell &cell) const
+  {
+    value_.get_tuple_cell(cell);
+  }
+
+private:
+  ValueExpr value_;
+  std::string name_;
+};
+
+// class TreeExpr : public Expression {
 // public:
-//   CastedExpr(Expression *expr):expr_origin_(expr){}
-//   virtual ~CastedExpr() = default;
-//   RC get_value(const Tuple &tuple, TupleCell &cell) const override
-//   {
-//     RC rc = expr_origin_->get_value(tuple, cell);
-//     if(rc != RC::SUCCESS){
-//       return rc;
-//     }
-//     Value attr_value;
-//   }
-//
-// private:
-//   AttrType old_type_;
-//   AttrType new_type_;
-//   Expression *expr_origin_;
+//   ~TreeExpr() override = default;
+//   RC get_value(const Tuple &tuple, TupleCell &cell) const override;
+//   ExprType type() const override;
 // };
+//  class CastedExpr: public FieldExpr, public ValueExpr{
+//  public:
+//    CastedExpr(Expression *expr):expr_origin_(expr){}
+//    virtual ~CastedExpr() = default;
+//    RC get_value(const Tuple &tuple, TupleCell &cell) const override
+//    {
+//      RC rc = expr_origin_->get_value(tuple, cell);
+//      if(rc != RC::SUCCESS){
+//        return rc;
+//      }
+//      Value attr_value;
+//    }
+//
+//  private:
+//    AttrType old_type_;
+//    AttrType new_type_;
+//    Expression *expr_origin_;
+//  };
