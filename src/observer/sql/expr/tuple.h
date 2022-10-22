@@ -201,13 +201,30 @@ public:
 
     const char *field_name = field.field_name();
     for (size_t i = 0; i < speces_.size(); ++i) {
-      const FieldExpr *field_expr = (const FieldExpr *)speces_[i]->expression();
-      const Field &field = field_expr->field();
-      if (0 == strcmp(field_name, field.field_name())) {
-        return cell_at(i, cell);
+      if(speces_[i]->expression()->type() == ExprType::FIELD){
+        const FieldExpr *field_expr = (const FieldExpr *)speces_[i]->expression();
+        const Field &field = field_expr->field();
+        if (0 == strcmp(field_name, field.field_name())) {
+          return cell_at(i, cell);
+        }
       }
     }
     return RC::NOTFOUND;
+  }
+  RC find_cell(const TupleCellSpec& spec, TupleCell& cell) {
+    switch (spec.expression()->type()) {
+      case ExprType::FIELD:{
+        auto expr = static_cast<FieldExpr*>(spec.expression());
+        return find_cell(expr->field(), cell);
+      }
+      case ExprType::VALUE:{
+        auto expr = static_cast<ValueExpr*>(spec.expression());
+        expr->get_tuple_cell(cell);
+        return RC::SUCCESS;
+      }
+      default:
+        return RC:: UNIMPLENMENT;
+    }
   }
   RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
   {
