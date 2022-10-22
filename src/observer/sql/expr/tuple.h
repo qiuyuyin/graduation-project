@@ -57,6 +57,38 @@ public:
     return expression_;
   }
 
+  std::string table_name()
+  {
+    if (expression_ == nullptr) {
+      return "";
+    }
+    switch (expression_->type()) {
+      case ExprType::FIELD: {
+        auto expr = static_cast<FieldExpr *>(expression_);
+        return expr->table_name();
+      }
+      case ExprType::VALUE:
+        return "";
+    }
+  }
+
+  AttrType attr_type()
+  {
+    if (expression_ == nullptr) {
+      return AttrType::UNDEFINED;
+    }
+    switch (expression_->type()) {
+      case ExprType::FIELD: {
+        auto expr = static_cast<FieldExpr *>(expression_);
+        return expr->field().meta()->type();
+      }
+      case ExprType::VALUE: {
+        auto expr = static_cast<ValueExpr *>(expression_);
+        return expr->tuple_cell_.attr_type();
+      }
+    }
+  }
+
 private:
   const char *alias_ = nullptr;
   Expression *expression_ = nullptr;
@@ -167,42 +199,32 @@ private:
 
 class VTuple : public Tuple {
 public:
+  VTuple(size_t size)
+  {
+    schema_.resize(size);
+    cells_.resize(size);
+  }
   ~VTuple() override = default;
   int cell_num() const override
   {
-    return speces_.size();
+    return schema_.size();
   }
   RC cell_at(int index, TupleCell &cell) const override
   {
-    if (index < 0 || index >= static_cast<int>(speces_.size())) {
+    if (index < 0 || index >= static_cast<int>(schema_.size())) {
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
     }
 
-    const TupleCellSpec *spec = speces_[index];
-    switch (spec->expression()->type()) {
-      case ExprType::FIELD: {
-        FieldExpr *field_expr = (FieldExpr *)spec->expression();
-        const FieldMeta *field_meta = field_expr->field().meta();
-        cell.set_type(field_meta->type());
-        cell.set_data(this->data_ + spec->offset);
-        cell.set_length(field_meta->len());
-        return RC::SUCCESS;
-      }
-      case ExprType::VALUE: {
-        ValueExpr *value_expr = (ValueExpr *)spec->expression();
-        value_expr->get_tuple_cell(cell);
-        return RC::SUCCESS;
-      }
-    }
+    cell = cells_[index];
+    return RC::SUCCESS;
   }
   RC find_cell(const Field &field, TupleCell &cell) const override
   {
-
     const char *field_name = field.field_name();
-    for (size_t i = 0; i < speces_.size(); ++i) {
-      if(speces_[i]->expression()->type() == ExprType::FIELD){
-        const FieldExpr *field_expr = (const FieldExpr *)speces_[i]->expression();
+    for (size_t i = 0; i < schema_.size(); ++i) {
+      if (schema_[i]->expression()->type() == ExprType::FIELD) {
+        const FieldExpr *field_expr = (const FieldExpr *)schema_[i]->expression();
         const Field &field = field_expr->field();
         if (0 == strcmp(field_name, field.field_name())) {
           return cell_at(i, cell);
@@ -211,69 +233,104 @@ public:
     }
     return RC::NOTFOUND;
   }
-  RC find_cell(const TupleCellSpec& spec, TupleCell& cell) {
+  RC find_cell(const TupleCellSpec &spec, TupleCell &cell)
+  {
     switch (spec.expression()->type()) {
-      case ExprType::FIELD:{
-        auto expr = static_cast<FieldExpr*>(spec.expression());
+      case ExprType::FIELD: {
+        auto expr = static_cast<FieldExpr *>(spec.expression());
         return find_cell(expr->field(), cell);
       }
-      case ExprType::VALUE:{
-        auto expr = static_cast<ValueExpr*>(spec.expression());
+      case ExprType::VALUE: {
+        auto expr = static_cast<ValueExpr *>(spec.expression());
         expr->get_tuple_cell(cell);
         return RC::SUCCESS;
       }
       default:
-        return RC:: UNIMPLENMENT;
+        return RC::UNIMPLENMENT;
     }
   }
   RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
   {
-    if (index < 0 || index >= static_cast<int>(speces_.size())) {
+    if (index < 0 || index >= static_cast<int>(schema_.size())) {
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
     }
-    spec = speces_[index];
+    spec = schema_[index];
     return RC::SUCCESS;
+  }
+  void append_cell(TupleCell &cell, TupleCellSpec *spec)
+  {
+    cells_.push_back(cell);
+    schema_.push_back(spec);
+  }
+  RC append_row_tuple(RowTuple &row)
+  {
+    int cells = row.cell_num();
+    for (int i = 0; i < cells; i++) {
+      TupleCell cell;
+      const TupleCellSpec *spec;
+      row.cell_at(i, cell);
+      row.cell_spec_at(i, spec);
+      cells_.push_back(cell);
+      schema_.push_back(const_cast<TupleCellSpec *>(spec));
+    }
+  }
+  RC set_field(int index, TupleCell &cell, TupleCellSpec *spec)
+  {
+    if (index < 0 || index >= static_cast<int>(schema_.size())) {
+      LOG_WARN("invalid argument. index=%d", index);
+      return RC::INVALID_ARGUMENT;
+    }
+
+    free_spec(schema_[index]);
+
+    cells_[index] = cell;
+    schema_[index] = spec;
+    return RC::SUCCESS;
+  }
+  RC set_value(int index, Value &value)
+  {
+    auto expr = new ValueExpr(value);
+    TupleCellSpec *spec = new TupleCellSpec(expr);
+    TupleCell cell;
+
+    expr->get_tuple_cell(cell);
+    allocated_.insert(spec);
+
+    free_spec(schema_[index]);
+
+    cells_[index] = cell;
+    schema_[index] = spec;
   }
   std::vector<TupleCellSpec *> schema()
   {
-    return speces_;
+    return schema_;
   }
+
   RC merge(VTuple &other, VTuple &out)
   {
-    size_t data_len = data_len_ + other.data_len_;
-    int offset = 0;
-    char *const data = new char[data_len];
-    size_t this_sz = speces_.size();
-    size_t other_sz = other.speces_.size();
+    size_t cell_num = cells_.size() + other.cell_num();
+    out.schema_.resize(cell_num);
+    out.cells_.resize(cell_num);
 
-    out.data_len_ = data_len;
-    out.data_ = data;
-    out.speces_.resize(speces_.size() + other.speces_.size());
-    for (int i = 0; i < this_sz; ++i) {
-      out.speces_[i] = speces_[i];
-      out.speces_[i]->offset = offset;
-      if (out.speces_[i]->expression()->type() == ExprType::FIELD) {
-        auto field_expr = static_cast<FieldExpr *>(out.speces_[i]->expression());
-        offset += field_expr->field().meta()->len();
-      }
-    }
-    for (int i = 0; i < other_sz; i++) {
-      int idx = i + this_sz;
-      out.speces_[idx] = other.speces_[idx];
-      if (out.speces_[idx]->expression()->type() == ExprType::FIELD) {
-        auto field_expr = static_cast<FieldExpr *>(out.speces_[idx]->expression());
-        offset += field_expr->field().meta()->len();
-      }
-    }
-    memcpy(data, data_, data_len_);
-    memcpy(data+data_len_, other.data_, other.data_len_);
+    auto schema_next = std::copy(schema_.begin(), schema_.end(), out.schema_.begin());
+    auto cells_next = std::copy(cells_.begin(), cells_.end(), out.cells_.begin());
+    std::copy(other.schema_.begin(), other.schema_.end(), schema_next);
+    std::copy(other.cells_.begin(), other.cells_.end(), cells_next);
   }
 
 private:
-  char *data_ = nullptr;
-  size_t data_len_ = 0;
-  std::vector<TupleCellSpec *> speces_;
+  void free_spec(TupleCellSpec *ptr){
+    if (allocated_.count(ptr) > 0){
+      allocated_.erase(ptr);
+      delete ptr->expression_;
+      delete ptr;
+    }
+  }
+  std::vector<TupleCellSpec *> schema_;
+  std::vector<TupleCell> cells_;
+  // record the spec allocated by me
+  std::set<TupleCellSpec *> allocated_;
 };
 /*
 class CompositeTuple : public Tuple
