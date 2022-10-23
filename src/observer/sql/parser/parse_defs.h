@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define MAX_NUM 20
 #define MAX_REL_NAME 20
@@ -24,23 +26,38 @@ See the Mulan PSL v2 for more details. */
 #define MAX_ERROR_MESSAGE 20
 #define MAX_DATA 50
 
-typedef enum  {
-  MAX,
-  MIN,
-  COUNT,
-  AVG,
-  SUM,
-  NO_Aggregation
-} AggregationType;
+#define GROW_CAPACITY(capacity) ((capacity) < 8 ? 8 : (capacity)*2)
+#define GROW_ARRAY(type, pointer, old_count, new_count) \
+  (type *)reallocate(pointer, sizeof(type) * (old_count), sizeof(type) * (new_count))
+
+#define FREE_ARRAY(type, pointer, old_count)            \
+  do {                                                  \
+    reallocate(pointer, sizeof(type) * (old_count), 0); \
+  } while (0)
+
+typedef enum { MAX, MIN, COUNT, AVG, SUM, NO_Aggregation } AggregationType;
+
+/*
+ * old_size  new_size
+ * 0         non_zero              allocate new block
+ * non_zero  0                     free allocation
+ * non_zero  smaller than old_size shrink
+ * non_zero  bigger than old_size  enlarge
+ *
+ * */
+
+typedef struct StringArray_ {
+  int capacity;
+  int count;
+  char **strings;
+} StringArray;
 
 // 属性结构体
 typedef struct {
-  char *relation_name;   // relation name (may be NULL) 表名
-  char *attribute_name;  // attribute name              属性名
-  AggregationType aggregation_type; //聚合函数类型
+  char *relation_name;               // relation name (may be NULL) 表名
+  char *attribute_name;              // attribute name              属性名
+  AggregationType aggregation_type;  // 聚合函数类型
 } RelAttr;
-
-
 
 typedef enum {
   EQUAL_TO,     //"="     0
@@ -103,8 +120,8 @@ typedef struct {
 
 // struct of insert
 typedef struct {
-  char *relation_name;    // Relation to insert into
-  size_t value_num;       // Length of values
+  char *relation_name;  // Relation to insert into
+  size_t value_num;     // Length of values
   size_t tuple_num;
   int tuple_size[MAX_NUM];
   Value values[MAX_NUM];  // values to insert
@@ -132,7 +149,7 @@ typedef struct {
   size_t length;  // Length of attribute
 } AttrInfo;
 
-// struct of craete_table
+// struct of create_table
 typedef struct {
   char *relation_name;           // Relation name
   size_t attribute_count;        // Length of attribute
@@ -146,9 +163,9 @@ typedef struct {
 
 // struct of create_index
 typedef struct {
-  char *index_name;      // Index name
-  char *relation_name;   // Relation name
-  char *attribute_name;  // Attribute name
+  char *index_name;     // Index name
+  char *relation_name;  // Relation name
+  StringArray attribute_names;  // Attribute names
 } CreateIndex;
 
 // struct of  drop_index
@@ -157,7 +174,7 @@ typedef struct {
 } DropIndex;
 
 typedef struct {
-  const char*relation_name;
+  const char *relation_name;
 } ShowIndex;
 
 typedef struct {
@@ -260,13 +277,16 @@ void drop_table_init(DropTable *drop_table, const char *relation_name);
 void drop_table_destroy(DropTable *drop_table);
 
 void create_index_init(
-    CreateIndex *create_index, const char *index_name, const char *relation_name, const char *attr_name);
+    CreateIndex *create_index);
+void create_index_set_relation_name(CreateIndex *create_index, const char* real_name);
+void create_index_set_index_name(CreateIndex *create_index, const char* index_name);
+void create_index_append_attr(CreateIndex *create_index, const char *attr_name);
 void create_index_destroy(CreateIndex *create_index);
 
 void drop_index_init(DropIndex *drop_index, const char *index_name);
 void drop_index_destroy(DropIndex *drop_index);
 
-void show_index_init(ShowIndex *show_index, const char* relation_name);
+void show_index_init(ShowIndex *show_index, const char *relation_name);
 void show_index_destroy(ShowIndex *show_index);
 
 void desc_table_init(DescTable *desc_table, const char *relation_name);
@@ -280,6 +300,10 @@ Query *query_create();  // create and init
 void query_reset(Query *query);
 void query_destroy(Query *query);  // reset and delete
 
+void string_array_init(StringArray *array);
+void string_array_append(StringArray *array, const char *str);
+void string_array_free(StringArray *array);
+void *reallocate(void *pointer, size_t old_size, size_t new_size);
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
