@@ -208,7 +208,12 @@ public:
     schema_.resize(size);
     cells_.resize(size);
   }
-  ~VTuple() override = default;
+  ~VTuple() {
+    for (auto&& ptr: allocated_){
+      delete ptr->expression_;
+      delete ptr;
+    }
+  }
   int cell_num() const override
   {
     return schema_.size();
@@ -262,7 +267,7 @@ public:
   {
     cells_.push_back(cell);
     schema_.push_back(spec);
-    if (spec->expression_->type() != ExprType::VALUE){
+    if (spec->expression_->type() != ExprType::VALUE) {
       std::string full_name = get_full_name(spec);
       name_to_idx_[full_name] = cells_.size() - 1;
     }
@@ -282,10 +287,22 @@ public:
   {
     auto expr = new ValueExpr(value);
     TupleCellSpec *spec = new TupleCellSpec(expr);
+    allocated_.insert(spec);
     TupleCell cell;
 
     expr->get_tuple_cell(cell);
     append_cell(cell, spec);
+    return RC::SUCCESS;
+  }
+  RC append_var(std::string name, AttrType type, void *data)
+  {
+    TupleCell cell(type, static_cast<char *>(data));
+    auto expr = new VarExpr(name, type);
+    auto spec = new TupleCellSpec(expr);
+
+    cells_.push_back(cell);
+    schema_.push_back(spec);
+    allocated_.insert(spec);
     return RC::SUCCESS;
   }
   RC set_schema(std::vector<const TupleCellSpec *> schema)
@@ -330,7 +347,8 @@ public:
     std::string full_name = table + "." + col_name;
     return get_cell_by_full_name(full_name, cell);
   }
-  RC get_cell_by_full_name(std::string full_name, TupleCell& out) const{
+  RC get_cell_by_full_name(std::string full_name, TupleCell &out) const
+  {
     if (name_to_idx_.count(full_name) == 0) {
       LOG_WARN("field does not exist.");
       return RC::SCHEMA_FIELD_NOT_EXIST;
@@ -356,7 +374,7 @@ public:
     std::copy(other.schema_.begin(), other.schema_.end(), schema_next);
     std::copy(other.cells_.begin(), other.cells_.end(), cells_next);
     out.name_to_idx_ = name_to_idx_;
-    for(int i = cells_.size(); i < cell_num; i++){
+    for (int i = cells_.size(); i < cell_num; i++) {
       auto spec = other.schema_[i];
       auto full_name = get_full_name(spec);
       out.name_to_idx_[full_name] = i;
@@ -382,7 +400,8 @@ private:
   {
     return spec == nullptr ? "" : spec->table_name() + "." + spec->expr_name();
   }
-  std::string get_full_name(const Field* field) const {
+  std::string get_full_name(const Field *field) const
+  {
     return field == nullptr ? "" : (std::string(field->table_name()) + "." + field->field_name());
   }
   std::vector<const TupleCellSpec *> schema_;
