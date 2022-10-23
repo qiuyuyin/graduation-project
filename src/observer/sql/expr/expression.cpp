@@ -31,7 +31,9 @@ std::string ValueExpr::get_name() const
 }
 RC VarExpr::get_value(const Tuple &tuple, TupleCell &cell) const
 {
-  return value_.get_value(tuple, cell);
+  auto vtuple = dynamic_cast<const VTuple *> (&tuple);
+  TupleCellSpec spec{(Expression *)this};
+  return vtuple->find_cell(spec, cell);
 }
 std::string VarExpr::get_name() const
 {

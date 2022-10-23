@@ -112,9 +112,9 @@ private:
   TupleCell tuple_cell_;
 };
 
-class VarExpr : public Expression, public ValueExpr {
+class VarExpr : public Expression {
 public:
-  VarExpr(const Value &value, std::string name) : value_(value), name_(name)
+  VarExpr(std::string name, AttrType type): name_(name)
   {}
 
   ExprType type() const
@@ -124,13 +124,8 @@ public:
   ~VarExpr() override = default;
   RC get_value(const Tuple &tuple, TupleCell &cell) const override;
   std::string get_name() const override;
-  virtual void get_tuple_cell(TupleCell &cell) const
-  {
-    value_.get_tuple_cell(cell);
-  }
 
 private:
-  ValueExpr value_;
   std::string name_;
 };
 
