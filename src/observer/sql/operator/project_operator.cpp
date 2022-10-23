@@ -39,22 +39,24 @@ RC ProjectOperator::next()
   RC rc;
   if ((rc = children_[0]->next()) == SUCCESS) {
     VTuple temp = *(VTuple*)children_[0]->current_tuple();
-    for (auto projection : projections) {
+    VTuple res;
+    for (const auto& projection : projections) {
       TupleCell cell;
       if ((rc = temp.find_cell(projection, cell)) != SUCCESS) {
         LOG_WARN("[projection::next] tupleCell::find_cell error");
         return rc;
       }
-      string field_name = projection.field_name();
+      string field_name = projection.expr_name();
       if (projection.alias() != nullptr) {
         field_name = projection.alias();
       }
       //todo 这里的type采用哪一种呢？是projection的还是cell的
-      if ((rc = temp.append_var_tuple(field_name, cell.attr_type(), (void *)cell.data())) != SUCCESS) {
+      if ((rc = res.append_var(field_name, cell.attr_type(), (void *)cell.data())) != SUCCESS) {
         LOG_WARN("[projection::next] Vtuple::append_var_tuple error");
         return rc;
       }
     }
+    tuple_ = res;
   }
   return rc;
 }
@@ -71,5 +73,14 @@ Tuple *ProjectOperator::current_tuple()
 
 void ProjectOperator::add_projection(string name, string alias, bool calculate)
 {
-  
+  TupleCellSpec tupleCellSpec;
+  if (!calculate) {
+    tupleCellSpec = TupleCellSpec(new VarExpr(name, AttrType::UNDEFINED));
+  } else {
+
+  }
+  if (alias != "") {
+    tupleCellSpec.set_alias(alias.c_str());
+  }
+  projections.push_back(tupleCellSpec);
 }

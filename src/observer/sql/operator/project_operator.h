@@ -20,8 +20,6 @@ See the Mulan PSL v2 for more details. */
 class ProjectOperator : public Operator
 {
 public:
-  ProjectOperator()
-  {}
   virtual ~ProjectOperator() = default;
   void add_projection(string name, string alias, bool calculate);
 

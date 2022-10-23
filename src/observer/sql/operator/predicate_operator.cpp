@@ -34,14 +34,14 @@ RC PredicateOperator::next()
   Operator *oper = children_[0];
   
   while (RC::SUCCESS == (rc = oper->next())) {
-    Tuple *tuple = oper->current_tuple();
+    auto tuple = oper->current_tuple();
     if (nullptr == tuple) {
       rc = RC::INTERNAL;
       LOG_WARN("failed to get tuple from operator");
       break;
     }
 
-    if (do_predicate()) {
+    if (do_predicate(tuple)) {
       return rc;
     }
   }

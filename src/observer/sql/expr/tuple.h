@@ -203,6 +203,7 @@ private:
 
 class VTuple : public Tuple {
 public:
+  VTuple() = default;
   VTuple(size_t size)
   {
     schema_.resize(size);
