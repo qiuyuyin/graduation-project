@@ -234,23 +234,20 @@ void end_trx_if_need(Session *session, Trx *trx, bool all_right)
 
 void print_tuple_header(std::ostream &os, const ProjectOperator &oper)
 {
-  const int cell_num = oper.tuple_cell_num();
-  const TupleCellSpec *cell_spec = nullptr;
-  for (int i = 0; i < cell_num; i++) {
-    oper.tuple_cell_spec_at(i, cell_spec);
-    if (i != 0) {
+  for (int i = 0; i < oper.projections()->size(); ++i) {
+    if (oper.projections()->at(i).alias() != nullptr) {
+      os << oper.projections()->at(i).alias();
+    } else {
+      os << oper.projections()->at(i).expr_name();
+    }
+    if (i == oper.projections()->size() - 1) {
+      os << "\n";
+    } else {
       os << " | ";
     }
-
-    if (cell_spec->alias()) {
-      os << cell_spec->alias();
-    }
-  }
-
-  if (cell_num > 0) {
-    os << '\n';
   }
 }
+
 void tuple_to_string(std::ostream &os, const Tuple &tuple)
 {
   TupleCell cell;
@@ -428,49 +425,49 @@ RC ExecuteStage::do_insert(SQLStageEvent *sql_event)
 
 RC ExecuteStage::do_delete(SQLStageEvent *sql_event)
 {
-  Stmt *stmt = sql_event->stmt();
-  SessionEvent *session_event = sql_event->session_event();
-  Session *session = session_event->session();
-  Db *db = session->get_current_db();
-  Trx *trx = session->current_trx();
-  CLogManager *clog_manager = db->get_clog_manager();
-
-  if (stmt == nullptr) {
-    LOG_WARN("cannot find statement");
-    return RC::GENERIC_ERROR;
-  }
-
-  DeleteStmt *delete_stmt = (DeleteStmt *)stmt;
-  TableScanOperator scan_oper(delete_stmt->table());
-  PredicateOperator pred_oper(delete_stmt->filter_stmt());
-  pred_oper.add_child(&scan_oper);
-  DeleteOperator delete_oper(delete_stmt, trx);
-  delete_oper.add_child(&pred_oper);
-
-  RC rc = delete_oper.open();
-  if (rc != RC::SUCCESS) {
-    session_event->set_response("FAILURE\n");
-  } else {
-    session_event->set_response("SUCCESS\n");
-    if (!session->is_trx_multi_operation_mode()) {
-      CLogRecord *clog_record = nullptr;
-      rc = clog_manager->clog_gen_record(CLogType::REDO_MTR_COMMIT, trx->get_current_id(), clog_record);
-      if (rc != RC::SUCCESS || clog_record == nullptr) {
-        session_event->set_response("FAILURE\n");
-        return rc;
-      }
-
-      rc = clog_manager->clog_append_record(clog_record);
-      if (rc != RC::SUCCESS) {
-        session_event->set_response("FAILURE\n");
-        return rc;
-      } 
-
-      trx->next_current_id();
-      session_event->set_response("SUCCESS\n");
-    }
-  }
-  return rc;
+//  Stmt *stmt = sql_event->stmt();
+//  SessionEvent *session_event = sql_event->session_event();
+//  Session *session = session_event->session();
+//  Db *db = session->get_current_db();
+//  Trx *trx = session->current_trx();
+//  CLogManager *clog_manager = db->get_clog_manager();
+//
+//  if (stmt == nullptr) {
+//    LOG_WARN("cannot find statement");
+//    return RC::GENERIC_ERROR;
+//  }
+//
+//  DeleteStmt *delete_stmt = (DeleteStmt *)stmt;
+//  TableScanOperator scan_oper(delete_stmt->table());
+//  PredicateOperator pred_oper(delete_stmt->filter_stmt());
+//  pred_oper.add_child(&scan_oper);
+//  DeleteOperator delete_oper(delete_stmt, trx);
+//  delete_oper.add_child(&pred_oper);
+//
+//  RC rc = delete_oper.open();
+//  if (rc != RC::SUCCESS) {
+//    session_event->set_response("FAILURE\n");
+//  } else {
+//    session_event->set_response("SUCCESS\n");
+//    if (!session->is_trx_multi_operation_mode()) {
+//      CLogRecord *clog_record = nullptr;
+//      rc = clog_manager->clog_gen_record(CLogType::REDO_MTR_COMMIT, trx->get_current_id(), clog_record);
+//      if (rc != RC::SUCCESS || clog_record == nullptr) {
+//        session_event->set_response("FAILURE\n");
+//        return rc;
+//      }
+//
+//      rc = clog_manager->clog_append_record(clog_record);
+//      if (rc != RC::SUCCESS) {
+//        session_event->set_response("FAILURE\n");
+//        return rc;
+//      }
+//
+//      trx->next_current_id();
+//      session_event->set_response("SUCCESS\n");
+//    }
+//  }
+  return SUCCESS;
 }
 
 RC ExecuteStage::do_update(SQLStageEvent *sql_event){
@@ -484,7 +481,7 @@ RC ExecuteStage::do_update(SQLStageEvent *sql_event){
   }
     UpdateStmt * update_stmt =(UpdateStmt *)stmt;
     TableScanOperator scan_operator(update_stmt->table());
-    PredicateOperator predicate_operator(update_stmt->filter_stmt());
+    PredicateOperator predicate_operator(update_stmt->filter_stmt()->filter_units());
     predicate_operator.add_child(&scan_operator);
     UpdateOperator update_operator(update_stmt);
     update_operator.add_child(&predicate_operator);

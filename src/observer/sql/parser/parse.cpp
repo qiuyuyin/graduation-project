@@ -23,6 +23,15 @@ RC parse(char *st, Query *sqln);
 extern "C" {
 #endif  // __cplusplus
 
+const char* AGGREGATE_TYPE_NAME[] = {"max", "min", "count", "avg", "sum"};
+const char *aggregate_type_to_string(AggregationType type)
+{
+  if (type >= MAX && type < NO_Aggregation) {
+    return AGGREGATE_TYPE_NAME[type];
+  }
+  return "unknown";
+}
+
 void relation_attr_add_aggregation(RelAttr *relation_attr, const char *aggregation_type) {
   if (aggregation_type != nullptr) {
     if (strcmp("max", aggregation_type) == 0 || strcmp("MAX", aggregation_type) == 0) {

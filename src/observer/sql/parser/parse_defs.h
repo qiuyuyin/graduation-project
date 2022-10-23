@@ -18,11 +18,14 @@ See the Mulan PSL v2 for more details. */
 #include <stddef.h>
 #include <stdint.h>
 
+
 #define MAX_NUM 20
 #define MAX_REL_NAME 20
 #define MAX_ATTR_NAME 20
 #define MAX_ERROR_MESSAGE 20
 #define MAX_DATA 50
+
+
 
 typedef enum  {
   MAX,
@@ -33,22 +36,6 @@ typedef enum  {
   NO_Aggregation
 } AggregationType;
 
-static std::string aggregationType2string(AggregationType aggregationType) {
-  switch (aggregationType) {
-    case MAX:
-      return "max";
-    case MIN:
-      return "min";
-    case COUNT:
-      return "count";
-    case AVG:
-      return "avg";
-    case SUM:
-      return "sum";
-    default:
-      return "";
-  }
-}
 
 // 属性结构体
 typedef struct {
@@ -234,6 +221,7 @@ typedef struct Query {
 extern "C" {
 #endif  // __cplusplus
 
+const char *aggregate_type_to_string(AggregationType type);
 void relation_attr_add_aggregation(RelAttr *relation_attr, const char *aggregation_type);
 void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name);
 void relation_attr_destroy(RelAttr *relation_attr);

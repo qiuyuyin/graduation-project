@@ -53,11 +53,11 @@ RC AggregateOperator::next()
   for (int i = 0; i < aggregate_ops_.size(); ++i) {
     auto agg_op = aggregate_ops_.at(i);
     auto agg_res = innerRes->at(i);
-    string field_name = aggregationType2string(agg_op.op_type) + "(";
+    string field_name = string(aggregate_type_to_string(agg_op.op_type)) + "(";
     if (agg_op.aggregate_field.table_name() != "") {
       field_name += agg_op.aggregate_field.table_name() + ".";
     }
-    field_name += agg_op.aggregate_field.field_name() + ")";
+    field_name += agg_op.aggregate_field.expr_name() + ")";
     AttrType field_type = agg_op.aggregate_field.attr_type();
     string name;
     AttrType type;
@@ -96,11 +96,11 @@ RC AggregateOperator::next()
       default:
         return INVALID_ARGUMENT;
     }
-    tuple_.append_var_tuple(name, type, data);
+    tuple_.append_var(name, type, data);
   }
   for (int i = 0; i < groupby_fields_.size(); ++i) {
     void* data = const_cast<char*>(group_values[i].c_str());
-    tuple_.append_var_tuple(groupby_fields_.at(i).field_name(), groupby_fields_.at(i).attr_type(), data);
+    tuple_.append_var(groupby_fields_.at(i).expr_name(), groupby_fields_.at(i).attr_type(), data);
   }
   iter++;
 }

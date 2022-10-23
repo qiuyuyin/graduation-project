@@ -40,7 +40,7 @@ RC ProjectOperator::next()
   if ((rc = children_[0]->next()) == SUCCESS) {
     VTuple temp = *(VTuple*)children_[0]->current_tuple();
     VTuple res;
-    for (const auto& projection : projections) {
+    for (const auto& projection : projections_) {
       TupleCell cell;
       if ((rc = temp.find_cell(projection, cell)) != SUCCESS) {
         LOG_WARN("[projection::next] tupleCell::find_cell error");
@@ -71,16 +71,16 @@ Tuple *ProjectOperator::current_tuple()
   return &tuple_;
 }
 
-void ProjectOperator::add_projection(string name, string alias, bool calculate)
+void ProjectOperator::add_projection(string name, const char* alias, bool calculate)
 {
   TupleCellSpec tupleCellSpec;
   if (!calculate) {
     tupleCellSpec = TupleCellSpec(new VarExpr(name, AttrType::UNDEFINED));
   } else {
-
+    //todo 四则运算expr
   }
-  if (alias != "") {
-    tupleCellSpec.set_alias(alias.c_str());
+  if (alias != nullptr) {
+    tupleCellSpec.set_alias(alias);
   }
-  projections.push_back(tupleCellSpec);
+  projections_.push_back(tupleCellSpec);
 }
