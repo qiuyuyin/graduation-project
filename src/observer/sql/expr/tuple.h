@@ -85,6 +85,9 @@ public:
       case ExprType::VALUE: {
         auto expr = static_cast<ValueExpr *>(expression_);
         return expr->tuple_cell_.attr_type();
+      } default: {
+        //todo
+        return AttrType ::UNDEFINED;
       }
     }
   }
@@ -283,6 +286,7 @@ public:
       row.cell_spec_at(i, spec);
       append_cell(cell, spec);
     }
+    return SUCCESS;
   }
   RC append_value(Value &value)
   {
@@ -380,6 +384,7 @@ public:
       auto full_name = get_full_name(spec);
       out.name_to_idx_[full_name] = i;
     }
+    return SUCCESS;
   }
 
 private:

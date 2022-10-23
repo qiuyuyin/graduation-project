@@ -59,8 +59,6 @@ RC AggregateOperator::next()
     }
     field_name += agg_op.aggregate_field.expr_name() + ")";
     AttrType field_type = agg_op.aggregate_field.attr_type();
-    string name;
-    AttrType type;
     void* data;
     switch (agg_op.op_type) {
       case MAX:
@@ -96,13 +94,14 @@ RC AggregateOperator::next()
       default:
         return INVALID_ARGUMENT;
     }
-    tuple_.append_var(name, type, data);
+    tuple_.append_var(field_name, field_type, data);
   }
   for (int i = 0; i < groupby_fields_.size(); ++i) {
     void* data = const_cast<char*>(group_values[i].c_str());
     tuple_.append_var(groupby_fields_.at(i).expr_name(), groupby_fields_.at(i).attr_type(), data);
   }
   iter++;
+  return SUCCESS;
 }
 
 RC AggregateOperator::mergeTupleIntoGroup(VTuple &tuple)
@@ -164,4 +163,5 @@ RC AggregateOperator::mergeTupleIntoGroup(VTuple &tuple)
     }
     inner->sum += tuple_value2float(tuple_cell_spec.attr_type(), temp);
   }
+  return SUCCESS;
 }

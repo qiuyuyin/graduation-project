@@ -67,7 +67,7 @@ public:
     return field_.table_name();
   }
 
-  std::string get_name() const
+  std::string get_name() const override
   {
     return field_.field_name();
   }
@@ -117,7 +117,7 @@ public:
   VarExpr(std::string name, AttrType type): name_(name)
   {}
 
-  ExprType type() const
+  ExprType type() const override
   {
     return ExprType::VAR;
   }

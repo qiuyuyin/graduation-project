@@ -301,7 +301,7 @@ RC ExecuteStage::do_create_table(SQLStageEvent *sql_event)
 
 RC ExecuteStage::do_drop_table(SQLStageEvent *sql_event)
 {
-
+  return RC::UNIMPLENMENT;
 }
 
 RC ExecuteStage::do_create_index(SQLStageEvent *sql_event)
