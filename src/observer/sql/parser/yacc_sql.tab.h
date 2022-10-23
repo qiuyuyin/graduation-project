@@ -95,22 +95,29 @@ extern int yydebug;
     INFILE = 296,                  /* INFILE  */
     NOT = 297,                     /* NOT  */
     LIKE_ = 298,                   /* LIKE_  */
-    EQ = 299,                      /* EQ  */
-    LT = 300,                      /* LT  */
-    GT = 301,                      /* GT  */
-    LE = 302,                      /* LE  */
-    GE = 303,                      /* GE  */
-    NE = 304,                      /* NE  */
-    NUMBER = 305,                  /* NUMBER  */
-    FLOAT = 306,                   /* FLOAT  */
-    ID = 307,                      /* ID  */
-    AGGREGATION_FUNC = 308,        /* AGGREGATION_FUNC  */
-    AGGREGATION_FUNC_VALUE = 309,  /* AGGREGATION_FUNC_VALUE  */
-    PATH = 310,                    /* PATH  */
-    SSS = 311,                     /* SSS  */
-    STAR = 312,                    /* STAR  */
-    STRING_V = 313,                /* STRING_V  */
-    DATE_STR = 314                 /* DATE_STR  */
+    GROUP = 299,                   /* GROUP  */
+    BY = 300,                      /* BY  */
+    HAVING = 301,                  /* HAVING  */
+    EQ = 302,                      /* EQ  */
+    LT = 303,                      /* LT  */
+    GT = 304,                      /* GT  */
+    LE = 305,                      /* LE  */
+    GE = 306,                      /* GE  */
+    NE = 307,                      /* NE  */
+    PLUS = 308,                    /* PLUS  */
+    DIV = 309,                     /* DIV  */
+    MINUS = 310,                   /* MINUS  */
+    NUMBER = 311,                  /* NUMBER  */
+    FLOAT = 312,                   /* FLOAT  */
+    ID = 313,                      /* ID  */
+    AGGREGATION_FUNC = 314,        /* AGGREGATION_FUNC  */
+    AGGREGATION_FUNC_VALUE = 315,  /* AGGREGATION_FUNC_VALUE  */
+    PATH = 316,                    /* PATH  */
+    SSS = 317,                     /* SSS  */
+    STAR = 318,                    /* STAR  */
+    STRING_V = 319,                /* STRING_V  */
+    DATE_STR = 320,                /* DATE_STR  */
+    U_neg = 321                    /* U_neg  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -119,7 +126,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 112 "yacc_sql.y"
+#line 118 "yacc_sql.y"
 
   struct _Attr *attr;
   struct _Condition *condition1;
@@ -129,7 +136,7 @@ union YYSTYPE
   float floats;
 	char *position;
 
-#line 133 "yacc_sql.tab.h"
+#line 140 "yacc_sql.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

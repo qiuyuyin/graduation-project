@@ -48,6 +48,12 @@ void relation_attr_add_aggregation(RelAttr *relation_attr, const char *aggregati
   }
 }
 
+void append_expr(Selects* select, char *str){
+  for (int i = 0; i < strlen(str); ++i) {
+    select->expr[select->e_length++] = str[i];
+  }
+}
+
 void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name)
 {
   if (relation_name != nullptr) {
@@ -177,6 +183,10 @@ void selects_init(Selects *selects, ...);
 void selects_append_attribute(Selects *selects, RelAttr *rel_attr)
 {
   selects->attributes[selects->attr_num++] = *rel_attr;
+}
+void groupby_append_attribute(Selects *selects, RelAttr *rel_attr)
+{
+  selects->group_by.attributes[selects->group_by.attr_num++] = *rel_attr;
 }
 void selects_append_relation(Selects *selects, const char *relation_name)
 {

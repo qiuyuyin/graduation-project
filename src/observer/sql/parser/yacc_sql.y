@@ -102,12 +102,18 @@ ParserContext *get_context(yyscan_t scanner)
         INFILE
         NOT
         LIKE_
+        GROUP
+        BY
+        HAVING
         EQ
         LT
         GT
         LE
         GE
         NE
+        PLUS
+        DIV
+        MINUS
 
 %union {
   struct _Attr *attr;
@@ -135,6 +141,12 @@ ParserContext *get_context(yyscan_t scanner)
 %type <condition1> condition;
 %type <value1> value;
 %type <number> number;
+
+%left PLUS MINUS
+%left STAR DIV
+%right U_neg
+
+
 
 %%
 
@@ -379,8 +391,9 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where SEMICOLON
+    SELECT e FROM ID rel_list where group_by having SEMICOLON
 		{
+		    printf("have done");
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
 			selects_append_relation(&CONTEXT->ssql->sstr.selection, $4);
 
@@ -397,93 +410,43 @@ select:				/*  select 语句的语法解析树*/
 	}
 	;
 
-select_attr:
-    STAR attr_list {
-			RelAttr attr;
-			relation_attr_init(&attr, NULL, "*");
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-		}
-    | ID attr_list {
-			RelAttr attr;
-			relation_attr_init(&attr, NULL, $1);
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-		}
-  	| ID DOT ID attr_list {
-			RelAttr attr;
-			relation_attr_init(&attr, $1, $3);
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-		}
-    | AGGREGATION_FUNC LBRACE ID RBRACE aggregation_func_list {
-            RelAttr attr;
-            relation_attr_init(&attr, NULL, $3);
-            relation_attr_add_aggregation(&attr, $1);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+e   :   e PLUS  e    {append_expr(&CONTEXT->ssql->sstr.selection, "+");}
+    |   e MINUS e    {append_expr(&CONTEXT->ssql->sstr.selection, "-");}
+    |   e STAR  e    {append_expr(&CONTEXT->ssql->sstr.selection, "*");}
+    |   e DIV   e    {append_expr(&CONTEXT->ssql->sstr.selection, "/");}
+    |   LBRACE e RBRACE {}
+    |   MINUS e %prec U_neg {append_expr(&CONTEXT->ssql->sstr.selection, "-");}
+    |   e_cell {}
+    ;
 
+e_cell:
+    STAR {
         }
-    | AGGREGATION_FUNC LBRACE STAR RBRACE aggregation_func_list {
-            RelAttr attr;
-            relation_attr_init(&attr, NULL, "*");
-            relation_attr_add_aggregation(&attr, $1);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-
-        }
-    | AGGREGATION_FUNC LBRACE number RBRACE aggregation_func_list {
-          RelAttr attr;
-          if($3 != 1) {
-              // TODO: find an elegant way to do this
-              CONTEXT->ssql->flag = SCF_ERROR;
-              return -1;
-          }
-          relation_attr_init(&attr, NULL, "1");
-          relation_attr_add_aggregation(&attr, $1);
-          selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+    |
+    ID {
+          append_expr(&CONTEXT->ssql->sstr.selection, $1);
+       }
+    | ID DOT ID {
+            char temp[100];
+            sprintf(temp, "%s.%s", $1, $3);
+            append_expr(&CONTEXT->ssql->sstr.selection, temp);
+       }
+    | AGGREGATION_FUNC LBRACE ID RBRACE {
+            char temp[100];
+            sprintf(temp, "%s(%s)", $1, $3);
+            append_expr(&CONTEXT->ssql->sstr.selection, temp);
+       }
+    | AGGREGATION_FUNC LBRACE ID DOT ID RBRACE {
+       }
+    | AGGREGATION_FUNC LBRACE STAR RBRACE {
+       }
+    | AGGREGATION_FUNC LBRACE number RBRACE {
+       }
+    | number {
+        append_expr(&CONTEXT->ssql->sstr.selection, $1);
     }
     ;
 
-aggregation_func_list:
-    /* empty */
-    | COMMA AGGREGATION_FUNC LBRACE ID RBRACE aggregation_func_list {
-            RelAttr attr;
-            relation_attr_init(&attr, NULL, $4);
-            relation_attr_add_aggregation(&attr, $2);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-        }
-    | COMMA AGGREGATION_FUNC LBRACE STAR RBRACE aggregation_func_list {
-            RelAttr attr;
-            relation_attr_init(&attr, NULL, "*");
-            relation_attr_add_aggregation(&attr, $2);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-        }
-    | COMMA AGGREGATION_FUNC LBRACE number RBRACE aggregation_func_list {
-            RelAttr attr;
-            if($4 != 1) {
-                // TODO: find an elegant way to do this
-                CONTEXT->ssql->flag = SCF_ERROR;
-                return -1;
-            }
-            relation_attr_init(&attr, NULL, "1");
-            relation_attr_add_aggregation(&attr, $2);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-        }
-    ;
-
-attr_list:
-    /* empty */
-    | COMMA ID attr_list {
-			RelAttr attr;
-			relation_attr_init(&attr, NULL, $2);
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-     	  // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length].relation_name = NULL;
-        // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length++].attribute_name=$2;
-      }
-    | COMMA ID DOT ID attr_list {
-			RelAttr attr;
-			relation_attr_init(&attr, $2, $4);
-			selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-        // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length].attribute_name=$4;
-        // CONTEXT->ssql->sstr.selection.attributes[CONTEXT->select_length++].relation_name=$2;
-  	  }
-  	;
 
 rel_list:
     /* empty */
@@ -503,6 +466,40 @@ where:
 				// CONTEXT->conditions[CONTEXT->condition_length++]=*$2;
 			}
     ;
+
+group_by:
+    /* empty */
+    | GROUP BY ID group_by_rel_list {
+        RelAttr attr;
+        relation_attr_init(&attr, NULL, $3);
+        groupby_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+    }
+    | GROUP BY ID DOT ID group_by_rel_list {
+        RelAttr attr;
+        relation_attr_init(&attr, $3, $5);
+        groupby_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+    }
+    ;
+
+having:
+    /* empty */
+    | HAVING
+
+
+group_by_rel_list:
+    /* empty */
+    | COMMA ID group_by_rel_list {
+        RelAttr attr;
+        relation_attr_init(&attr, NULL, $2);
+        groupby_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+    }
+    | COMMA ID DOT ID group_by_rel_list {
+        RelAttr attr;
+        relation_attr_init(&attr, $2, $4);
+        groupby_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+    }
+    ;
+
 condition_list:
     /* empty */
     | AND condition condition_list {
@@ -655,6 +652,7 @@ condition:
 			// $$->right_attr.attribute_name=$7;
     }
     ;
+
 
 comOp:
   	  EQ { CONTEXT->comp = EQUAL_TO; }

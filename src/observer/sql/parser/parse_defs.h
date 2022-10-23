@@ -95,6 +95,13 @@ typedef struct _Condition {
   Value right_value;   // right-hand side value if right_is_attr = FALSE
 } Condition;
 
+typedef struct {
+  size_t attr_num;
+  RelAttr attributes[MAX_NUM];
+  size_t having_condition_num;
+  Condition having_condition[MAX];
+} GroupBy;
+
 // struct of select
 typedef struct {
   size_t attr_num;                // Length of attrs in Select clause
@@ -103,7 +110,12 @@ typedef struct {
   char *relations[MAX_NUM];       // relations in From clause
   size_t condition_num;           // Length of conditions in Where clause
   Condition conditions[MAX_NUM];  // conditions in Where clause
+  GroupBy group_by;
+  size_t e_length;
+  char expr[100];
 } Selects;
+
+
 
 // struct of insert
 typedef struct {
@@ -223,6 +235,7 @@ extern "C" {
 
 const char *aggregate_type_to_string(AggregationType type);
 void relation_attr_add_aggregation(RelAttr *relation_attr, const char *aggregation_type);
+void append_expr(Selects* select, char *str);
 void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name);
 void relation_attr_destroy(RelAttr *relation_attr);
 
@@ -242,6 +255,7 @@ void attr_info_destroy(AttrInfo *attr_info);
 
 void selects_init(Selects *selects, ...);
 void selects_append_attribute(Selects *selects, RelAttr *rel_attr);
+void groupby_append_attribute(Selects *selects, RelAttr *rel_attr);
 void selects_append_relation(Selects *selects, const char *relation_name);
 void selects_append_conditions(Selects *selects, Condition conditions[], size_t condition_num);
 void selects_destroy(Selects *selects);
