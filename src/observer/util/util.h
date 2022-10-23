@@ -16,4 +16,8 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 
-std::string double2string(double v);
+using namespace std;
+
+string double2string(double v);
+
+vector<string> split(const string& str, const string& delim);

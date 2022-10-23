@@ -19,6 +19,10 @@ See the Mulan PSL v2 for more details. */
 #include "util/comparator.h"
 #include "util/util.h"
 #include "sql/stmt/typecaster.h"
+#include <string>
+#include <sstream>
+
+using namespace std;
 
 void TupleCell::to_string(std::ostream &os) const
 {
@@ -47,6 +51,13 @@ void TupleCell::to_string(std::ostream &os) const
       LOG_WARN("unsupported attr type: %d", attr_type_);
     } break;
   }
+}
+
+string TupleCell::to_string()
+{
+  std::stringstream ss;
+  to_string(ss);
+  return string(ss.str());
 }
 
 int TupleCell::compare(const TupleCell &other) const

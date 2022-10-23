@@ -16,7 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/operator/operator.h"
 
-class FilterStmt;
+class FilterUnit;
 
 /**
  * PredicateOperator 用于单个表中的记录过滤
@@ -25,10 +25,7 @@ class FilterStmt;
 class PredicateOperator : public Operator
 {
 public:
-  PredicateOperator(FilterStmt *filter_stmt)
-    : filter_stmt_(filter_stmt)
-  {}
-
+  PredicateOperator(vector<FilterUnit*> filter_unit) : filter_units_(filter_unit) {};
   virtual ~PredicateOperator() = default;
 
   RC open() override;
@@ -36,10 +33,8 @@ public:
   RC close() override;
 
   Tuple * current_tuple() override;
-  //int tuple_cell_num() const override;
-  //RC tuple_cell_spec_at(int index, TupleCellSpec &spec) const override;
 private:
-  bool do_predicate(RowTuple &tuple);
+  bool do_predicate(Tuple* t1 = nullptr);
 private:
-  FilterStmt *filter_stmt_ = nullptr;
+  vector<FilterUnit*> filter_units_;
 };

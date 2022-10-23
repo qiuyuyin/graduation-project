@@ -22,23 +22,15 @@ class ProjectOperator : public Operator
 public:
   ProjectOperator()
   {}
-
   virtual ~ProjectOperator() = default;
-
-  void add_projection(const Table *table, const FieldMeta *field);
+  void add_projection(string name, string alias, bool calculate);
 
   RC open() override;
   RC next() override;
   RC close() override;
 
-  int tuple_cell_num() const
-  {
-    return tuple_.cell_num();
-  }
-
-  RC tuple_cell_spec_at(int index, const TupleCellSpec *&spec) const;
-
   Tuple * current_tuple() override;
 private:
-  ProjectTuple tuple_;
+  VTuple tuple_;
+  vector<TupleCellSpec> projections;
 };

@@ -18,6 +18,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/table.h"
 #include "storage/common/field_meta.h"
 
+using namespace std;
+
 class TupleCell
 {
 public: 
@@ -36,6 +38,8 @@ public:
   void set_data(const char *data) { this->set_data(const_cast<char *>(data)); }
 
   void to_string(std::ostream &os) const;
+
+  string to_string();
 
   int compare(const TupleCell &other) const;
 

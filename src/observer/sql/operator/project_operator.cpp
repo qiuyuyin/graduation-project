@@ -36,7 +36,27 @@ RC ProjectOperator::open()
 
 RC ProjectOperator::next()
 {
-  return children_[0]->next();
+  RC rc;
+  if ((rc = children_[0]->next()) == SUCCESS) {
+    VTuple temp = *(VTuple*)children_[0]->current_tuple();
+    for (auto projection : projections) {
+      TupleCell cell;
+      if ((rc = temp.find_cell(projection, cell)) != SUCCESS) {
+        LOG_WARN("[projection::next] tupleCell::find_cell error");
+        return rc;
+      }
+      string field_name = projection.field_name();
+      if (projection.alias() != nullptr) {
+        field_name = projection.alias();
+      }
+      //todo 这里的type采用哪一种呢？是projection的还是cell的
+      if ((rc = temp.append_var_tuple(field_name, cell.attr_type(), (void *)cell.data())) != SUCCESS) {
+        LOG_WARN("[projection::next] Vtuple::append_var_tuple error");
+        return rc;
+      }
+    }
+  }
+  return rc;
 }
 
 RC ProjectOperator::close()
@@ -46,20 +66,10 @@ RC ProjectOperator::close()
 }
 Tuple *ProjectOperator::current_tuple()
 {
-  tuple_.set_tuple(children_[0]->current_tuple());
   return &tuple_;
 }
 
-void ProjectOperator::add_projection(const Table *table, const FieldMeta *field_meta)
+void ProjectOperator::add_projection(string name, string alias, bool calculate)
 {
-  // 对单表来说，展示的(alias) 字段总是字段名称，
-  // 对多表查询来说，展示的alias 需要带表名字
-  TupleCellSpec *spec = new TupleCellSpec(new FieldExpr(table, field_meta));
-  spec->set_alias(field_meta->name());
-  tuple_.add_cell_spec(spec);
-}
-
-RC ProjectOperator::tuple_cell_spec_at(int index, const TupleCellSpec *&spec) const
-{
-  return tuple_.cell_spec_at(index, spec);
+  
 }

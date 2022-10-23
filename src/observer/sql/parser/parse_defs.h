@@ -33,6 +33,23 @@ typedef enum  {
   NO_Aggregation
 } AggregationType;
 
+static std::string aggregationType2string(AggregationType aggregationType) {
+  switch (aggregationType) {
+    case MAX:
+      return "max";
+    case MIN:
+      return "min";
+    case COUNT:
+      return "count";
+    case AVG:
+      return "avg";
+    case SUM:
+      return "sum";
+    default:
+      return "";
+  }
+}
+
 // 属性结构体
 typedef struct {
   char *relation_name;   // relation name (may be NULL) 表名

@@ -45,7 +45,7 @@ void dfs(stringstream& ss, vector<Operator*>& tuple_sets, unordered_map<string, 
     Tuple *current_tuple = current_operator->current_tuple();
     bool flag = true;
     for (auto filter_unit : single_filters[step]) {
-      if (!filter_unit->compare(current_tuple)) {
+      if (!filter_unit->filter(current_tuple)) {
         flag = false;
         break;
       }
@@ -57,12 +57,12 @@ void dfs(stringstream& ss, vector<Operator*>& tuple_sets, unordered_map<string, 
       auto filter_unit = p.second;
       int &left_index = table_index[string((*(FieldExpr *)filter_unit->left()).table_name())];
       if (prev_index == left_index) {
-        if (!filter_unit->compare(prev_tuple, current_tuple)) {
+        if (!filter_unit->filter(prev_tuple, current_tuple)) {
           flag = false;
           break;
         }
       } else {
-        if (!filter_unit->compare(current_tuple, prev_tuple)) {
+        if (!filter_unit->filter(current_tuple, prev_tuple)) {
           flag = false;
           break;
         }
@@ -132,7 +132,7 @@ RC print_tuple_sets(stringstream& ss, vector<Operator*>& tuple_sets, SelectStmt&
 
   bool flag = true;
   for (auto value_filter : both_value_filters) {
-    if (!value_filter->compare()) {
+    if (!value_filter->filter()) {
       flag = false;
       break;
     }

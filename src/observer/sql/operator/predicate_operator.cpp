@@ -25,7 +25,6 @@ RC PredicateOperator::open()
     LOG_WARN("predicate operator must has one child");
     return RC::INTERNAL;
   }
-
   return children_[0]->open();
 }
 
@@ -42,7 +41,7 @@ RC PredicateOperator::next()
       break;
     }
 
-    if (do_predicate(static_cast<RowTuple &>(*tuple))) {
+    if (do_predicate()) {
       return rc;
     }
   }
@@ -60,55 +59,62 @@ Tuple * PredicateOperator::current_tuple()
   return children_[0]->current_tuple();
 }
 
-bool PredicateOperator::do_predicate(RowTuple &tuple)
+bool PredicateOperator::do_predicate(Tuple* t1)
 {
-  if (filter_stmt_ == nullptr || filter_stmt_->filter_units().empty()) {
+  if (filter_units_.empty()) {
     return true;
   }
-
-  for (const FilterUnit *filter_unit : filter_stmt_->filter_units()) {
-    Expression *left_expr = filter_unit->left();
-    Expression *right_expr = filter_unit->right();
-    CompOp comp = filter_unit->comp();
-    TupleCell left_cell;
-    TupleCell right_cell;
-    left_expr->get_value(tuple, left_cell);
-    right_expr->get_value(tuple, right_cell);
-
+  for (auto filter_unit : filter_units_) {
+    TupleCell left_cell, right_cell;
+    auto left = filter_unit->left();
+    auto right = filter_unit->right();
+    auto comp = filter_unit->comp();
+    if (t1 == nullptr) {
+      if (left->type() != ExprType::VALUE || right->type() != ExprType::VALUE) {
+        LOG_WARN("[FilterUnit::compare] invalid parameter, if params are null, the exprType of filterUnit both should be value");
+        return false;
+      }
+      VTuple temp;
+      left->get_value(temp, left_cell);
+      right->get_value(temp, right_cell);
+    } else {
+      left->get_value(*t1, left_cell);
+      right->get_value(*t1, right_cell);
+    }
     if (comp == LIKE || comp == NOT_LIKE) {
       if (left_cell.attr_type() == AttrType::CHARS && right_cell.attr_type() == AttrType::CHARS) {
         bool flag = compare_string((void *)left_cell.data(), left_cell.length(), (void *)right_cell.data(), right_cell.length(), true);
         if ((comp == LIKE && flag) || (comp == NOT_LIKE && !flag)) {
-          continue;
+          return true;
         }
       }
+      //todo(hjh) 这里到底是返回client failure还是false
       return false;
     }
-
     const int compare = left_cell.compare(right_cell);
     bool filter_result = false;
     switch (comp) {
-    case EQUAL_TO: {
-      filter_result = (0 == compare); 
-    } break;
-    case LESS_EQUAL: {
-      filter_result = (compare <= 0); 
-    } break;
-    case NOT_EQUAL: {
-      filter_result = (compare != 0);
-    } break;
-    case LESS_THAN: {
-      filter_result = (compare < 0);
-    } break;
-    case GREAT_EQUAL: {
-      filter_result = (compare >= 0);
-    } break;
-    case GREAT_THAN: {
-      filter_result = (compare > 0);
-    } break;
-    default: {
-      LOG_WARN("invalid compare type: %d", comp);
-    } break;
+      case EQUAL_TO: {
+        filter_result = (0 == compare);
+      } break;
+      case LESS_EQUAL: {
+        filter_result = (compare <= 0);
+      } break;
+      case NOT_EQUAL: {
+        filter_result = (compare != 0);
+      } break;
+      case LESS_THAN: {
+        filter_result = (compare < 0);
+      } break;
+      case GREAT_EQUAL: {
+        filter_result = (compare >= 0);
+      } break;
+      case GREAT_THAN: {
+        filter_result = (compare > 0);
+      } break;
+      default: {
+        LOG_WARN("invalid compare type: %d", comp);
+      } break;
     }
     if (!filter_result) {
       return false;
@@ -116,12 +122,3 @@ bool PredicateOperator::do_predicate(RowTuple &tuple)
   }
   return true;
 }
-
-// int PredicateOperator::tuple_cell_num() const
-// {
-//   return children_[0]->tuple_cell_num();
-// }
-// RC PredicateOperator::tuple_cell_spec_at(int index, TupleCellSpec &spec) const
-// {
-//   return children_[0]->tuple_cell_spec_at(index, spec);
-// }

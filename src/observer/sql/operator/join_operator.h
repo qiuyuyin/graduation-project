@@ -17,6 +17,12 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse.h"
 #include "sql/operator/operator.h"
 #include "rc.h"
+#include "sql/stmt/filter_stmt.h"
+#include <vector>
+
+using namespace std;
+
+
 
 // TODO fixme
 class JoinOperator : public Operator
@@ -30,9 +36,12 @@ public:
   RC open() override;
   RC next() override;
   RC close() override;
+  Tuple* current_tuple() override { return &tuple_; };
 
 private:
   Operator *left_ = nullptr;
   Operator *right_ = nullptr;
   bool round_done_ = true;
+  VTuple outer_tuple_;
+  VTuple tuple_;
 };
