@@ -6,6 +6,8 @@
 #include "sql/parser/lex.yy.h"
 // #include "common/log/log.h" // 包含C++中的头文件
 
+int yydebug=1;
+
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>
@@ -105,6 +107,7 @@ ParserContext *get_context(yyscan_t scanner)
         GROUP
         BY
         HAVING
+        AS
         EQ
         LT
         GT
@@ -391,7 +394,7 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT e FROM ID rel_list where group_by having SEMICOLON
+    SELECT select_list FROM ID rel_list where group_by SEMICOLON
 		{
 		    printf("have done");
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
@@ -410,40 +413,102 @@ select:				/*  select 语句的语法解析树*/
 	}
 	;
 
-e   :   e PLUS  e    {append_expr(&CONTEXT->ssql->sstr.selection, "+");}
-    |   e MINUS e    {append_expr(&CONTEXT->ssql->sstr.selection, "-");}
-    |   e STAR  e    {append_expr(&CONTEXT->ssql->sstr.selection, "*");}
-    |   e DIV   e    {append_expr(&CONTEXT->ssql->sstr.selection, "/");}
-    |   LBRACE e RBRACE {}
-    |   MINUS e %prec U_neg {append_expr(&CONTEXT->ssql->sstr.selection, "-");}
-    |   e_cell {}
+select_list:
+    STAR {
+            RelAttr attr;
+            relation_attr_init(&attr, NULL, "*");
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+        }
+    | express_all {
+      }
     ;
 
-e_cell:
-    STAR {
+express_all:
+    expr {
+            CONTEXT->ssql->sstr.selection.expr_list.exprs_num++;
         }
-    |
+    | expr AS ID {
+            append_alias_to_expr(&CONTEXT->ssql->sstr.selection.expr_list, $3);
+            CONTEXT->ssql->sstr.selection.expr_list.exprs_num++;
+        }
+    | express_all COMMA express_all {
+        }
+    ;
+
+
+expr:   expr PLUS  expr    {append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "+");}
+    |   expr MINUS expr    {append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "-");}
+    |   expr STAR  expr    {append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "*");}
+    |   expr DIV   expr    {append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "/");}
+    |   LBRACE expr RBRACE {}
+    |   MINUS expr %prec U_neg {append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "-");}
+    |   expr_cell {}
+    ;
+
+expr_cell:
     ID {
-          append_expr(&CONTEXT->ssql->sstr.selection, $1);
+            RelAttr attr;
+            relation_attr_init(&attr, NULL, $1);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, $1);
        }
     | ID DOT ID {
             char temp[100];
             sprintf(temp, "%s.%s", $1, $3);
-            append_expr(&CONTEXT->ssql->sstr.selection, temp);
+            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, temp);
+
+            RelAttr attr;
+            relation_attr_init(&attr, $1, $3);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
        }
     | AGGREGATION_FUNC LBRACE ID RBRACE {
             char temp[100];
             sprintf(temp, "%s(%s)", $1, $3);
-            append_expr(&CONTEXT->ssql->sstr.selection, temp);
+            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, temp);
+
+            RelAttr attr;
+            relation_attr_init(&attr, NULL, $3);
+            relation_attr_add_aggregation(&attr, $1);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
        }
     | AGGREGATION_FUNC LBRACE ID DOT ID RBRACE {
+            char temp[100];
+            sprintf(temp, "%s(%s.%s)", $1, $3, $5);
+            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, temp);
+
+            RelAttr attr;
+            relation_attr_init(&attr, $3, $5);
+            relation_attr_add_aggregation(&attr, $1);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
        }
     | AGGREGATION_FUNC LBRACE STAR RBRACE {
+            if (strcmp($1, "count") != 0 && strcmp($1, "COUNT") != 0) {
+            			CONTEXT->ssql->flag = SCF_ERROR;
+            			return -1;
+            }
+            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "count(*)");
+
+            RelAttr attr;
+            relation_attr_init(&attr, NULL, "*");
+            relation_attr_add_aggregation(&attr, $1);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
        }
     | AGGREGATION_FUNC LBRACE number RBRACE {
+            if ((strcmp($1, "count") != 0 && strcmp($1, "COUNT") != 0) || $3 != 1) {
+                        CONTEXT->ssql->flag = SCF_ERROR;
+                        return -1;
+            }
+            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "count(1)");
+
+            RelAttr attr;
+            relation_attr_init(&attr, NULL, "1");
+            relation_attr_add_aggregation(&attr, $1);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
        }
     | number {
-        append_expr(&CONTEXT->ssql->sstr.selection, $1);
+        char temp[20];
+        sprintf(temp, "%d", $1);
+        append_expr(&CONTEXT->ssql->sstr.selection.expr_list, temp);
     }
     ;
 
@@ -480,10 +545,6 @@ group_by:
         groupby_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
     }
     ;
-
-having:
-    /* empty */
-    | HAVING
 
 
 group_by_rel_list:
@@ -679,11 +740,11 @@ extern void scan_string(const char *str, yyscan_t scanner);
 int sql_parse(const char *s, Query *sqls){
 	ParserContext context;
 	memset(&context, 0, sizeof(context));
-
 	yyscan_t scanner;
 	yylex_init_extra(&context, &scanner);
 	context.ssql = sqls;
 	scan_string(s, scanner);
+	memset(context.ssql->sstr.selection.expr_list.exprs, 0, 20 * 20 * 20 * sizeof(char));
 	int result = yyparse(scanner);
 	yylex_destroy(scanner);
 	return result;

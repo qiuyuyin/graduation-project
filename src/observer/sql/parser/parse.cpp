@@ -48,9 +48,17 @@ void relation_attr_add_aggregation(RelAttr *relation_attr, const char *aggregati
   }
 }
 
-void append_expr(Selects* select, char *str){
+void append_expr(ExprList * expr_list, char *str){
   for (int i = 0; i < strlen(str); ++i) {
-    select->expr[select->e_length++] = str[i];
+    expr_list->exprs[expr_list->exprs_num][expr_list->expr_cell_num[expr_list->exprs_num]][i] = str[i];
+  }
+  expr_list->expr_cell_num[expr_list->exprs_num]++;
+}
+
+void append_alias_to_expr(ExprList* expr_list, char* alias)
+{
+  for (int i = 0; i < strlen(alias); ++i) {
+    expr_list->expr_alias[expr_list->exprs_num][i] = alias[i];
   }
 }
 

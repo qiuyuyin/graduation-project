@@ -102,6 +102,14 @@ typedef struct {
   Condition having_condition[MAX];
 } GroupBy;
 
+typedef struct {
+  size_t exprs_num;
+  size_t expr_cell_num[20];
+  char expr_alias[20][20];
+  char exprs[20][20][20];
+} ExprList;
+
+
 // struct of select
 typedef struct {
   size_t attr_num;                // Length of attrs in Select clause
@@ -111,8 +119,8 @@ typedef struct {
   size_t condition_num;           // Length of conditions in Where clause
   Condition conditions[MAX_NUM];  // conditions in Where clause
   GroupBy group_by;
-  size_t e_length;
-  char expr[100];
+  //expression
+  ExprList expr_list;
 } Selects;
 
 
@@ -235,7 +243,10 @@ extern "C" {
 
 const char *aggregate_type_to_string(AggregationType type);
 void relation_attr_add_aggregation(RelAttr *relation_attr, const char *aggregation_type);
-void append_expr(Selects* select, char *str);
+void append_expr(ExprList * expr_list, char *str);
+void append_alias_to_expr(ExprList* expr_list, char* alias);
+
+
 void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name);
 void relation_attr_destroy(RelAttr *relation_attr);
 
