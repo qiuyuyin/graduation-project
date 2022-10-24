@@ -88,9 +88,12 @@ typedef struct _Condition {
                        // 1时，操作符左边是属性名，0时，是属性值
   Value left_value;    // left-hand side value if left_is_attr = FALSE
   RelAttr left_attr;   // left-hand side attribute
+  
+
   CompOp comp;         // comparison operator
   int right_is_attr;   // TRUE if right-hand side is an attribute
                        // 1时，操作符右边是属性名，0时，是属性值
+
   RelAttr right_attr;  // right-hand side attribute if right_is_attr = TRUE 右边的属性
   Value right_value;   // right-hand side value if right_is_attr = FALSE
 } Condition;
@@ -101,6 +104,11 @@ typedef struct {
   size_t having_condition_num;
   Condition having_condition[MAX];
 } GroupBy;
+
+typedef struct {
+  int type;
+  char* data[20];
+} ExprCell;
 
 typedef struct {
   size_t exprs_num;
@@ -242,12 +250,21 @@ extern "C" {
 #endif  // __cplusplus
 
 const char *aggregate_type_to_string(AggregationType type);
-void relation_attr_add_aggregation(RelAttr *relation_attr, const char *aggregation_type);
-void append_expr(ExprList * expr_list, char *str);
+
+void append_buffer_expr_to_select_exprlist(ExprList* target, ExprCell* cells, size_t num);
+void append_buffer_expr_to_select_attribute(Selects *selects, ExprCell* cells, size_t num);
+
+
+
 void append_alias_to_expr(ExprList* expr_list, char* alias);
 
+void set_buffer_expr_cell(ExprCell* expr_cell, int type, char* param1, char* param2, char* param3);
 
-void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name);
+
+
+
+
+void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name, const char *aggregation_type);
 void relation_attr_destroy(RelAttr *relation_attr);
 
 int value_init_date(Value *value, const char *v);

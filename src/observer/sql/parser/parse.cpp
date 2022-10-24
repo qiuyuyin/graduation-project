@@ -32,27 +32,90 @@ const char *aggregate_type_to_string(AggregationType type)
   return "unknown";
 }
 
-void relation_attr_add_aggregation(RelAttr *relation_attr, const char *aggregation_type) {
-  if (aggregation_type != nullptr) {
-    if (strcmp("max", aggregation_type) == 0 || strcmp("MAX", aggregation_type) == 0) {
-      relation_attr->aggregation_type = AggregationType::MAX;
-    }else if (strcmp("min", aggregation_type) == 0 || strcmp("MIN", aggregation_type) == 0) {
-      relation_attr->aggregation_type = AggregationType::MIN;
-    }else if (strcmp("count", aggregation_type) == 0 || strcmp("COUNT", aggregation_type) == 0) {
-      relation_attr->aggregation_type = AggregationType::COUNT;
-    }else if (strcmp("avg", aggregation_type) == 0 || strcmp("AVG", aggregation_type) == 0) {
-      relation_attr->aggregation_type = AggregationType::AVG;
-    }else if (strcmp("sum", aggregation_type) == 0 || strcmp("SUM", aggregation_type) == 0) {
-      relation_attr->aggregation_type = AggregationType::SUM;
+
+
+void set_buffer_expr_cell(ExprCell *expr_cell, int type, char* param1, char* param2, char* param3) {
+  expr_cell->type = type;
+  char* temp[] = {param1, param2, param3};
+  for (int i = 0; i < 3; ++i) {
+    if (temp[i] != nullptr) {
+      expr_cell->data[i] = strdup(temp[i]);
+    } else {
+      expr_cell->data[i] = nullptr;
     }
   }
 }
-
-void append_expr(ExprList * expr_list, char *str){
-  for (int i = 0; i < strlen(str); ++i) {
-    expr_list->exprs[expr_list->exprs_num][expr_list->expr_cell_num[expr_list->exprs_num]][i] = str[i];
+void append_buffer_expr_to_select_exprlist(ExprList* target, ExprCell* cells, size_t num) {
+  auto append = [&](char* str) {
+    for (int i = 0; i < strlen(str); ++i) {
+      target->exprs[target->exprs_num][target->expr_cell_num[target->exprs_num]][i] = str[i];
+    }
+    target->expr_cell_num[target->exprs_num]++;
+  };
+  char temp[20];
+  for (int i = 0; i < num; ++i) {
+    auto cell = cells[i];
+    switch (cell.type) {
+      case 1:
+        append(cell.data[0]);
+        break;
+      case 2:
+        sprintf(temp, "%s.%s", cell.data[0], cell.data[1]);
+        append(temp);
+        break ;
+      case 3:
+        sprintf(temp, "%s(%s)", cell.data[0], cell.data[1]);
+        append(temp);
+        break ;
+      case 4:
+        sprintf(temp, "%s(%s.%s)", cell.data[0], cell.data[1], cell.data[2]);
+        append(temp);
+        break ;
+      case 5:
+        append("count(*)");
+        break ;
+      case 6:
+        append("count(1)");
+        break ;
+      case 7:
+      case 8:
+      case 9:
+      case 10:
+      case 11:
+      case 12:
+        append(cell.data[0]);
+        break ;
+    }
   }
-  expr_list->expr_cell_num[expr_list->exprs_num]++;
+}
+void append_buffer_expr_to_select_attribute(Selects *selects, ExprCell* cells, size_t num) {
+  for (int i = 0; i < num; ++i) {
+    auto cell = cells[i];
+    RelAttr attr;
+    switch (cell.type) {
+      case 1:
+        relation_attr_init(&attr, nullptr, cell.data[0], nullptr);
+        break ;
+      case 2:
+        relation_attr_init(&attr, cell.data[0], cell.data[1], nullptr);
+        break ;
+      case 3:
+        relation_attr_init(&attr, nullptr, cell.data[1], cell.data[0]);
+        break ;
+      case 4:
+        relation_attr_init(&attr, cell.data[1], cell.data[2], cell.data[0]);
+        break ;
+      case 5:
+        relation_attr_init(&attr, nullptr, "*", cell.data[0]);
+        break ;
+      case 6:
+        relation_attr_init(&attr, nullptr, cell.data[1], cell.data[0]);
+        break ;
+    }
+    if (cell.type >= 1 && cell.type <= 6) {
+      selects_append_attribute(selects, &attr);
+    }
+  }
 }
 
 void append_alias_to_expr(ExprList* expr_list, char* alias)
@@ -62,7 +125,7 @@ void append_alias_to_expr(ExprList* expr_list, char* alias)
   }
 }
 
-void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name)
+void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name, const char* aggregation_type)
 {
   if (relation_name != nullptr) {
     relation_attr->relation_name = strdup(relation_name);
@@ -71,6 +134,19 @@ void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const
   }
   relation_attr->attribute_name = strdup(attribute_name);
   relation_attr->aggregation_type = AggregationType::NO_Aggregation;
+  if (aggregation_type != nullptr) {
+    if (strcmp("max", aggregation_type) == 0 || strcmp("MAX", aggregation_type) == 0) {
+      relation_attr->aggregation_type = AggregationType::MAX;
+    } else if (strcmp("min", aggregation_type) == 0 || strcmp("MIN", aggregation_type) == 0) {
+      relation_attr->aggregation_type = AggregationType::MIN;
+    } else if (strcmp("count", aggregation_type) == 0 || strcmp("COUNT", aggregation_type) == 0) {
+      relation_attr->aggregation_type = AggregationType::COUNT;
+    } else if (strcmp("avg", aggregation_type) == 0 || strcmp("AVG", aggregation_type) == 0) {
+      relation_attr->aggregation_type = AggregationType::AVG;
+    } else if (strcmp("sum", aggregation_type) == 0 || strcmp("SUM", aggregation_type) == 0) {
+      relation_attr->aggregation_type = AggregationType::SUM;
+    }
+  }
 }
 
 void relation_attr_destroy(RelAttr *relation_attr)

@@ -99,11 +99,11 @@
    57 select: SELECT select_list FROM ID rel_list where group_by SEMICOLON
 
    58 select_list: STAR
-   59            | express_all
+   59            | selects_expression_all
 
-   60 express_all: expr
-   61            | expr AS ID
-   62            | express_all COMMA express_all
+   60 selects_expression_all: expr
+   61                       | expr AS ID
+   62                       | selects_expression_all COMMA selects_expression_all
 
    63 expr: expr PLUS expr
    64     | expr MINUS expr
@@ -322,7 +322,7 @@
     select_list (97)
         on left: 58 59
         on right: 57
-    express_all (98)
+    selects_expression_all (98)
         on left: 60 61 62
         on right: 59 62
     expr (99)
@@ -445,11 +445,11 @@
     AGGREGATION_FUNC  偏移，并进入状态 45
     STAR              偏移，并进入状态 46
 
-    number       转到状态 47
-    select_list  转到状态 48
-    express_all  转到状态 49
-    expr         转到状态 50
-    expr_cell    转到状态 51
+    number                  转到状态 47
+    select_list             转到状态 48
+    selects_expression_all  转到状态 49
+    expr                    转到状态 50
+    expr_cell               转到状态 51
 
 
 状态 6
@@ -779,8 +779,8 @@
 
 状态 49
 
-   59 select_list: express_all •
-   62 express_all: express_all • COMMA express_all
+   59 select_list: selects_expression_all •
+   62 selects_expression_all: selects_expression_all • COMMA selects_expression_all
 
     COMMA  偏移，并进入状态 74
 
@@ -789,8 +789,8 @@
 
 状态 50
 
-   60 express_all: expr •
-   61            | expr • AS ID
+   60 selects_expression_all: expr •
+   61                       | expr • AS ID
    63 expr: expr • PLUS expr
    64     | expr • MINUS expr
    65     | expr • STAR expr
@@ -802,7 +802,7 @@
     MINUS  偏移，并进入状态 78
     STAR   偏移，并进入状态 79
 
-    $default  使用规则 60 以归约 (express_all)
+    $default  使用规则 60 以归约 (selects_expression_all)
 
 
 状态 51
@@ -987,7 +987,7 @@
 
 状态 74
 
-   62 express_all: express_all COMMA • express_all
+   62 selects_expression_all: selects_expression_all COMMA • selects_expression_all
 
     LBRACE            偏移，并进入状态 41
     MINUS             偏移，并进入状态 42
@@ -995,15 +995,15 @@
     ID                偏移，并进入状态 44
     AGGREGATION_FUNC  偏移，并进入状态 45
 
-    number       转到状态 47
-    express_all  转到状态 97
-    expr         转到状态 50
-    expr_cell    转到状态 51
+    number                  转到状态 47
+    selects_expression_all  转到状态 97
+    expr                    转到状态 50
+    expr_cell               转到状态 51
 
 
 状态 75
 
-   61 express_all: expr AS • ID
+   61 selects_expression_all: expr AS • ID
 
     ID  偏移，并进入状态 98
 
@@ -1203,20 +1203,20 @@
 
 状态 97
 
-   62 express_all: express_all • COMMA express_all
-   62            | express_all COMMA express_all •
+   62 selects_expression_all: selects_expression_all • COMMA selects_expression_all
+   62                       | selects_expression_all COMMA selects_expression_all •
 
     COMMA  偏移，并进入状态 74
 
-    COMMA     [使用规则 62 以归约 (express_all)]
-    $default  使用规则 62 以归约 (express_all)
+    COMMA     [使用规则 62 以归约 (selects_expression_all)]
+    $default  使用规则 62 以归约 (selects_expression_all)
 
 
 状态 98
 
-   61 express_all: expr AS ID •
+   61 selects_expression_all: expr AS ID •
 
-    $default  使用规则 61 以归约 (express_all)
+    $default  使用规则 61 以归约 (selects_expression_all)
 
 
 状态 99

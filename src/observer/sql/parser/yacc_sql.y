@@ -21,7 +21,11 @@ typedef struct ParserContext {
   Value values[MAX_NUM];
   Condition conditions[MAX_NUM];
   CompOp comp;
-	char id[MAX_NUM];
+  char id[MAX_NUM];
+
+  size_t expr_cell_num;
+  ExprCell expr_cells[20];
+
 } ParserContext;
 
 //获取子串
@@ -416,99 +420,77 @@ select:				/*  select 语句的语法解析树*/
 select_list:
     STAR {
             RelAttr attr;
-            relation_attr_init(&attr, NULL, "*");
+            relation_attr_init(&attr, NULL, "*", NULL);
             selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
         }
-    | express_all {
+    | selects_expression_all {
       }
     ;
 
-express_all:
+selects_expression_all:
     expr {
+            //把存在buffer中的expr_cells转换为attribute放进sql中
+            append_buffer_expr_to_select_attribute(&CONTEXT->ssql->sstr.selection, &CONTEXT->expr_cells, CONTEXT->expr_cell_num);
+            //把存在buffer中的expr_cells放进sql的ExprList中
+            append_buffer_expr_to_select_exprlist(&CONTEXT->ssql->sstr.selection.expr_list, &CONTEXT->expr_cells, CONTEXT->expr_cell_num);
             CONTEXT->ssql->sstr.selection.expr_list.exprs_num++;
+            //清楚expr_cells缓存
+            CONTEXT->expr_cell_num = 0;
         }
     | expr AS ID {
+            append_buffer_expr_to_select_attribute(&CONTEXT->ssql->sstr.selection, &CONTEXT->expr_cells, CONTEXT->expr_cell_num);
+            append_buffer_expr_to_select_exprlist(&CONTEXT->ssql->sstr.selection.expr_list, &CONTEXT->expr_cells, CONTEXT->expr_cell_num);
             append_alias_to_expr(&CONTEXT->ssql->sstr.selection.expr_list, $3);
             CONTEXT->ssql->sstr.selection.expr_list.exprs_num++;
+            CONTEXT->expr_cell_num = 0;
         }
-    | express_all COMMA express_all {
+    | selects_expression_all COMMA selects_expression_all {
         }
     ;
 
-
-expr:   expr PLUS  expr    {append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "+");}
-    |   expr MINUS expr    {append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "-");}
-    |   expr STAR  expr    {append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "*");}
-    |   expr DIV   expr    {append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "/");}
+expr:   expr PLUS  expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 8, "+", NULL, NULL);}
+    |   expr MINUS expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 9, "-", NULL, NULL);}
+    |   expr STAR  expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 10, "*", NULL, NULL);}
+    |   expr DIV   expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 11, "/", NULL, NULL);}
     |   LBRACE expr RBRACE {}
-    |   MINUS expr %prec U_neg {append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "-");}
+    |   MINUS expr %prec U_neg {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 12, "-", NULL, NULL);}
     |   expr_cell {}
     ;
 
+//先把信息都存入context buffer
 expr_cell:
     ID {
-            RelAttr attr;
-            relation_attr_init(&attr, NULL, $1);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
-            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, $1);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 1, $1, NULL, NULL);
        }
     | ID DOT ID {
-            char temp[100];
-            sprintf(temp, "%s.%s", $1, $3);
-            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, temp);
-
-            RelAttr attr;
-            relation_attr_init(&attr, $1, $3);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 2, $1, $3, NULL);
        }
     | AGGREGATION_FUNC LBRACE ID RBRACE {
-            char temp[100];
-            sprintf(temp, "%s(%s)", $1, $3);
-            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, temp);
-
-            RelAttr attr;
-            relation_attr_init(&attr, NULL, $3);
-            relation_attr_add_aggregation(&attr, $1);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 3, $1, $3, NULL);
        }
     | AGGREGATION_FUNC LBRACE ID DOT ID RBRACE {
-            char temp[100];
-            sprintf(temp, "%s(%s.%s)", $1, $3, $5);
-            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, temp);
-
-            RelAttr attr;
-            relation_attr_init(&attr, $3, $5);
-            relation_attr_add_aggregation(&attr, $1);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 4, $1, $3, $5);
        }
     | AGGREGATION_FUNC LBRACE STAR RBRACE {
             if (strcmp($1, "count") != 0 && strcmp($1, "COUNT") != 0) {
             			CONTEXT->ssql->flag = SCF_ERROR;
             			return -1;
             }
-            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "count(*)");
-
-            RelAttr attr;
-            relation_attr_init(&attr, NULL, "*");
-            relation_attr_add_aggregation(&attr, $1);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 5, $1, NULL, NULL);
        }
     | AGGREGATION_FUNC LBRACE number RBRACE {
+            char num[20];
+            sprintf(num, "%d", $3);
             if ((strcmp($1, "count") != 0 && strcmp($1, "COUNT") != 0) || $3 != 1) {
                         CONTEXT->ssql->flag = SCF_ERROR;
                         return -1;
             }
-            append_expr(&CONTEXT->ssql->sstr.selection.expr_list, "count(1)");
-
-            RelAttr attr;
-            relation_attr_init(&attr, NULL, "1");
-            relation_attr_add_aggregation(&attr, $1);
-            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 6, $1, num, NULL);
        }
     | number {
-        char temp[20];
-        sprintf(temp, "%d", $1);
-        append_expr(&CONTEXT->ssql->sstr.selection.expr_list, temp);
+            char num[20];
+            sprintf(num, "%d", $1);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 7, num, NULL, NULL);
     }
     ;
 
@@ -536,12 +518,12 @@ group_by:
     /* empty */
     | GROUP BY ID group_by_rel_list {
         RelAttr attr;
-        relation_attr_init(&attr, NULL, $3);
+        relation_attr_init(&attr, NULL, $3, NULL);
         groupby_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
     }
     | GROUP BY ID DOT ID group_by_rel_list {
         RelAttr attr;
-        relation_attr_init(&attr, $3, $5);
+        relation_attr_init(&attr, $3, $5, NULL);
         groupby_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
     }
     ;
@@ -551,12 +533,12 @@ group_by_rel_list:
     /* empty */
     | COMMA ID group_by_rel_list {
         RelAttr attr;
-        relation_attr_init(&attr, NULL, $2);
+        relation_attr_init(&attr, NULL, $2, NULL);
         groupby_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
     }
     | COMMA ID DOT ID group_by_rel_list {
         RelAttr attr;
-        relation_attr_init(&attr, $2, $4);
+        relation_attr_init(&attr, $2, $4, NULL);
         groupby_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
     }
     ;
@@ -571,7 +553,7 @@ condition:
     ID comOp value
 		{
 			RelAttr left_attr;
-			relation_attr_init(&left_attr, NULL, $1);
+			relation_attr_init(&left_attr, NULL, $1, NULL);
 
 			Value *right_value = &CONTEXT->values[CONTEXT->value_length - 1];
 
@@ -612,9 +594,9 @@ condition:
 		|ID comOp ID
 		{
 			RelAttr left_attr;
-			relation_attr_init(&left_attr, NULL, $1);
+			relation_attr_init(&left_attr, NULL, $1, NULL);
 			RelAttr right_attr;
-			relation_attr_init(&right_attr, NULL, $3);
+			relation_attr_init(&right_attr, NULL, $3, NULL);
 
 			Condition condition;
 			condition_init(&condition, CONTEXT->comp, 1, &left_attr, NULL, 1, &right_attr, NULL);
@@ -633,7 +615,7 @@ condition:
 		{
 			Value *left_value = &CONTEXT->values[CONTEXT->value_length - 1];
 			RelAttr right_attr;
-			relation_attr_init(&right_attr, NULL, $3);
+			relation_attr_init(&right_attr, NULL, $3, NULL);
 
 			Condition condition;
 			condition_init(&condition, CONTEXT->comp, 0, NULL, left_value, 1, &right_attr, NULL);
@@ -654,7 +636,7 @@ condition:
     |ID DOT ID comOp value
 		{
 			RelAttr left_attr;
-			relation_attr_init(&left_attr, $1, $3);
+			relation_attr_init(&left_attr, $1, $3, NULL);
 			Value *right_value = &CONTEXT->values[CONTEXT->value_length - 1];
 
 			Condition condition;
@@ -677,7 +659,7 @@ condition:
 			Value *left_value = &CONTEXT->values[CONTEXT->value_length - 1];
 
 			RelAttr right_attr;
-			relation_attr_init(&right_attr, $3, $5);
+			relation_attr_init(&right_attr, $3, $5, NULL);
 
 			Condition condition;
 			condition_init(&condition, CONTEXT->comp, 0, NULL, left_value, 1, &right_attr, NULL);
@@ -696,9 +678,9 @@ condition:
     |ID DOT ID comOp ID DOT ID
 		{
 			RelAttr left_attr;
-			relation_attr_init(&left_attr, $1, $3);
+			relation_attr_init(&left_attr, $1, $3, NULL);
 			RelAttr right_attr;
-			relation_attr_init(&right_attr, $5, $7);
+			relation_attr_init(&right_attr, $5, $7, NULL);
 
 			Condition condition;
 			condition_init(&condition, CONTEXT->comp, 1, &left_attr, NULL, 1, &right_attr, NULL);
