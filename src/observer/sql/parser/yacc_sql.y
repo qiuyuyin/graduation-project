@@ -23,8 +23,9 @@ typedef struct ParserContext {
   CompOp comp;
   char id[MAX_NUM];
 
-  size_t expr_cell_num;
-  ExprCell expr_cells[20];
+  size_t expr_cell_buffer_condition_first_position;
+  size_t expr_cell_buffer_num;
+  ExprCellBuffer expr_cells[20];
 
 } ParserContext;
 
@@ -398,11 +399,11 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_list FROM ID rel_list where group_by SEMICOLON
+    SELECT select_list FROM rel where group_by having SEMICOLON
 		{
 		    printf("have done");
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
-			selects_append_relation(&CONTEXT->ssql->sstr.selection, $4);
+
 
 			selects_append_conditions(&CONTEXT->ssql->sstr.selection, CONTEXT->conditions, CONTEXT->condition_length);
 
@@ -430,53 +431,55 @@ select_list:
 selects_expression_all:
     expr {
             //把存在buffer中的expr_cells转换为attribute放进sql中
-            append_buffer_expr_to_select_attribute(&CONTEXT->ssql->sstr.selection, &CONTEXT->expr_cells, CONTEXT->expr_cell_num);
+            append_buffer_expr_to_select_attribute(&CONTEXT->ssql->sstr.selection, &CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
             //把存在buffer中的expr_cells放进sql的ExprList中
-            append_buffer_expr_to_select_exprlist(&CONTEXT->ssql->sstr.selection.expr_list, &CONTEXT->expr_cells, CONTEXT->expr_cell_num);
+            append_buffer_expr_to_select_exprlist(&CONTEXT->ssql->sstr.selection.expr_list, &CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
             CONTEXT->ssql->sstr.selection.expr_list.exprs_num++;
             //清楚expr_cells缓存
-            CONTEXT->expr_cell_num = 0;
+            clear_buffer_expr_cell_list(&CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+            CONTEXT->expr_cell_buffer_num = 0;
         }
     | expr AS ID {
-            append_buffer_expr_to_select_attribute(&CONTEXT->ssql->sstr.selection, &CONTEXT->expr_cells, CONTEXT->expr_cell_num);
-            append_buffer_expr_to_select_exprlist(&CONTEXT->ssql->sstr.selection.expr_list, &CONTEXT->expr_cells, CONTEXT->expr_cell_num);
+            append_buffer_expr_to_select_attribute(&CONTEXT->ssql->sstr.selection, &CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+            append_buffer_expr_to_select_exprlist(&CONTEXT->ssql->sstr.selection.expr_list, &CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
             append_alias_to_expr(&CONTEXT->ssql->sstr.selection.expr_list, $3);
             CONTEXT->ssql->sstr.selection.expr_list.exprs_num++;
-            CONTEXT->expr_cell_num = 0;
+            clear_buffer_expr_cell_list(&CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+            CONTEXT->expr_cell_buffer_num = 0;
         }
     | selects_expression_all COMMA selects_expression_all {
         }
     ;
 
-expr:   expr PLUS  expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 8, "+", NULL, NULL);}
-    |   expr MINUS expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 9, "-", NULL, NULL);}
-    |   expr STAR  expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 10, "*", NULL, NULL);}
-    |   expr DIV   expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 11, "/", NULL, NULL);}
+expr:   expr PLUS  expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 8, "+", NULL, NULL);}
+    |   expr MINUS expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 9, "-", NULL, NULL);}
+    |   expr STAR  expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 10, "*", NULL, NULL);}
+    |   expr DIV   expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 11, "/", NULL, NULL);}
     |   LBRACE expr RBRACE {}
-    |   MINUS expr %prec U_neg {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 12, "-", NULL, NULL);}
+    |   MINUS expr %prec U_neg {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 12, "-", NULL, NULL);}
     |   expr_cell {}
     ;
 
 //先把信息都存入context buffer
 expr_cell:
     ID {
-            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 1, $1, NULL, NULL);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 1, $1, NULL, NULL);
        }
     | ID DOT ID {
-            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 2, $1, $3, NULL);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 2, $1, $3, NULL);
        }
     | AGGREGATION_FUNC LBRACE ID RBRACE {
-            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 3, $1, $3, NULL);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 3, $1, $3, NULL);
        }
     | AGGREGATION_FUNC LBRACE ID DOT ID RBRACE {
-            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 4, $1, $3, $5);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 4, $1, $3, $5);
        }
     | AGGREGATION_FUNC LBRACE STAR RBRACE {
             if (strcmp($1, "count") != 0 && strcmp($1, "COUNT") != 0) {
             			CONTEXT->ssql->flag = SCF_ERROR;
             			return -1;
             }
-            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 5, $1, NULL, NULL);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 5, $1, NULL, NULL);
        }
     | AGGREGATION_FUNC LBRACE number RBRACE {
             char num[20];
@@ -485,34 +488,95 @@ expr_cell:
                         CONTEXT->ssql->flag = SCF_ERROR;
                         return -1;
             }
-            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 6, $1, num, NULL);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 6, $1, num, NULL);
        }
-    | number {
-            char num[20];
-            sprintf(num, "%d", $1);
-            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_num++], 7, num, NULL, NULL);
+    | value {
+            char* temp = value_to_string(&CONTEXT->values[CONTEXT->value_length-1]);
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num], 7, temp, NULL, NULL);
+            set_buffer_expr_cell_value_pos(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], CONTEXT->value_length-1);
     }
     ;
 
+rel:
+   ID rel_list {
+            selects_append_relation(&CONTEXT->ssql->sstr.selection, $1, NULL);
+        }
+   | ID AS ID rel_list {
+            selects_append_relation(&CONTEXT->ssql->sstr.selection, $1, $3);
+   }
+   ;
 
 rel_list:
     /* empty */
     | COMMA ID rel_list {
-				selects_append_relation(&CONTEXT->ssql->sstr.selection, $2);
+				selects_append_relation(&CONTEXT->ssql->sstr.selection, $2, NULL);
 		  }
-    | INNER JOIN ID ON condition condition_list rel_list {
-                selects_append_relation(&CONTEXT->ssql->sstr.selection, $3);
-          }
+    | COMMA ID AS ID rel_list {
+            selects_append_relation(&CONTEXT->ssql->sstr.selection, $2, $4);
+        }
     | INNER JOIN ID rel_list {
-                selects_append_relation(&CONTEXT->ssql->sstr.selection, $3);
+              selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, NULL);
           }
+    | INNER JOIN ID AS ID rel_list {
+            selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, $5);
+          }
+    | INNER JOIN ID ON condition condition_list rel_list {
+                selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, NULL);
+          }
+    | INNER JOIN ID AS ID ON condition condition_list rel_list {
+            selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, $5);
+        }
     ;
+
 where:
     /* empty */
     | WHERE condition condition_list {
 				// CONTEXT->conditions[CONTEXT->condition_length++]=*$2;
 			}
     ;
+
+condition:
+    condition_expression_all comOp condition_expression_all {
+        Condition condition;
+        build_condition_by_buffer_expr(CONTEXT->comp, &CONTEXT->values, &condition, &CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_condition_first_position, CONTEXT->expr_cell_buffer_num);
+        CONTEXT->conditions[CONTEXT->condition_length++] = condition;
+        CONTEXT->expr_cell_buffer_condition_first_position = 0;
+        clear_buffer_expr_cell_list(&CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+        CONTEXT->expr_cell_buffer_num = 0;
+    }
+    ;
+
+condition_list:
+    /* empty */
+    | AND condition condition_list {
+                // CONTEXT->conditions[CONTEXT->condition_length++]=*$2;
+            }
+    ;
+    
+having:
+    /* empty */
+    | HAVING having_condition having_condition_list {
+        }
+    ;
+
+having_condition:
+    condition_expression_all comOp condition_expression_all {
+        Condition condition;
+        build_condition_by_buffer_expr(CONTEXT->comp, &CONTEXT->values, &condition, &CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_condition_first_position, CONTEXT->expr_cell_buffer_num);
+        CONTEXT->ssql->sstr.selection.group_by.having_condition[CONTEXT->ssql->sstr.selection.group_by.having_condition_num++] = condition;
+        CONTEXT->expr_cell_buffer_condition_first_position = 0;
+        clear_buffer_expr_cell_list(&CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+        CONTEXT->expr_cell_buffer_num = 0;
+    }
+    ;
+    
+    
+having_condition_list:
+    /* empty */
+    | AND having_condition having_condition_list {
+            }
+    ;
+    
 
 group_by:
     /* empty */
@@ -543,158 +607,14 @@ group_by_rel_list:
     }
     ;
 
-condition_list:
-    /* empty */
-    | AND condition condition_list {
-				// CONTEXT->conditions[CONTEXT->condition_length++]=*$2;
-			}
+condition_expression_all:
+    expr {
+            if (CONTEXT->expr_cell_buffer_condition_first_position == 0) {
+                CONTEXT->expr_cell_buffer_condition_first_position = CONTEXT->expr_cell_buffer_num;
+            }
+         }
     ;
-condition:
-    ID comOp value
-		{
-			RelAttr left_attr;
-			relation_attr_init(&left_attr, NULL, $1, NULL);
 
-			Value *right_value = &CONTEXT->values[CONTEXT->value_length - 1];
-
-			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 1, &left_attr, NULL, 0, NULL, right_value);
-			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
-			// $$ = ( Condition *)malloc(sizeof( Condition));
-			// $$->left_is_attr = 1;
-			// $$->left_attr.relation_name = NULL;
-			// $$->left_attr.attribute_name= $1;
-			// $$->comp = CONTEXT->comp;
-			// $$->right_is_attr = 0;
-			// $$->right_attr.relation_name = NULL;
-			// $$->right_attr.attribute_name = NULL;
-			// $$->right_value = *$3;
-
-		}
-		|value comOp value
-		{
-			Value *left_value = &CONTEXT->values[CONTEXT->value_length - 2];
-			Value *right_value = &CONTEXT->values[CONTEXT->value_length - 1];
-
-			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 0, NULL, left_value, 0, NULL, right_value);
-			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
-			// $$ = ( Condition *)malloc(sizeof( Condition));
-			// $$->left_is_attr = 0;
-			// $$->left_attr.relation_name=NULL;
-			// $$->left_attr.attribute_name=NULL;
-			// $$->left_value = *$1;
-			// $$->comp = CONTEXT->comp;
-			// $$->right_is_attr = 0;
-			// $$->right_attr.relation_name = NULL;
-			// $$->right_attr.attribute_name = NULL;
-			// $$->right_value = *$3;
-
-		}
-		|ID comOp ID
-		{
-			RelAttr left_attr;
-			relation_attr_init(&left_attr, NULL, $1, NULL);
-			RelAttr right_attr;
-			relation_attr_init(&right_attr, NULL, $3, NULL);
-
-			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 1, &left_attr, NULL, 1, &right_attr, NULL);
-			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
-			// $$=( Condition *)malloc(sizeof( Condition));
-			// $$->left_is_attr = 1;
-			// $$->left_attr.relation_name=NULL;
-			// $$->left_attr.attribute_name=$1;
-			// $$->comp = CONTEXT->comp;
-			// $$->right_is_attr = 1;
-			// $$->right_attr.relation_name=NULL;
-			// $$->right_attr.attribute_name=$3;
-
-		}
-    |value comOp ID
-		{
-			Value *left_value = &CONTEXT->values[CONTEXT->value_length - 1];
-			RelAttr right_attr;
-			relation_attr_init(&right_attr, NULL, $3, NULL);
-
-			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 0, NULL, left_value, 1, &right_attr, NULL);
-			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
-
-			// $$=( Condition *)malloc(sizeof( Condition));
-			// $$->left_is_attr = 0;
-			// $$->left_attr.relation_name=NULL;
-			// $$->left_attr.attribute_name=NULL;
-			// $$->left_value = *$1;
-			// $$->comp=CONTEXT->comp;
-
-			// $$->right_is_attr = 1;
-			// $$->right_attr.relation_name=NULL;
-			// $$->right_attr.attribute_name=$3;
-
-		}
-    |ID DOT ID comOp value
-		{
-			RelAttr left_attr;
-			relation_attr_init(&left_attr, $1, $3, NULL);
-			Value *right_value = &CONTEXT->values[CONTEXT->value_length - 1];
-
-			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 1, &left_attr, NULL, 0, NULL, right_value);
-			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
-
-			// $$=( Condition *)malloc(sizeof( Condition));
-			// $$->left_is_attr = 1;
-			// $$->left_attr.relation_name=$1;
-			// $$->left_attr.attribute_name=$3;
-			// $$->comp=CONTEXT->comp;
-			// $$->right_is_attr = 0;   //属性值
-			// $$->right_attr.relation_name=NULL;
-			// $$->right_attr.attribute_name=NULL;
-			// $$->right_value =*$5;
-
-    }
-    |value comOp ID DOT ID
-		{
-			Value *left_value = &CONTEXT->values[CONTEXT->value_length - 1];
-
-			RelAttr right_attr;
-			relation_attr_init(&right_attr, $3, $5, NULL);
-
-			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 0, NULL, left_value, 1, &right_attr, NULL);
-			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
-			// $$=( Condition *)malloc(sizeof( Condition));
-			// $$->left_is_attr = 0;//属性值
-			// $$->left_attr.relation_name=NULL;
-			// $$->left_attr.attribute_name=NULL;
-			// $$->left_value = *$1;
-			// $$->comp =CONTEXT->comp;
-			// $$->right_is_attr = 1;//属性
-			// $$->right_attr.relation_name = $3;
-			// $$->right_attr.attribute_name = $5;
-
-    }
-    |ID DOT ID comOp ID DOT ID
-		{
-			RelAttr left_attr;
-			relation_attr_init(&left_attr, $1, $3, NULL);
-			RelAttr right_attr;
-			relation_attr_init(&right_attr, $5, $7, NULL);
-
-			Condition condition;
-			condition_init(&condition, CONTEXT->comp, 1, &left_attr, NULL, 1, &right_attr, NULL);
-			CONTEXT->conditions[CONTEXT->condition_length++] = condition;
-			// $$=( Condition *)malloc(sizeof( Condition));
-			// $$->left_is_attr = 1;		//属性
-			// $$->left_attr.relation_name=$1;
-			// $$->left_attr.attribute_name=$3;
-			// $$->comp =CONTEXT->comp;
-			// $$->right_is_attr = 1;		//属性
-			// $$->right_attr.relation_name=$5;
-			// $$->right_attr.attribute_name=$7;
-    }
-    ;
 
 
 comOp:

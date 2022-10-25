@@ -83,47 +83,63 @@ typedef struct _Value {
   void *data;     // value
 } Value;
 
+
+typedef struct {
+  int has_alias;
+  char alias[20]; //表达式的别名
+  size_t expr_cell_num; //表达式有几个cell
+  char data[20][20]; //表达式cell数据
+} Expr;
+
 typedef struct _Condition {
-  int left_is_attr;    // TRUE if left-hand side is an attribute
-                       // 1时，操作符左边是属性名，0时，是属性值
-  Value left_value;    // left-hand side value if left_is_attr = FALSE
+  int left_type;    // 1代表是Value 2代表RelAttr 3代表计算表达式(单一聚合函数也属于这一类)
+
+  Value left_value;    // left-hand side value if left_type = FALSE
   RelAttr left_attr;   // left-hand side attribute
-  
+  Expr left_expr;      // 左边是计算表达式
 
   CompOp comp;         // comparison operator
-  int right_is_attr;   // TRUE if right-hand side is an attribute
+  int right_type;   // TRUE if right-hand side is an attribute
                        // 1时，操作符右边是属性名，0时，是属性值
 
-  RelAttr right_attr;  // right-hand side attribute if right_is_attr = TRUE 右边的属性
-  Value right_value;   // right-hand side value if right_is_attr = FALSE
+  RelAttr right_attr;  // right-hand side attribute if right_type = TRUE 右边的属性
+  Value right_value;   // right-hand side value if right_type = FALSE
+  Expr right_expr;     // 右边是计算表达式
 } Condition;
 
 typedef struct {
   size_t attr_num;
   RelAttr attributes[MAX_NUM];
   size_t having_condition_num;
-  Condition having_condition[MAX];
+  Condition having_condition[MAX_NUM];
 } GroupBy;
 
 typedef struct {
+  int value_pos;
   int type;
   char* data[20];
-} ExprCell;
+} ExprCellBuffer;
+
+
 
 typedef struct {
   size_t exprs_num;
-  size_t expr_cell_num[20];
-  char expr_alias[20][20];
-  char exprs[20][20][20];
+  Expr exprs[20];
 } ExprList;
 
+
+
+typedef struct {
+  char* alias;
+  char* name;
+} Relation;
 
 // struct of select
 typedef struct {
   size_t attr_num;                // Length of attrs in Select clause
   RelAttr attributes[MAX_NUM];    // attrs in Select clause
   size_t relation_num;            // Length of relations in Fro clause
-  char *relations[MAX_NUM];       // relations in From clause
+  Relation relations[MAX_NUM]; // relations in From clause
   size_t condition_num;           // Length of conditions in Where clause
   Condition conditions[MAX_NUM];  // conditions in Where clause
   GroupBy group_by;
@@ -241,6 +257,7 @@ enum SqlCommandFlag {
 };
 // struct of flag and sql_struct
 typedef struct Query {
+  const char* sql;
   enum SqlCommandFlag flag;
   union Queries sstr;
 } Query;
@@ -251,15 +268,17 @@ extern "C" {
 
 const char *aggregate_type_to_string(AggregationType type);
 
-void append_buffer_expr_to_select_exprlist(ExprList* target, ExprCell* cells, size_t num);
-void append_buffer_expr_to_select_attribute(Selects *selects, ExprCell* cells, size_t num);
+void append_buffer_expr_to_select_exprlist(ExprList* target, ExprCellBuffer* cells, size_t num);
+void append_buffer_expr_to_select_attribute(Selects *selects, ExprCellBuffer* cells, size_t num);
+void build_condition_by_buffer_expr(CompOp comp, Value* buffer_values, Condition* condition, ExprCellBuffer* cells, size_t pos1, size_t pos2);
 
 
 
 void append_alias_to_expr(ExprList* expr_list, char* alias);
 
-void set_buffer_expr_cell(ExprCell* expr_cell, int type, char* param1, char* param2, char* param3);
+void set_buffer_expr_cell(ExprCellBuffer* expr_cell, int type, char* param1, char* param2, char* param3);
 
+void set_buffer_expr_cell_value_pos(ExprCellBuffer *expr_cell, int pos);
 
 
 
@@ -267,6 +286,7 @@ void set_buffer_expr_cell(ExprCell* expr_cell, int type, char* param1, char* par
 void relation_attr_init(RelAttr *relation_attr, const char *relation_name, const char *attribute_name, const char *aggregation_type);
 void relation_attr_destroy(RelAttr *relation_attr);
 
+char* value_to_string(Value* value);
 int value_init_date(Value *value, const char *v);
 int value_init_date_from_integer(Value *value, int v);
 void value_init_integer(Value *value, int v);
@@ -274,9 +294,11 @@ void value_init_float(Value *value, float v);
 void value_init_string(Value *value, const char *v);
 void value_destroy(Value *value);
 
-void condition_init(Condition *condition, CompOp comp, int left_is_attr, RelAttr *left_attr, Value *left_value,
-    int right_is_attr, RelAttr *right_attr, Value *right_value);
+void condition_init(Condition *condition, CompOp comp, int left_type, Value *left_value, RelAttr *left_attr, Expr *left_expr,
+    int right_type, Value *right_value, RelAttr *right_attr, Expr *right_expr);
 void condition_destroy(Condition *condition);
+void groupby_destroy(GroupBy *groupBy);
+void expr_list_destroy(ExprList* exprList);
 
 void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t length);
 void attr_info_destroy(AttrInfo *attr_info);
@@ -284,9 +306,11 @@ void attr_info_destroy(AttrInfo *attr_info);
 void selects_init(Selects *selects, ...);
 void selects_append_attribute(Selects *selects, RelAttr *rel_attr);
 void groupby_append_attribute(Selects *selects, RelAttr *rel_attr);
-void selects_append_relation(Selects *selects, const char *relation_name);
+void selects_append_relation(Selects *selects, const char *relation_name, const char *alias_name);
 void selects_append_conditions(Selects *selects, Condition conditions[], size_t condition_num);
+void relation_destroy(Relation* relation);
 void selects_destroy(Selects *selects);
+void clear_buffer_expr_cell_list(ExprCellBuffer* exprCellBuffer, int len);
 
 void inserts_init(Inserts *inserts, const char *relation_name, Value values[], size_t value_num);
 void inserts_destroy(Inserts *inserts);

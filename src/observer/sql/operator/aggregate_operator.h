@@ -13,7 +13,7 @@
 
 using namespace std;
 
-class AggregateOp {
+class AggregateField {
 public:
   AggregationType op_type = AggregationType::NO_Aggregation;
   TupleCellSpec aggregate_field;
@@ -31,7 +31,7 @@ class AggregateOperator : public Operator
 {
 
 public:
-  AggregateOperator(vector<AggregateOp> aggregate_ops, vector<TupleCellSpec> groupby_fields) : aggregate_ops_(aggregate_ops), groupby_fields_(groupby_fields){};
+  AggregateOperator(vector<AggregateField> aggregate_ops, vector<TupleCellSpec> groupby_fields) : aggregate_ops_(aggregate_ops), groupby_fields_(groupby_fields){};
   virtual ~AggregateOperator() = default;
   RC open() override;
   RC next() override;
@@ -42,7 +42,7 @@ private:
   RC mergeTupleIntoGroup(VTuple &tuple);
 
 private:
-  vector<AggregateOp> aggregate_ops_;
+  vector<AggregateField> aggregate_ops_;
   vector<TupleCellSpec> groupby_fields_;
   VTuple tuple_;
   unordered_map<string, vector<innerRes*>*>::iterator iter;

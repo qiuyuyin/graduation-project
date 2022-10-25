@@ -31,9 +31,9 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
 
   ProjectOperator project_oper;
   project_oper.add_child(&pred_oper);
-  for (const Field &field : select_stmt->query_fields()) {
-    project_oper.add_projection(field.field_name(), nullptr, false);
-  }
+//  for (const Field &field : select_stmt->query_fields()) {
+//    project_oper.add_projection(field.field_name(), nullptr, false);
+//  }
   rc = project_oper.open();
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to open operator");

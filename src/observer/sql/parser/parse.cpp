@@ -34,8 +34,9 @@ const char *aggregate_type_to_string(AggregationType type)
 
 
 
-void set_buffer_expr_cell(ExprCell *expr_cell, int type, char* param1, char* param2, char* param3) {
+void set_buffer_expr_cell(ExprCellBuffer *expr_cell, int type, char* param1, char* param2, char* param3) {
   expr_cell->type = type;
+  expr_cell->value_pos = -1;
   char* temp[] = {param1, param2, param3};
   for (int i = 0; i < 3; ++i) {
     if (temp[i] != nullptr) {
@@ -45,13 +46,19 @@ void set_buffer_expr_cell(ExprCell *expr_cell, int type, char* param1, char* par
     }
   }
 }
-void append_buffer_expr_to_select_exprlist(ExprList* target, ExprCell* cells, size_t num) {
+void set_buffer_expr_cell_value_pos(ExprCellBuffer *expr_cell, int pos) {
+  expr_cell->value_pos = pos;
+}
+
+void append_buffer_expr_to_select_exprlist(ExprList* target, ExprCellBuffer* cells, size_t num) {
   auto append = [&](char* str) {
+    Expr* expr = &target->exprs[target->exprs_num];
     for (int i = 0; i < strlen(str); ++i) {
-      target->exprs[target->exprs_num][target->expr_cell_num[target->exprs_num]][i] = str[i];
+      expr->data[expr->expr_cell_num][i] = str[i];
     }
-    target->expr_cell_num[target->exprs_num]++;
+    expr->expr_cell_num++;
   };
+
   char temp[20];
   for (int i = 0; i < num; ++i) {
     auto cell = cells[i];
@@ -88,7 +95,7 @@ void append_buffer_expr_to_select_exprlist(ExprList* target, ExprCell* cells, si
     }
   }
 }
-void append_buffer_expr_to_select_attribute(Selects *selects, ExprCell* cells, size_t num) {
+void append_buffer_expr_to_select_attribute(Selects *selects, ExprCellBuffer* cells, size_t num) {
   for (int i = 0; i < num; ++i) {
     auto cell = cells[i];
     RelAttr attr;
@@ -117,11 +124,57 @@ void append_buffer_expr_to_select_attribute(Selects *selects, ExprCell* cells, s
     }
   }
 }
+void build_condition_by_buffer_expr(CompOp comp, Value* buffer_values, Condition* condition, ExprCellBuffer* cells, size_t pos1, size_t pos2) {
+  Value *left_value = nullptr, *right_value = nullptr;
+  RelAttr *left_attr = nullptr, *right_attr = nullptr;
+  Expr *left_expr = nullptr, *right_expr = nullptr;
+
+  auto build = [](Value*& buffer_values, Value*& value, RelAttr*& attr, Expr*& expr, ExprCellBuffer* cells, size_t len){
+    auto build_attr = [](ExprCellBuffer& cell){
+      RelAttr* attr = new RelAttr;
+      if (cell.type == 1) {
+        relation_attr_init(attr, nullptr, cell.data[0], nullptr);
+      } else if (cell.type == 2) {
+        relation_attr_init(attr, cell.data[0], cell.data[1], nullptr);
+      }
+      return attr;
+    };
+    ExprList* exprList = new ExprList;
+    if (len == 1) {
+      if (cells[0].type == 7) {
+        value = &buffer_values[cells[0].value_pos];
+      } else if (cells[0].type == 1 || cells[0].type == 2) {
+        attr = build_attr(cells[0]);
+      } else {
+        append_buffer_expr_to_select_exprlist(exprList, cells, 1);
+        expr = &exprList->exprs[0];
+      }
+    } else {
+      append_buffer_expr_to_select_exprlist(exprList, cells, len);
+      expr = &exprList->exprs[0];
+    }
+  };
+
+  build(buffer_values, left_value, left_attr, left_expr, cells, pos1);
+  build(buffer_values, right_value, right_attr, right_expr, &cells[pos1], pos2-pos1);
+  auto get_value = [&](bool left){
+    auto value = left ? left_value : right_value;
+    auto attr = left ? left_attr : right_attr;
+    auto expr = left ? left_expr : right_expr;
+    if (value != nullptr) return 1;
+    if (attr != nullptr) return 2;
+    if (expr != nullptr) return 3;
+    return 0;
+  };
+  condition_init(condition, comp, get_value(true), left_value, left_attr, left_expr, get_value(false), right_value, right_attr, right_expr);
+}
+
 
 void append_alias_to_expr(ExprList* expr_list, char* alias)
 {
+  expr_list->exprs[expr_list->exprs_num].has_alias = 1;
   for (int i = 0; i < strlen(alias); ++i) {
-    expr_list->expr_alias[expr_list->exprs_num][i] = alias[i];
+    expr_list->exprs[expr_list->exprs_num].alias[i] = alias[i];
   }
 }
 
@@ -164,6 +217,25 @@ static bool check_date(int y, int m, int d)
 
   return y > 0 && (m > 0) && (m <= 12) && (d > 0) && (d <= ((m == 2 && leap) ? 1 : 0) + mon[m]);
 }
+
+char* value_to_string(Value* value) {
+  char* temp = new char[20];
+  switch (value->type) {
+    case CHARS:
+      return (char *)value->data;
+    case INTS:
+      sprintf(temp, "%d", *(int*)value->data);
+      return temp;
+    case FLOATS:
+      sprintf(temp, "%f",*(float*)value->data);
+      return temp;
+    case DATES:
+      Date date = *(Date*)value->data;
+      sprintf(temp, "%d-%d-%d", (int)date.year, (int)date.month, (int)date.day);
+      return temp;
+  }
+}
+
 int value_init_date(Value *value, const char *v)
 {
   value->type = DATES;
@@ -214,37 +286,70 @@ void value_destroy(Value *value)
   value->data = nullptr;
 }
 
-void condition_init(Condition *condition, CompOp comp, int left_is_attr, RelAttr *left_attr, Value *left_value,
-    int right_is_attr, RelAttr *right_attr, Value *right_value)
+void condition_init(Condition *condition, CompOp comp, int left_type, Value *left_value, RelAttr *left_attr, Expr* left_expr, int right_type, Value *right_value, RelAttr *right_attr, Expr* right_expr)
 {
   condition->comp = comp;
-  condition->left_is_attr = left_is_attr;
-  if (left_is_attr) {
-    condition->left_attr = *left_attr;
-  } else {
+  condition->left_type = left_type;
+  if (left_type == 1) {
     condition->left_value = *left_value;
+  } else if (left_type == 2) {
+    condition->left_attr = *left_attr;
+  } else if (left_type == 3) {
+    condition->left_expr = *left_expr;
   }
 
-  condition->right_is_attr = right_is_attr;
-  if (right_is_attr) {
-    condition->right_attr = *right_attr;
-  } else {
+  condition->right_type = right_type;
+  if (right_type == 1) {
     condition->right_value = *right_value;
+  } else if (right_type == 2) {
+    condition->right_attr = *right_attr;
+  } else if (right_type == 3) {
+    condition->right_expr = *right_expr;
   }
 }
+
+
+void expr_destroy(Expr* expr) {
+  expr->has_alias = 0;
+  expr->expr_cell_num = 0;
+  memset(&expr->alias, 0, sizeof(expr->alias));
+  memset(&expr->data, 0, sizeof(expr->data));
+}
+
 void condition_destroy(Condition *condition)
 {
-  if (condition->left_is_attr) {
-    relation_attr_destroy(&condition->left_attr);
-  } else {
+  if (condition->left_type == 1) {
     value_destroy(&condition->left_value);
+  } else if (condition->left_type == 2){
+    relation_attr_destroy(&condition->left_attr);
+  } else if (condition->left_type == 3) {
+    expr_destroy(&condition->left_expr);
   }
-  if (condition->right_is_attr) {
-    relation_attr_destroy(&condition->right_attr);
-  } else {
+
+  if (condition->right_type == 1) {
     value_destroy(&condition->right_value);
+  } else if (condition->right_type == 2) {
+    relation_attr_destroy(&condition->right_attr);
+  } else if (condition->right_type == 3) {
+    expr_destroy(&condition->right_expr);
   }
 }
+
+void groupby_destroy(GroupBy *groupBy) {
+  for (int i = 0; i < groupBy->attr_num; ++i) {
+    relation_attr_destroy(&groupBy->attributes[i]);
+  }
+  for (int i = 0; i < groupBy->having_condition_num; ++i) {
+    condition_destroy(&groupBy->having_condition[i]);
+  }
+  groupBy->attr_num = 0;
+  groupBy->having_condition_num = 0;
+}
+
+void expr_list_destroy(ExprList* exprList) {
+  memset(exprList, 0, sizeof(ExprList));
+}
+
 
 void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t length)
 {
@@ -272,9 +377,14 @@ void groupby_append_attribute(Selects *selects, RelAttr *rel_attr)
 {
   selects->group_by.attributes[selects->group_by.attr_num++] = *rel_attr;
 }
-void selects_append_relation(Selects *selects, const char *relation_name)
+void selects_append_relation(Selects *selects, const char *relation_name, const char *alias)
 {
-  selects->relations[selects->relation_num++] = strdup(relation_name);
+  selects->relations[selects->relation_num].name = strdup(relation_name);
+  if (alias != nullptr) {
+    selects->relations[selects->relation_num++].alias = strdup(alias);
+  } else {
+    selects->relations[selects->relation_num++].alias = nullptr;
+  }
 }
 
 void selects_append_conditions(Selects *selects, Condition conditions[], size_t condition_num)
@@ -286,6 +396,17 @@ void selects_append_conditions(Selects *selects, Condition conditions[], size_t 
   selects->condition_num = condition_num;
 }
 
+void relation_destroy(Relation* relation) {
+  if (relation->name != nullptr) {
+    free(relation->name);
+  }
+  if (relation->alias != nullptr) {
+    free(relation->alias);
+  }
+  relation->name = nullptr;
+  relation->alias = nullptr;
+}
+
 void selects_destroy(Selects *selects)
 {
   for (size_t i = 0; i < selects->attr_num; i++) {
@@ -294,8 +415,7 @@ void selects_destroy(Selects *selects)
   selects->attr_num = 0;
 
   for (size_t i = 0; i < selects->relation_num; i++) {
-    free(selects->relations[i]);
-    selects->relations[i] = NULL;
+    relation_destroy(&selects->relations[i]);
   }
   selects->relation_num = 0;
 
@@ -303,6 +423,22 @@ void selects_destroy(Selects *selects)
     condition_destroy(&selects->conditions[i]);
   }
   selects->condition_num = 0;
+
+  groupby_destroy(&selects->group_by);
+  expr_list_destroy(&selects->expr_list);
+}
+
+void clear_buffer_expr_cell_list(ExprCellBuffer* exprCellBuffer, int len) {
+  for (int i = 0; i < len; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      if (exprCellBuffer[i].data[j] != nullptr) {
+        free(exprCellBuffer[i].data[j]);
+        exprCellBuffer[i].data[j] = nullptr;
+      }
+    }
+    exprCellBuffer[i].type = 0;
+    exprCellBuffer[i].value_pos = 0;
+  }
 }
 
 void inserts_init(Inserts *inserts, const char *relation_name, Value values[], size_t value_num)

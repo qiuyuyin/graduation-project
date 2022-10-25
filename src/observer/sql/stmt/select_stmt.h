@@ -15,15 +15,55 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <vector>
-
+#include <string>
 #include "rc.h"
 #include "sql/stmt/stmt.h"
 #include "storage/common/field.h"
+#include "sql/operator/aggregate_operator.h"
+#include "util/util.h"
 
 class FieldMeta;
 class FilterStmt;
 class Db;
 class Table;
+class TupleCellSpec;
+
+using namespace std;
+
+class QueryField {
+public:
+  string name;
+  string alias;
+};
+
+static vector<QueryField> get_query_field(string sql) {
+  auto parse = [](string temp){
+    QueryField queryField;
+    auto pos = temp.find("as");
+    if (pos == temp.npos) {
+      queryField.name = temp;
+    } else {
+      queryField.name = temp.substr(0, pos-1);
+      queryField.alias = temp.substr(pos+3);
+    }
+    return queryField;
+  };
+  vector<QueryField> res;
+  auto pos1 = sql.find("select"), pos2 = sql.find("from");
+  if (pos1 == sql.npos || pos2 == sql.npos) {
+    return res;
+  }
+  sql = sql.substr(pos1+7, pos2-1);
+  if ((pos1 = sql.find(",")) == sql.npos) {
+    res.push_back(parse(sql));
+  } else {
+    auto sql_list = split(sql, ",");
+    for (auto s : sql_list) {
+      res.push_back(parse(s));
+    }
+  }
+  return res;
+}
 
 class SelectStmt : public Stmt
 {
@@ -34,18 +74,22 @@ public:
 
   StmtType type() const override { return StmtType::SELECT; }
 public:
-  static RC create(Db *db, const Selects &select_sql, Stmt *&stmt);
+  static RC create(Db *db, const string sql_string, const Selects &select_sql, Stmt *&stmt);
 
 public:
   const std::vector<Table *> &tables() const { return tables_; }
-  const std::vector<Field> &query_fields() const { return query_fields_; }
-  const std::vector<AggregationType> &aggregation_funcs() const { return aggregation_funcs_; }
+  const std::vector<TupleCellSpec> &query_fields() const { return query_fields_; }
   FilterStmt *filter_stmt() const { return filter_stmt_; }
 
 private:
-  std::vector<Field> query_fields_;
-  std::vector<AggregationType> aggregation_funcs_;
-  std::vector<Table *> tables_;
+  //project operator
+  std::vector<TupleCellSpec> query_fields_;
+  //aggregate
+  vector<AggregateField> aggregate_field_;
+  vector<TupleCellSpec> groupby_fields_;
+  //predicate
   FilterStmt *filter_stmt_ = nullptr;
+  //scan operator
+  std::vector<Table *> tables_;
 };
 

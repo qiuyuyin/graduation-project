@@ -93,7 +93,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   Expression *right = nullptr;
   AttrType left_type = AttrType::UNDEFINED;
   AttrType right_type = AttrType::UNDEFINED;
-  if (condition.left_is_attr) {
+  if (condition.left_type) {
     Table *table = nullptr;
     const FieldMeta *field = nullptr;
     rc = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);  
@@ -108,7 +108,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     left = new ValueExpr(condition.left_value);
   }
 
-  if (condition.right_is_attr) {
+  if (condition.right_type) {
     Table *table = nullptr;
     const FieldMeta *field = nullptr;
     rc = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);  
