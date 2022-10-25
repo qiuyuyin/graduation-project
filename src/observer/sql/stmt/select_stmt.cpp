@@ -32,12 +32,14 @@ SelectStmt::~SelectStmt()
   }
 }
 
-static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
+static void wildcard_fields(Table *table, std::vector<TupleCellSpec> &query_fields)
 {
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num();
   for (int i = table_meta.sys_field_num(); i < field_num; i++) {
-    field_metas.push_back(Field(table, table_meta.field(i)));
+    Expression* expr = new FieldExpr(table, table_meta.field(i));
+    TupleCellSpec tuple_cell_spec(expr);
+    query_fields.push_back(tuple_cell_spec);
   }
 }
 
@@ -49,8 +51,9 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   }
 
   // collect tables in `from` statement
-  std::vector<Table *> tables;
-  std::unordered_map<std::string, Table *> table_map;
+  vector<Table *> tables;
+  unordered_map<std::string, Table *> table_map;
+  unordered_map<string, string> alias_map;
   for (size_t i = 0; i < select_sql.relation_num; i++) {
     const char *table_name = select_sql.relations[i].name;
     if (nullptr == table_name) {
@@ -63,27 +66,35 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
       LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
-
     tables.push_back(table);
+    if (select_sql.relations[i].alias != nullptr) {
+      alias_map.insert(pair<string, string>(table_name, select_sql.relations[i].alias));
+    }
     table_map.insert(std::pair<std::string, Table*>(table_name, table));
   }
   
   // collect query fields in `select` statement
-  //todo 这里要考虑select*的情况
-  vector<QueryField> query_fields = get_query_field(sql_string);
-  vector<TupleCellSpec> res_query_fields;
-  for (auto query_field : query_fields) {
-      Expression* expr = new VarExpr(query_field.name, AttrType::UNDEFINED);
-      TupleCellSpec* tupleCellSpec = new TupleCellSpec(expr);
-      if (query_field.alias != "") {
-        tupleCellSpec->set_alias(query_field.alias.c_str());
+  // select * from
+  vector<TupleCellSpec> query_fields;
+  if (select_sql.attr_num == 1 && common::is_blank(select_sql.attributes[0].relation_name) && 0 == strcmp(select_sql.attributes[0].attribute_name, "*")) {
+    for (auto table : tables) {
+      wildcard_fields(table, query_fields);
+    }
+  } else {
+    vector<QueryField> parse_fields = get_query_field(sql_string);
+    for (auto parse_field : parse_fields) {
+      Expression* expr = new VarExpr(parse_field.name, AttrType::UNDEFINED);
+      TupleCellSpec tupleCellSpec(expr);
+      if (parse_field.alias != "") {
+        tupleCellSpec.set_alias(parse_field.alias.c_str());
       }
-      res_query_fields.push_back(*tupleCellSpec);
+      query_fields.push_back(tupleCellSpec);
+    }
   }
 
   // collect aggregate fields in `select` statement
-  unordered_set<string> aggregate_field_name_set;
-  vector<AggregateField> res_aggregate_field;
+  unordered_set<string> name_set;
+  vector<AggregateField> aggregate_fields;
   for (int i = 0; i < select_sql.attr_num; ++i) {
     auto attribute = select_sql.attributes[i];
     if (attribute.aggregation_type == AggregationType::NO_Aggregation) {
@@ -97,21 +108,42 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
       name = attribute.attribute_name;
       key = string(aggregate_type_to_string(attribute.aggregation_type)) + "(" + name + ")";
     }
-    if (aggregate_field_name_set.count(key) == 1) {
+    if (name_set.count(key) == 1) {
       continue;
     }
+    name_set.insert(key);
     Expression* expr = new VarExpr(name, AttrType::UNDEFINED);
-    TupleCellSpec* tupleCellSpec = new TupleCellSpec(expr);
+    TupleCellSpec tupleCellSpec(expr);
     AggregateField aggregate_field;
     aggregate_field.op_type = attribute.aggregation_type;
-    aggregate_field.aggregate_field = *tupleCellSpec;
-    res_aggregate_field.push_back(aggregate_field);
+    aggregate_field.aggregate_field = tupleCellSpec;
+    aggregate_fields.push_back(aggregate_field);
   }
 
+  // collect group by field
+  vector<TupleCellSpec> groupby_fields;
+  name_set.clear();
+  for (int i = 0; i < select_sql.group_by.attr_num; ++i) {
+    auto attr = select_sql.group_by.attributes[i];
+    if (attr.attribute_name == nullptr) {
+      return INVALID_ARGUMENT;
+    }
+    string name = attr.attribute_name;
+    if (attr.relation_name != nullptr) {
+      name = string(attr.relation_name) + "." + attr.attribute_name;
+    }
+    if (name_set.count(name) == 1) {
+      continue;
+    }
+    name_set.insert(name);
+    Expression* expr = new VarExpr(name, AttrType::UNDEFINED);
+    TupleCellSpec tupleCellSpec(expr);
+    groupby_fields.push_back(tupleCellSpec);
+  }
 
+  // collect condition from where, on, having
 
-
-//  for (int i = select_sql.attr_num - 1; i >= 0; i--) {
+  //  for (int i = select_sql.attr_num - 1; i >= 0; i--) {
 //    const RelAttr &relation_attr = select_sql.attributes[i];
 //
 //    if (common::is_blank(relation_attr.relation_name) && 0 == strcmp(relation_attr.attribute_name, "*")) {

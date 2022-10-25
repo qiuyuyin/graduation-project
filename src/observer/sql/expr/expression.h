@@ -15,8 +15,11 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <string.h>
+#include <vector>
 #include "storage/common/field.h"
 #include "sql/expr/tuple_cell.h"
+
+using namespace std;
 
 class Tuple;
 class TupleCellSpec;
@@ -129,27 +132,16 @@ private:
   std::string name_;
 };
 
-// class TreeExpr : public Expression {
-// public:
-//   ~TreeExpr() override = default;
-//   RC get_value(const Tuple &tuple, TupleCell &cell) const override;
-//   ExprType type() const override;
-// };
-//  class CastedExpr: public FieldExpr, public ValueExpr{
-//  public:
-//    CastedExpr(Expression *expr):expr_origin_(expr){}
-//    virtual ~CastedExpr() = default;
-//    RC get_value(const Tuple &tuple, TupleCell &cell) const override
-//    {
-//      RC rc = expr_origin_->get_value(tuple, cell);
-//      if(rc != RC::SUCCESS){
-//        return rc;
-//      }
-//      Value attr_value;
-//    }
-//
-//  private:
-//    AttrType old_type_;
-//    AttrType new_type_;
-//    Expression *expr_origin_;
-//  };
+class CalculateExpr : public Expression {
+public:
+  CalculateExpr(string name, vector<string> cells, AttrType) : name_(name), cells_(cells) {};
+
+  ExprType type() const override { return ExprType::CALCULATE; }
+  ~CalculateExpr() override = default;
+  RC get_value(const Tuple &tuple, TupleCell &cell) const override;
+  std::string get_name() const override;
+
+private:
+  string name_;
+  vector<string> cells_;
+};

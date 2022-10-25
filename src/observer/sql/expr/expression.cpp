@@ -39,3 +39,14 @@ std::string VarExpr::get_name() const
 {
   return name_;
 }
+
+RC CalculateExpr::get_value(const Tuple &tuple, TupleCell &cell) const
+{
+  auto vtuple = dynamic_cast<const VTuple*>(&tuple);
+  //todo
+}
+
+std::string CalculateExpr::get_name() const
+{
+  return name_;
+}

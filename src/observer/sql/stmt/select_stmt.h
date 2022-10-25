@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/stmt.h"
 #include "storage/common/field.h"
 #include "sql/operator/aggregate_operator.h"
+#include <unordered_map>
 #include "util/util.h"
 
 class FieldMeta;
@@ -78,18 +79,23 @@ public:
 
 public:
   const std::vector<Table *> &tables() const { return tables_; }
+  const std::unordered_map<string, string>& alias_map() const { return alias_map_; }
   const std::vector<TupleCellSpec> &query_fields() const { return query_fields_; }
+  const std::vector<AggregateField> &aggregate_fields() const { return aggregate_fields_; }
+
   FilterStmt *filter_stmt() const { return filter_stmt_; }
 
 private:
   //project operator
   std::vector<TupleCellSpec> query_fields_;
   //aggregate
-  vector<AggregateField> aggregate_field_;
+  vector<AggregateField> aggregate_fields_;
   vector<TupleCellSpec> groupby_fields_;
   //predicate
   FilterStmt *filter_stmt_ = nullptr;
   //scan operator
   std::vector<Table *> tables_;
+  std::unordered_map<string, string> alias_map_;
+
 };
 

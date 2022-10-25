@@ -88,7 +88,7 @@ typedef struct {
   int has_alias;
   char alias[20]; //表达式的别名
   size_t expr_cell_num; //表达式有几个cell
-  char data[20][20]; //表达式cell数据
+  char data[50][20]; //表达式cell数据
 } Expr;
 
 typedef struct _Condition {

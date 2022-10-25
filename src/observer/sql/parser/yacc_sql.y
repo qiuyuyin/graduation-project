@@ -25,7 +25,7 @@ typedef struct ParserContext {
 
   size_t expr_cell_buffer_condition_first_position;
   size_t expr_cell_buffer_num;
-  ExprCellBuffer expr_cells[20];
+  ExprCellBuffer expr_cells[100];
 
 } ParserContext;
 
