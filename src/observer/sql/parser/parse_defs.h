@@ -36,6 +36,10 @@ typedef enum  {
   NO_Aggregation
 } AggregationType;
 
+typedef enum {
+  ASC_ORDER,
+  DESC_ORDER
+} OrderType;
 
 // 属性结构体
 typedef struct {
@@ -43,7 +47,6 @@ typedef struct {
   char *attribute_name;  // attribute name              属性名
   AggregationType aggregation_type; //聚合函数类型
 } RelAttr;
-
 
 
 typedef enum {
@@ -108,6 +111,12 @@ typedef struct _Condition {
 } Condition;
 
 typedef struct {
+  size_t order_info_num;
+  RelAttr attrs[MAX_NUM];
+  OrderType od_types[MAX_NUM];
+} OrderBy;
+
+typedef struct {
   size_t attr_num;
   RelAttr attributes[MAX_NUM];
   size_t having_condition_num;
@@ -143,6 +152,9 @@ typedef struct {
   size_t condition_num;           // Length of conditions in Where clause
   Condition conditions[MAX_NUM];  // conditions in Where clause
   GroupBy group_by;
+  OrderBy order_by;
+  size_t e_length;
+  char expr[100];
   //expression
   ExprList expr_list;
 } Selects;
@@ -299,12 +311,14 @@ void condition_init(Condition *condition, CompOp comp, int left_type, Value *lef
 void condition_destroy(Condition *condition);
 void groupby_destroy(GroupBy *groupBy);
 void expr_list_destroy(ExprList* exprList);
+void orderby_destroy(OrderBy *orderBy);
 
 void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t length);
 void attr_info_destroy(AttrInfo *attr_info);
 
 void selects_init(Selects *selects, ...);
 void selects_append_attribute(Selects *selects, RelAttr *rel_attr);
+void selects_append_order_by_attr(Selects *selects, RelAttr *rel_attr,OrderType od_type);
 void groupby_append_attribute(Selects *selects, RelAttr *rel_attr);
 void selects_append_relation(Selects *selects, const char *relation_name, const char *alias_name);
 void selects_append_conditions(Selects *selects, Condition conditions[], size_t condition_num);

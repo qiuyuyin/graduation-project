@@ -346,6 +346,13 @@ void groupby_destroy(GroupBy *groupBy) {
   groupBy->having_condition_num = 0;
 }
 
+void orderby_destroy(OrderBy *orderBy){
+  for(int i = 0; i<orderBy->order_info_num;i++){
+    relation_attr_destroy(&orderBy->attrs[i]);
+  }
+  memset(orderBy,0,sizeof(OrderBy));
+}
+
 void expr_list_destroy(ExprList* exprList) {
   memset(exprList, 0, sizeof(ExprList));
 }
@@ -387,6 +394,12 @@ void selects_append_relation(Selects *selects, const char *relation_name, const 
   }
 }
 
+void selects_append_order_by_attr(Selects *selects, RelAttr *rel_attr,OrderType od_type){
+  selects->order_by.attrs[selects->order_by.order_info_num] = *rel_attr;
+  selects->order_by.od_types[selects->order_by.order_info_num] = od_type;
+  selects->order_by.order_info_num++;
+}
+
 void selects_append_conditions(Selects *selects, Condition conditions[], size_t condition_num)
 {
   assert(condition_num <= sizeof(selects->conditions) / sizeof(selects->conditions[0]));
@@ -426,6 +439,7 @@ void selects_destroy(Selects *selects)
 
   groupby_destroy(&selects->group_by);
   expr_list_destroy(&selects->expr_list);
+  orderby_destroy(&selects->order_by);
 }
 
 void clear_buffer_expr_cell_list(ExprCellBuffer* exprCellBuffer, int len) {

@@ -141,6 +141,27 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     groupby_fields.push_back(tupleCellSpec);
   }
 
+  // collect orderby  in `select` statement
+  vector<OrderByField> res_orderby_field;
+  for(int i = select_sql.order_by.order_info_num -1 ; i>=0;i--){
+    auto od_attr = select_sql.order_by.attrs[i];
+    auto od_t = select_sql.order_by.od_types[i];
+    string name ;
+    if (od_attr.relation_name != nullptr) {
+      name = string(od_attr.relation_name) + "." + od_attr.attribute_name;
+    } else {
+      name = od_attr.attribute_name;
+    }
+    Expression *expr = new VarExpr(name,AttrType::UNDEFINED);
+    TupleCellSpec *tupleCellSpec = new TupleCellSpec(expr);
+    OrderByField odb_field;
+    odb_field.od_type = od_t;
+    odb_field.orderby_field = *tupleCellSpec;
+    res_orderby_field.push_back(odb_field);
+  }
+
+
+
   // collect condition from where, on, having
 
   //  for (int i = select_sql.attr_num - 1; i >= 0; i--) {

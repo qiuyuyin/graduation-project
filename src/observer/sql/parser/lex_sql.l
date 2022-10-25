@@ -47,6 +47,7 @@ AGGREGATION_FUNC MAX|max|MIN|min|COUNT|count|AVG|avg|SUM|sum
 [Ee][Xx][Ii][Tt]                                     RETURN_TOKEN(EXIT);
 [Hh][Ee][Ll][Pp]                                     RETURN_TOKEN(HELP);
 [Dd][Ee][Ss][Cc]                                     RETURN_TOKEN(DESC);
+[Aa][Ss][Cc]                                         RETURN_TOKEN(ASC);
 [Cc][Rr][Ee][Aa][Tt][Ee]                             RETURN_TOKEN(CREATE);
 [Dd][Rr][Oo][Pp]                                     RETURN_TOKEN(DROP);
 [Tt][Aa][Bb][Ll][Ee]                                 RETURN_TOKEN(TABLE);
@@ -81,6 +82,7 @@ AGGREGATION_FUNC MAX|max|MIN|min|COUNT|count|AVG|avg|SUM|sum
 [Nn][Oo][Tt]                                         RETURN_TOKEN(NOT);
 [Ll][Ii][Kk][Ee]                                     RETURN_TOKEN(LIKE_);
 [Gg][Rr][Oo][Uu][Pp]                                 RETURN_TOKEN(GROUP);
+[Oo][Rr][Dd][Ee][Rr]                                 RETURN_TOKEN(ORDER);
 [Bb][Yy]                                             RETURN_TOKEN(BY);
 [Hh][Aa][Vv][Ii][Nn][Gg]                             RETURN_TOKEN(HAVING);
 [Aa][Ss]                                             RETURN_TOKEN(AS);

@@ -76,6 +76,7 @@ ParserContext *get_context(yyscan_t scanner)
         INDEX
         SELECT
         DESC
+        ASC
         SHOW
         SYNC
         INSERT
@@ -111,6 +112,7 @@ ParserContext *get_context(yyscan_t scanner)
         LIKE_
         GROUP
         BY
+        ORDER
         HAVING
         AS
         EQ
@@ -149,6 +151,7 @@ ParserContext *get_context(yyscan_t scanner)
 %type <condition1> condition;
 %type <value1> value;
 %type <number> number;
+%type <number> od_type;
 
 %left PLUS MINUS
 %left STAR DIV
@@ -399,7 +402,7 @@ update:			/*  update 语句的语法解析树*/
 		}
     ;
 select:				/*  select 语句的语法解析树*/
-    SELECT select_list FROM rel where group_by having SEMICOLON
+    SELECT select_list FROM rel where group_by having order_by SEMICOLON
 		{
 		    printf("have done");
 			// CONTEXT->ssql->sstr.selection.relations[CONTEXT->from_length++]=$4;
@@ -606,6 +609,45 @@ group_by_rel_list:
         groupby_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
     }
     ;
+
+
+order_by:
+    /* empty */
+    | ORDER BY ID od_type order_by_info {
+        RelAttr attr;
+        relation_attr_init(&attr, NULL, $3, NULL);
+        selects_append_order_by_attr(&CONTEXT->ssql->sstr.selection,&attr,$4);
+    }
+    | ORDER BY ID DOT ID od_type order_by_info {
+        RelAttr attr;
+        relation_attr_init(&attr, $3, $5, NULL);
+        selects_append_order_by_attr(&CONTEXT->ssql->sstr.selection,&attr,$6);
+    }
+    ;
+
+
+od_type:
+    /* empty */ { $$=ASC_ORDER; }
+        | ASC { $$=ASC_ORDER; }
+        | DESC { $$=DESC_ORDER; }
+       ;
+
+
+order_by_info:
+    /* empty */
+    | COMMA ID od_type order_by_info {
+        RelAttr attr;
+        relation_attr_init(&attr, NULL, $2, NULL);
+        selects_append_order_by_attr(&CONTEXT->ssql->sstr.selection,&attr,$3);
+    }
+    | COMMA ID DOT ID od_type order_by_info {
+        RelAttr attr;
+        relation_attr_init(&attr, $2, $4, NULL);
+        selects_append_order_by_attr(&CONTEXT->ssql->sstr.selection,&attr,$5);
+    }
+    ;
+
+
 
 condition_expression_all:
     expr {
