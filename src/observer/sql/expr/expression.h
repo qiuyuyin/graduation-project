@@ -32,6 +32,19 @@ enum class ExprType {
   CALCULATE,
 };
 
+enum class ExprCellType {
+  NONE,
+  FIELD,
+  INT,
+  FLOAT,
+  DATE,
+  AGGREGATE,
+  PLUS,
+  MINUS,
+  MULTI,
+  DIV
+};
+
 class Expression {
 public:
   Expression() = default;
@@ -134,7 +147,7 @@ private:
 
 class CalculateExpr : public Expression {
 public:
-  CalculateExpr(string name, vector<string> cells, AttrType) : name_(name), cells_(cells) {};
+  CalculateExpr(string name, vector<string> expr_cells, AttrType) : name_(name), expr_cells_(expr_cells) {};
 
   ExprType type() const override { return ExprType::CALCULATE; }
   ~CalculateExpr() override = default;
@@ -142,6 +155,7 @@ public:
   std::string get_name() const override;
 
 private:
+  ExprCellType get_expr_cell_type(string expr_cell) const;
   string name_;
-  vector<string> cells_;
+  vector<string> expr_cells_;
 };
