@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/table_meta.h"
 #include "common/lang/string.h"
 #include "common/log/log.h"
+#include "util/util.h"
 #include "rc.h"
 #include "json/json.h"
 
@@ -113,7 +114,7 @@ const char *IndexMeta::name() const
 
 const char *IndexMeta::field() const
 {
-  return fields_[0].c_str();
+  return vector2str<std::string>(fields_).c_str();
 }
 
 void IndexMeta::desc(std::ostream &os) const

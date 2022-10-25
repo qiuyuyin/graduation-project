@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "json/json.h"
 #include "common/log/log.h"
 #include "storage/trx/trx.h"
+#include "util/util.h"
 
 static const Json::StaticString FIELD_TABLE_NAME("table_name");
 static const Json::StaticString FIELD_FIELDS("fields");
@@ -130,6 +131,16 @@ const FieldMeta *TableMeta::field(const char *name) const
   }
   return nullptr;
 }
+RC TableMeta::field(std::vector<std::string>fields, std::vector<FieldMeta> &out){
+  for (const auto &field_name : fields){
+    auto meta = field(field_name.c_str());
+    if(meta == nullptr){
+      return RC::SCHEMA_FIELD_NOT_EXIST;
+    }
+    out.push_back(*meta);
+  }
+  return RC::SUCCESS;
+}
 
 const FieldMeta *TableMeta::find_field_by_offset(int offset) const
 {
@@ -160,10 +171,15 @@ const IndexMeta *TableMeta::index(const char *name) const
   return nullptr;
 }
 
-const IndexMeta *TableMeta::find_index_by_field(const char *field) const
+const IndexMeta *TableMeta::find_index_by_field(const char* field) const{
+  std::vector<std::string> fields_vec = {field};
+  return find_index_by_field(fields_vec);
+}
+const IndexMeta *TableMeta::find_index_by_field(std::vector<std::string>& fields) const
 {
+  std::string fields_str = vector2str(fields);
   for (const IndexMeta &index : indexes_) {
-    if (0 == strcmp(index.field(), field)) {
+    if (0 == strcmp(index.field(), fields_str.c_str())) {
       return &index;
     }
   }

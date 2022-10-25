@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include <string.h>
+#include <sstream>
 #include "util/util.h"
 
 std::string double2string(double v)
@@ -29,4 +30,21 @@ std::string double2string(double v)
   }
 
   return std::string(buf, len);
+}
+std::string stringarr2str(const char *str_arr[], int len)
+{
+  std::vector<std::string> v(str_arr, str_arr+len);
+  return vector2str<std::string>(v);
+}
+template <typename T>
+std::string vector2str(const std::vector<T> &v, const std::string separator)
+{
+  std::stringstream ss;
+  for(size_t i = 0, sz = v.size(); i < sz; i++){
+    if(i != 0){
+      ss << separator;
+    }
+    ss << v[i];
+  }
+  return ss.str();
 }
