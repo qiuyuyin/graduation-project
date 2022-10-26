@@ -32,13 +32,13 @@ SelectStmt::~SelectStmt()
   }
 }
 
-static void wildcard_fields(Table *table, std::vector<TupleCellSpec> &query_fields)
+static void wildcard_fields(Table *table, std::vector<TupleCellSpec*> &query_fields)
 {
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num();
   for (int i = table_meta.sys_field_num(); i < field_num; i++) {
     Expression* expr = new FieldExpr(table, table_meta.field(i));
-    TupleCellSpec tuple_cell_spec(expr);
+    TupleCellSpec* tuple_cell_spec = new TupleCellSpec(expr);
     query_fields.push_back(tuple_cell_spec);
   }
 }
@@ -51,8 +51,8 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   }
 
   // collect tables in `from` statement
-  vector<Table *> tables;
-  unordered_map<std::string, Table *> table_map;
+  vector<Table*> tables;
+  unordered_map<std::string, Table*> table_map;
   unordered_map<string, string> alias_map;
   for (size_t i = 0; i < select_sql.relation_num; i++) {
     const char *table_name = select_sql.relations[i].name;
@@ -75,7 +75,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   
   // collect query fields in `select` statement
   // select * from
-  vector<TupleCellSpec> query_fields;
+  vector<TupleCellSpec*> query_fields;
   if (select_sql.attr_num == 1 && common::is_blank(select_sql.attributes[0].relation_name) && 0 == strcmp(select_sql.attributes[0].attribute_name, "*")) {
     for (auto table : tables) {
       wildcard_fields(table, query_fields);
@@ -94,11 +94,11 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
       } else {
         expr = new VarExpr(parse_field.name, AttrType::UNDEFINED);
       }
-      TupleCellSpec tupleCellSpec(expr);
+      TupleCellSpec* tuple_cell_spec = new TupleCellSpec(expr);
       if (parse_field.alias != "") {
-        tupleCellSpec.set_alias(parse_field.alias.c_str());
+        tuple_cell_spec->set_alias(parse_field.alias.c_str());
       }
-      query_fields.push_back(tupleCellSpec);
+      query_fields.push_back(tuple_cell_spec);
     }
   }
 
@@ -123,15 +123,15 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     }
     name_set.insert(key);
     Expression* expr = new VarExpr(name, AttrType::UNDEFINED);
-    TupleCellSpec tupleCellSpec(expr);
+    TupleCellSpec* tuple_cell_spec = new TupleCellSpec(expr);
     AggregateField aggregate_field;
     aggregate_field.op_type = attribute.aggregation_type;
-    aggregate_field.aggregate_field = tupleCellSpec;
+    aggregate_field.aggregate_field = tuple_cell_spec;
     aggregate_fields.push_back(aggregate_field);
   }
 
   // collect group by field
-  vector<TupleCellSpec> groupby_fields;
+  vector<TupleCellSpec*> groupby_fields;
   name_set.clear();
   for (int i = 0; i < select_sql.group_by.attr_num; ++i) {
     auto attr = select_sql.group_by.attributes[i];
@@ -147,8 +147,8 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     }
     name_set.insert(name);
     Expression* expr = new VarExpr(name, AttrType::UNDEFINED);
-    TupleCellSpec tupleCellSpec(expr);
-    groupby_fields.push_back(tupleCellSpec);
+    TupleCellSpec* tuple_cell_spec = new TupleCellSpec(expr);
+    groupby_fields.push_back(tuple_cell_spec);
   }
 
   // collect orderby  in `select` statement
@@ -169,8 +169,6 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     odb_field.orderby_field = *tupleCellSpec;
     res_orderby_field.push_back(odb_field);
   }
-
-
 
   // collect condition from where, on, having
   FilterStmt *filter_stmt = nullptr;

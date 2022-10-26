@@ -54,11 +54,11 @@ RC AggregateOperator::next()
     auto agg_op = aggregate_ops_.at(i);
     auto agg_res = innerRes->at(i);
     string field_name = string(aggregate_type_to_string(agg_op.op_type)) + "(";
-    if (agg_op.aggregate_field.table_name() != "") {
-      field_name += agg_op.aggregate_field.table_name() + ".";
+    if (agg_op.aggregate_field->table_name() != "") {
+      field_name += agg_op.aggregate_field->table_name() + ".";
     }
-    field_name += agg_op.aggregate_field.expr_name() + ")";
-    AttrType field_type = agg_op.aggregate_field.attr_type();
+    field_name += agg_op.aggregate_field->expr_name() + ")";
+    AttrType field_type = agg_op.aggregate_field->attr_type();
     void* data;
     switch (agg_op.op_type) {
       case MAX:
@@ -152,7 +152,7 @@ RC AggregateOperator::mergeTupleIntoGroup(VTuple &tuple)
       continue;
     }
     TupleCell temp;
-    if ((rc = tuple.find_cell(aggregate_ops_[i].aggregate_field, temp)) != SUCCESS) {
+    if ((rc = tuple.find_cell(*aggregate_ops_[i].aggregate_field, temp)) != SUCCESS) {
       return rc;
     }
     if (inner->max_value.data() == nullptr || temp.compare(inner->max_value) > 0) {
@@ -161,7 +161,7 @@ RC AggregateOperator::mergeTupleIntoGroup(VTuple &tuple)
     if (inner->min_value.data() == nullptr || temp.compare(inner->min_value) < 0) {
       inner->min_value = temp;
     }
-    inner->sum += tuple_value2float(tuple_cell_spec.attr_type(), temp);
+    inner->sum += tuple_value2float(tuple_cell_spec->attr_type(), temp);
   }
   return SUCCESS;
 }

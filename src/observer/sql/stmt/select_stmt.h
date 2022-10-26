@@ -46,7 +46,7 @@ static vector<QueryField> get_query_field(string sql) {
       queryField.name = temp;
     } else {
       queryField.name = temp.substr(0, pos-1);
-      queryField.alias = temp.substr(pos+3);
+      queryField.alias = temp.substr(pos+3, temp.length()-pos-3);
     }
     return queryField;
   };
@@ -55,7 +55,7 @@ static vector<QueryField> get_query_field(string sql) {
   if (pos1 == sql.npos || pos2 == sql.npos) {
     return res;
   }
-  sql = sql.substr(pos1+7, pos2-1);
+  sql = sql.substr(pos1+7, pos2-pos1-8);
   if ((pos1 = sql.find(",")) == sql.npos) {
     res.push_back(parse(sql));
   } else {
@@ -81,22 +81,22 @@ public:
 public:
   const std::vector<Table *> &tables() const { return tables_; }
   const std::unordered_map<string, string>& alias_map() const { return alias_map_; }
-  const std::vector<TupleCellSpec> &query_fields() const { return query_fields_; }
+  const std::vector<TupleCellSpec*> &query_fields() const { return query_fields_; }
   const std::vector<AggregateField> &aggregate_fields() const { return aggregate_fields_; }
-  const std::vector<TupleCellSpec> &groupby_fields() const { return groupby_fields_; }
+  const std::vector<TupleCellSpec*> &groupby_fields() const { return groupby_fields_; }
   const std::vector<OrderByField> &orderby_fields() const {return orderby_fields_;}
   FilterStmt *filter_stmt() const { return filter_stmt_; }
 
 private:
   //project operator
-  std::vector<TupleCellSpec> query_fields_;
+  std::vector<TupleCellSpec*> query_fields_;
   //aggregate
   vector<AggregateField> aggregate_fields_;
-  vector<TupleCellSpec> groupby_fields_;
+  vector<TupleCellSpec*> groupby_fields_;
   //predicate
   FilterStmt *filter_stmt_ = nullptr;
   //scan operator
-  std::vector<Table *> tables_;
+  std::vector<Table*> tables_;
   //orderby
   vector<OrderByField> orderby_fields_;
 
