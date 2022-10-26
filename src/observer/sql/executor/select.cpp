@@ -29,11 +29,26 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
   PredicateOperator pred_oper(select_stmt->filter_stmt()->filter_units());
   pred_oper.add_child(scan_oper);
 
+  AggregateOperator *agg_oper = nullptr;
+  SortOperator *sort_oper = nullptr;
+  if(select_stmt->aggregate_fields().size()!=0 ){
+    agg_oper = new AggregateOperator(select_stmt->aggregate_fields(),select_stmt->groupby_fields());
+    agg_oper->add_child(&pred_oper);
+  }
+  if(select_stmt->orderby_fields().size()!=0){
+    sort_oper = new SortOperator(select_stmt->orderby_fields());
+    if(agg_oper != nullptr){
+      sort_oper->add_child(agg_oper);
+    }else{
+      sort_oper->add_child(&pred_oper);
+    }
+  }
+
   ProjectOperator project_oper;
   project_oper.add_child(&pred_oper);
-//  for (const Field &field : select_stmt->query_fields()) {
-//    project_oper.add_projection(field.field_name(), nullptr, false);
-//  }
+  for (auto tupleCell : select_stmt->query_fields()) {
+    project_oper.add_projection(tupleCell);
+  }
   rc = project_oper.open();
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to open operator");

@@ -215,6 +215,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   select_stmt->tables_.swap(tables);
   select_stmt->alias_map_.swap(alias_map);
   select_stmt->filter_stmt_ = filter_stmt;
+  select_stmt->orderby_fields_.swap(res_orderby_field);
   stmt = select_stmt;
   return RC::SUCCESS;
 }
