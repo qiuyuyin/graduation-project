@@ -83,7 +83,7 @@ public:
   const std::unordered_map<string, string>& alias_map() const { return alias_map_; }
   const std::vector<TupleCellSpec> &query_fields() const { return query_fields_; }
   const std::vector<AggregateField> &aggregate_fields() const { return aggregate_fields_; }
-
+  const std::vector<TupleCellSpec> &groupby_fields() const { return groupby_fields_; }
   const std::vector<OrderByField> &orderby_fields() const {return orderby_fields_;}
   FilterStmt *filter_stmt() const { return filter_stmt_; }
 
