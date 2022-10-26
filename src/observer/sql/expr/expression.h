@@ -147,7 +147,7 @@ private:
 
 class CalculateExpr : public Expression {
 public:
-  CalculateExpr(string name, vector<string> expr_cells, AttrType) : name_(name), expr_cells_(expr_cells) {};
+  CalculateExpr(string name, vector<string> expr_cells, AttrType type) : name_(name), expr_cells_(expr_cells) {};
 
   ExprType type() const override { return ExprType::CALCULATE; }
   ~CalculateExpr() override = default;

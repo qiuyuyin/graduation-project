@@ -82,8 +82,18 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     }
   } else {
     vector<QueryField> parse_fields = get_query_field(sql_string);
-    for (auto parse_field : parse_fields) {
-      Expression* expr = new VarExpr(parse_field.name, AttrType::UNDEFINED);
+    for (int i = 0; i < parse_fields.size(); ++i) {
+      auto parse_field = parse_fields[i];
+      Expression* expr = nullptr;
+      if (select_sql.expr_list.exprs[i].expr_cell_num > 1) {
+        vector<string> expr_cells;
+        for (int j = 0; j < select_sql.expr_list.exprs[i].expr_cell_num; ++j) {
+          expr_cells.push_back(select_sql.expr_list.exprs[i].data[j]);
+        }
+        expr = new CalculateExpr(parse_field.name, expr_cells, AttrType::UNDEFINED);
+      } else {
+        expr = new VarExpr(parse_field.name, AttrType::UNDEFINED);
+      }
       TupleCellSpec tupleCellSpec(expr);
       if (parse_field.alias != "") {
         tupleCellSpec.set_alias(parse_field.alias.c_str());
@@ -142,73 +152,22 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   }
 
   // collect condition from where, on, having
+  FilterStmt *filter_stmt = nullptr;
+  Condition* condition = new Condition[select_sql.condition_num + select_sql.group_by.having_condition_num];
+  for (int i = 0; i < select_sql.condition_num; ++i) {
+    condition[i] = select_sql.conditions[i];
+  }
+  for (int i = 0; i < select_sql.group_by.having_condition_num; ++i) {
+    condition[select_sql.condition_num+i] = select_sql.group_by.having_condition[i];
+  }
+  int condition_num = select_sql.condition_num + select_sql.group_by.having_condition_num;
+  RC rc = FilterStmt::create(db, tables[0], &table_map, condition, condition_num, filter_stmt);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("cannot construct filter stmt");
+    return rc;
+  }
 
-  //  for (int i = select_sql.attr_num - 1; i >= 0; i--) {
-//    const RelAttr &relation_attr = select_sql.attributes[i];
-//
-//    if (common::is_blank(relation_attr.relation_name) && 0 == strcmp(relation_attr.attribute_name, "*")) {
-//      for (Table *table : tables) {
-//        wildcard_fields(table, query_fields);
-//      }
-//
-//    } else if (!common::is_blank(relation_attr.relation_name)) { // TODO
-//      const char *table_name = relation_attr.relation_name;
-//      const char *field_name = relation_attr.attribute_name;
-//
-//      if (0 == strcmp(table_name, "*")) {
-//        if (0 != strcmp(field_name, "*")) {
-//          LOG_WARN("invalid field name while table is *. attr=%s", field_name);
-//          return RC::SCHEMA_FIELD_MISSING;
-//        }
-//        for (Table *table : tables) {
-//          wildcard_fields(table, query_fields);
-//        }
-//      } else {
-//        auto iter = table_map.find(table_name);
-//        if (iter == table_map.end()) {
-//          LOG_WARN("no such table in from list: %s", table_name);
-//          return RC::SCHEMA_FIELD_MISSING;
-//        }
-//
-//        Table *table = iter->second;
-//        if (0 == strcmp(field_name, "*")) {
-//          wildcard_fields(table, query_fields);
-//        } else {
-//          const FieldMeta *field_meta = table->table_meta().field(field_name);
-//          if (nullptr == field_meta) {
-//            LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), field_name);
-//            return RC::SCHEMA_FIELD_MISSING;
-//          }
-//
-//          query_fields.push_back(Field(table, field_meta));
-//        }
-//      }
-//    } else {
-//      if (tables.size() != 1) {
-//        LOG_WARN("invalid. I do not know the attr's table. attr=%s", relation_attr.attribute_name);
-//        return RC::SCHEMA_FIELD_MISSING;
-//      }
-//
-//      Table *table = tables[0];
-//      const FieldMeta *field_meta = table->table_meta().field(relation_attr.attribute_name);
-//      if (nullptr == field_meta) {
-//        LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), relation_attr.attribute_name);
-//        return RC::SCHEMA_FIELD_MISSING;
-//      }
-//
-//      query_fields.push_back(Field(table, field_meta));
-//    }
-//  }
 
-  // create filter statement in `where` statement
-//  FilterStmt *filter_stmt = nullptr;
-//  RC rc = FilterStmt::create(db, default_table, &table_map,
-//           select_sql.conditions, select_sql.condition_num, filter_stmt);
-//  if (rc != RC::SUCCESS) {
-//    LOG_WARN("cannot construct filter stmt");
-//    return rc;
-//  }
-//
 //  // 如果table的数量超过1，则交换顺序
 //  if (tables.size() > 1) {
 //    std::reverse(tables.begin(), tables.end());
@@ -226,11 +185,15 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
 //    }
 //    query_fields = res;
 //  }
-//
+
 //  // everything alright
-//  SelectStmt *select_stmt = new SelectStmt();
-//  select_stmt->tables_.swap(tables);
-//  select_stmt->filter_stmt_ = filter_stmt;
-//  stmt = select_stmt;
+  SelectStmt *select_stmt = new SelectStmt();
+  select_stmt->query_fields_.swap(query_fields);
+  select_stmt->aggregate_fields_.swap(aggregate_fields);
+  select_stmt->groupby_fields_.swap(groupby_fields);
+  select_stmt->tables_.swap(tables);
+  select_stmt->alias_map_.swap(alias_map);
+  select_stmt->filter_stmt_ = filter_stmt;
+  stmt = select_stmt;
   return RC::SUCCESS;
 }

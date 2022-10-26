@@ -108,12 +108,23 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     left_type = field->type();
     left = new FieldExpr(table, field);
   } else if (condition.left_type == 3) {
+    vector<string> expr_cells;
+    for (int i = 0; i < condition.left_expr.expr_cell_num; ++i) {
+      expr_cells.push_back(condition.left_expr.data[i]);
+    }
+    string alias = "";
+    if (condition.left_expr.has_alias == 1) {
+      alias = condition.left_expr.alias;
+    }
+    left = new CalculateExpr("", expr_cells, AttrType::UNDEFINED);
   }
-
-  if (condition.right_type) {
+  if (condition.right_type == 1) {
+    right_type = condition.right_value.type;
+    right = new ValueExpr(condition.right_value);
+  } else if (condition.right_type == 2) {
     Table *table = nullptr;
     const FieldMeta *field = nullptr;
-    rc = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);  
+    rc = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
     if (rc != RC::SUCCESS) {
       LOG_WARN("cannot find attr");
       delete left;
@@ -121,9 +132,12 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     }
     right = new FieldExpr(table, field);
     right_type = field->type();
-  } else {
-    right_type = condition.right_value.type;
-    right = new ValueExpr(condition.right_value);
+  } else if (condition.right_type == 3) {
+    vector<string> expr_cells;
+    for (int i = 0; i < condition.right_expr.expr_cell_num; ++i) {
+      expr_cells.push_back(condition.right_expr.data[i]);
+    }
+    right = new CalculateExpr("", expr_cells, AttrType::UNDEFINED);
   }
 
   // 检查两个类型是否能够比较
