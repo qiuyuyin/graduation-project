@@ -43,7 +43,9 @@ RC TableScanOperator::close()
 Tuple * TableScanOperator::current_tuple()
 {
   tuple_.set_record(&current_record_);
-  return &tuple_;
+  VTuple *vTuple = new VTuple;
+  vTuple->append_row_tuple(tuple_);
+  return vTuple;
 }
 // RC TableScanOperator::tuple_cell_spec_at(int index, TupleCellSpec &spec) const
 // {
