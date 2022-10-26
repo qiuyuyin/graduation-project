@@ -235,10 +235,10 @@ void end_trx_if_need(Session *session, Trx *trx, bool all_right)
 void print_tuple_header(std::ostream &os, const ProjectOperator &oper)
 {
   for (int i = 0; i < oper.projections()->size(); ++i) {
-    if (oper.projections()->at(i).alias() != nullptr) {
-      os << oper.projections()->at(i).alias();
+    if (oper.projections()->at(i)->alias() != nullptr) {
+      os << oper.projections()->at(i)->alias();
     } else {
-      os << oper.projections()->at(i).expr_name();
+      os << oper.projections()->at(i)->expr_name();
     }
     if (i == oper.projections()->size() - 1) {
       os << "\n";

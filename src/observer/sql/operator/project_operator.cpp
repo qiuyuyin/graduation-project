@@ -42,13 +42,13 @@ RC ProjectOperator::next()
     VTuple res;
     for (const auto& projection : projections_) {
       TupleCell cell;
-      if ((rc = temp.find_cell(projection, cell)) != SUCCESS) {
+      if ((rc = temp.find_cell(*projection, cell)) != SUCCESS) {
         LOG_WARN("[projection::next] tupleCell::find_cell error");
         return rc;
       }
-      string field_name = projection.expr_name();
-      if (projection.alias() != nullptr) {
-        field_name = projection.alias();
+      string field_name = projection->expr_name();
+      if (projection->alias() != nullptr) {
+        field_name = projection->alias();
       }
       //todo 这里的type采用哪一种呢？是projection的还是cell的
       if ((rc = res.append_var(field_name, cell.attr_type(), (void *)cell.data())) != SUCCESS) {
@@ -71,7 +71,7 @@ Tuple *ProjectOperator::current_tuple()
   return &tuple_;
 }
 
-void ProjectOperator::add_projection(TupleCellSpec tuple_cell_spec)
+void ProjectOperator::add_projection(TupleCellSpec *tuple_cell_spec)
 {
   projections_.push_back(tuple_cell_spec);
 }

@@ -49,9 +49,18 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
   }
 
   ProjectOperator project_oper;
-  project_oper.add_child(&pred_oper);
+  if(sort_oper == nullptr){
+    if(agg_oper == nullptr){
+      project_oper.add_child(&pred_oper);
+    }else{
+      project_oper.add_child(sort_oper);
+    }
+  }else{
+    project_oper.add_child(sort_oper);
+  }
+  //project_oper.add_child(&pred_oper);
   for (auto tupleCell : select_stmt->query_fields()) {
-    project_oper.add_projection(*tupleCell);
+    project_oper.add_projection(tupleCell);
   }
   rc = project_oper.open();
   if (rc != RC::SUCCESS) {
