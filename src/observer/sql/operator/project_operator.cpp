@@ -71,16 +71,7 @@ Tuple *ProjectOperator::current_tuple()
   return &tuple_;
 }
 
-void ProjectOperator::add_projection(string name, const char* alias, bool calculate)
+void ProjectOperator::add_projection(TupleCellSpec tuple_cell_spec)
 {
-  TupleCellSpec tupleCellSpec;
-  if (!calculate) {
-    tupleCellSpec = TupleCellSpec(new VarExpr(name, AttrType::UNDEFINED));
-  } else {
-    //todo 四则运算expr
-  }
-  if (alias != nullptr) {
-    tupleCellSpec.set_alias(alias);
-  }
-  projections_.push_back(tupleCellSpec);
+  projections_.push_back(tuple_cell_spec);
 }

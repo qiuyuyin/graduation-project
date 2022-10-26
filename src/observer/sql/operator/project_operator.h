@@ -21,7 +21,7 @@ class ProjectOperator : public Operator
 {
 public:
   virtual ~ProjectOperator() = default;
-  void add_projection(string name, const char* alias, bool calculate);
+  void add_projection(TupleCellSpec tuple_cell_spec);
 
   RC open() override;
   RC next() override;
