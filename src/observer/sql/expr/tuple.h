@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/tuple_cell.h"
 #include "sql/expr/expression.h"
 #include "storage/record/record.h"
+#include "util/util.h"
 
 class Table;
 class VTuple;
@@ -143,19 +144,23 @@ public:
   {
     return speces_.size();
   }
-
   RC cell_at(int index, TupleCell &cell) const override
   {
     if (index < 0 || index >= static_cast<int>(speces_.size())) {
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
     }
-
     const TupleCellSpec *spec = speces_[index];
     FieldExpr *field_expr = (FieldExpr *)spec->expression();
     const FieldMeta *field_meta = field_expr->field().meta();
+    int value_null_map = *(int*)this->record_->data() + field_expr->field().table()->table_meta().field(1)->offset();
+    bool is_null = has_bit_set(value_null_map, index);
+    if (is_null) {
+      cell.set_is_null(true);
+    } else {
+      cell.set_data(this->record_->data() + field_meta->offset());
+    }
     cell.set_type(field_meta->type());
-    cell.set_data(this->record_->data() + field_meta->offset());
     cell.set_length(field_meta->len());
     return RC::SUCCESS;
   }

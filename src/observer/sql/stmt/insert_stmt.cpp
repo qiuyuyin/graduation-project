@@ -61,6 +61,15 @@ RC InsertStmt::create(Db *db, const Inserts &inserts, Stmt *&stmt) {
     const FieldMeta *field_meta = table_meta.field((i%size) + sys_field_num);
     const AttrType field_type = field_meta->type();
     const AttrType value_type = values[i].type;
+    //null value
+    if (value_type == UNDEFINED) {
+      if (!table_meta.is_field_nullable(i%size)) {
+        LOG_WARN("the field is not nullable, but the value is null");
+        return INTERNAL;
+      }
+      continue;
+    }
+
     RC rc = Typecaster::attr_cast(values+i, field_type);
     if (RC::TYPECAST == rc){
       LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",

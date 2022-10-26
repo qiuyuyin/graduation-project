@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.7.  */
+/* A Bison parser, made by GNU Bison 3.8.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
    Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -39,7 +39,7 @@
 # define YY_YY_YACC_SQL_TAB_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
-# define YYDEBUG 0
+# define YYDEBUG 1
 #endif
 #if YYDEBUG
 extern int yydebug;
@@ -101,26 +101,28 @@ extern int yydebug;
     ORDER = 302,                   /* ORDER  */
     HAVING = 303,                  /* HAVING  */
     AS = 304,                      /* AS  */
-    EQ = 305,                      /* EQ  */
-    LT = 306,                      /* LT  */
-    GT = 307,                      /* GT  */
-    LE = 308,                      /* LE  */
-    GE = 309,                      /* GE  */
-    NE = 310,                      /* NE  */
-    PLUS = 311,                    /* PLUS  */
-    DIV = 312,                     /* DIV  */
-    MINUS = 313,                   /* MINUS  */
-    NUMBER = 314,                  /* NUMBER  */
-    FLOAT = 315,                   /* FLOAT  */
-    ID = 316,                      /* ID  */
-    AGGREGATION_FUNC = 317,        /* AGGREGATION_FUNC  */
-    AGGREGATION_FUNC_VALUE = 318,  /* AGGREGATION_FUNC_VALUE  */
-    PATH = 319,                    /* PATH  */
-    SSS = 320,                     /* SSS  */
-    STAR = 321,                    /* STAR  */
-    STRING_V = 322,                /* STRING_V  */
-    DATE_STR = 323,                /* DATE_STR  */
-    U_neg = 324                    /* U_neg  */
+    NULLABLE = 305,                /* NULLABLE  */
+    NULL_ = 306,                   /* NULL_  */
+    EQ = 307,                      /* EQ  */
+    LT = 308,                      /* LT  */
+    GT = 309,                      /* GT  */
+    LE = 310,                      /* LE  */
+    GE = 311,                      /* GE  */
+    NE = 312,                      /* NE  */
+    PLUS = 313,                    /* PLUS  */
+    DIV = 314,                     /* DIV  */
+    MINUS = 315,                   /* MINUS  */
+    NUMBER = 316,                  /* NUMBER  */
+    FLOAT = 317,                   /* FLOAT  */
+    ID = 318,                      /* ID  */
+    AGGREGATION_FUNC = 319,        /* AGGREGATION_FUNC  */
+    AGGREGATION_FUNC_VALUE = 320,  /* AGGREGATION_FUNC_VALUE  */
+    PATH = 321,                    /* PATH  */
+    SSS = 322,                     /* SSS  */
+    STAR = 323,                    /* STAR  */
+    STRING_V = 324,                /* STRING_V  */
+    DATE_STR = 325,                /* DATE_STR  */
+    U_neg = 326                    /* U_neg  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -129,7 +131,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 128 "yacc_sql.y"
+#line 130 "yacc_sql.y"
 
   struct _Attr *attr;
   struct _Condition *condition1;
@@ -139,7 +141,7 @@ union YYSTYPE
   float floats;
 	char *position;
 
-#line 143 "yacc_sql.tab.h"
+#line 145 "yacc_sql.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -149,6 +151,8 @@ typedef union YYSTYPE YYSTYPE;
 
 
 
+
 int yyparse (void *scanner);
+
 
 #endif /* !YY_YY_YACC_SQL_TAB_H_INCLUDED  */

@@ -115,6 +115,8 @@ ParserContext *get_context(yyscan_t scanner)
         ORDER
         HAVING
         AS
+        NULLABLE
+        NULL_
         EQ
         LT
         GT
@@ -284,7 +286,7 @@ attr_def:
     ID_get type LBRACE number RBRACE
 		{
 			AttrInfo attribute;
-			attr_info_init(&attribute, CONTEXT->id, $2, $4);
+			attr_info_init(&attribute, CONTEXT->id, $2, $4, 0);
 			create_table_append_attribute(&CONTEXT->ssql->sstr.create_table, &attribute);
 			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name =(char*)malloc(sizeof(char));
 			// strcpy(CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name, CONTEXT->id);
@@ -295,7 +297,7 @@ attr_def:
     |ID_get type
 		{
 			AttrInfo attribute;
-			attr_info_init(&attribute, CONTEXT->id, $2, 4);
+			attr_info_init(&attribute, CONTEXT->id, $2, 4, 0);
 			create_table_append_attribute(&CONTEXT->ssql->sstr.create_table, &attribute);
 			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name=(char*)malloc(sizeof(char));
 			// strcpy(CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name, CONTEXT->id);
@@ -303,6 +305,29 @@ attr_def:
 			// CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length=4; // default attribute length
 			CONTEXT->value_length++;
 		}
+    |ID_get type NULLABLE LBRACE number RBRACE
+        {
+            AttrInfo attribute;
+            attr_info_init(&attribute, CONTEXT->id, $2, $5, 1);
+            create_table_append_attribute(&CONTEXT->ssql->sstr.create_table, &attribute);
+            // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name =(char*)malloc(sizeof(char));
+            // strcpy(CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name, CONTEXT->id);
+            // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].type = $2;
+            // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length = $4;
+            CONTEXT->value_length++;
+        }
+    |ID_get type NULLABLE
+        {
+            AttrInfo attribute;
+            attr_info_init(&attribute, CONTEXT->id, $2, 4, 1);
+            create_table_append_attribute(&CONTEXT->ssql->sstr.create_table, &attribute);
+            // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name=(char*)malloc(sizeof(char));
+            // strcpy(CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name, CONTEXT->id);
+            // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].type=$2;
+            // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length=4; // default attribute length
+            CONTEXT->value_length++;
+        }
+
     ;
 number:
 		NUMBER {$$ = $1;}
@@ -355,7 +380,6 @@ value_tuple_list:
 value_list:
     /* empty */
     | COMMA value value_list  {
-  		// CONTEXT->values[CONTEXT->value_length++] = *$2;
   		CONTEXT->ssql->sstr.insertion.tuple_size[CONTEXT->ssql->sstr.insertion.tuple_num]++;
 	  }
     ;
@@ -375,6 +399,9 @@ value:
 			return -1;
         }
 	    }
+    |NULL_ {
+            CONTEXT->value_length++;
+        }
     |SSS {
 			$1 = substr($1,1,strlen($1)-2);
   		value_init_string(&CONTEXT->values[CONTEXT->value_length++], $1);

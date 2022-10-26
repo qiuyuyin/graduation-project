@@ -26,6 +26,11 @@ using namespace std;
 
 void TupleCell::to_string(std::ostream &os) const
 {
+  if (is_null_) {
+    os << "null";
+    return;
+  }
+
   switch (attr_type_) {
     case INTS: {
       os << *(int *)data_;
@@ -62,6 +67,9 @@ string TupleCell::to_string()
 
 int TupleCell::compare(const TupleCell &other) const
 {
+  if (is_null_) {
+    return -1;
+  }
   if (this->attr_type_ == other.attr_type_) {
     switch (this->attr_type_) {
       case INTS:

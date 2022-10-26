@@ -21,3 +21,8 @@ using namespace std;
 string double2string(double v);
 
 vector<string> split(const string& str, const string& delim);
+
+bool has_bit_set(int num, int loc);
+
+int set_bit(int num, int loc, bool set);
+

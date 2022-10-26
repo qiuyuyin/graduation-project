@@ -36,6 +36,8 @@ public:
   void set_length(int length) { this->length_ = length; }
   void set_data(char *data) { this->data_ = data; }
   void set_data(const char *data) { this->set_data(const_cast<char *>(data)); }
+  void set_is_null(bool is_null) { this->is_null_ = is_null };
+  bool is_null() { return is_null_; }
 
   void to_string(std::ostream &os) const;
 
@@ -56,6 +58,7 @@ public:
   }
 
 private:
+  bool is_null_ = false;
   AttrType attr_type_ = UNDEFINED;
   int length_ = -1;
   char *data_ = nullptr; // real data. no need to move to field_meta.offset

@@ -53,3 +53,16 @@ vector<string> split(const string& str, const string& delim) {
 
   return res;
 }
+
+bool has_bit_set(int num, int loc) {
+  int temp = 1 << loc;
+  return (num & temp) != 0;
+}
+
+int set_bit(int num, int loc, bool set) {
+  if (set) {
+    return (num | (1 << loc));
+  } else {
+    return (num & (~(1 << loc)));
+  }
+}

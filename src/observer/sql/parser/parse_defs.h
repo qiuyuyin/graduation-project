@@ -190,6 +190,7 @@ typedef struct {
   char *name;     // Attribute name
   AttrType type;  // Type of attribute
   size_t length;  // Length of attribute
+  int nullable;   // 是否允许为空 0表示不允许 1表示允许
 } AttrInfo;
 
 // struct of craete_table
@@ -313,7 +314,7 @@ void groupby_destroy(GroupBy *groupBy);
 void expr_list_destroy(ExprList* exprList);
 void orderby_destroy(OrderBy *orderBy);
 
-void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t length);
+void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t length, int nullable);
 void attr_info_destroy(AttrInfo *attr_info);
 
 void selects_init(Selects *selects, ...);

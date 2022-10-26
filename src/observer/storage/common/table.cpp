@@ -29,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/index/bplus_tree_index.h"
 #include "storage/trx/trx.h"
 #include "storage/clog/clog.h"
+#include "util/util.h"
 
 Table::~Table()
 {
@@ -370,11 +371,13 @@ RC Table::make_record(int value_num, const Value *values, char *&record_out)
     LOG_WARN("Input values don't match the table's schema, table name:%s", table_meta_.name());
     return RC::SCHEMA_FIELD_MISSING;
   }
-
   const int normal_field_start_index = table_meta_.sys_field_num();
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
+    if (value.type == AttrType::UNDEFINED && table_meta_.is_field_nullable(i)) {
+      continue;
+    }
     if (field->type() != value.type) {
       LOG_ERROR("Invalid value type. table name =%s, field name=%s, type=%d, but given=%d",
           table_meta_.name(),
@@ -389,10 +392,15 @@ RC Table::make_record(int value_num, const Value *values, char *&record_out)
   int record_size = table_meta_.record_size();
   char *record = new char[record_size];
 
+  int* null_value_map = new int(0);
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
     size_t copy_len = field->len();
+    if (value.type == UNDEFINED && table_meta_.is_field_nullable(i)) {
+      *null_value_map = set_bit(*null_value_map, i, true);
+      continue;
+    }
     if (field->type() == CHARS) {
       const size_t data_len = strlen((const char *)value.data);
       if (copy_len > data_len) {
@@ -401,7 +409,7 @@ RC Table::make_record(int value_num, const Value *values, char *&record_out)
     }
     memcpy(record + field->offset(), value.data, copy_len);
   }
-
+  memcpy(record + table_meta_.field_metas()->at(1).offset(), null_value_map, table_meta_.field_metas()->at(1).len());
   record_out = record;
   return RC::SUCCESS;
 }
