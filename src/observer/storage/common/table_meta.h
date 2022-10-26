@@ -45,6 +45,7 @@ public:
   const std::vector<FieldMeta> *field_metas() const { return &fields_; }
   int field_num() const; // sys field included
   int sys_field_num() const;
+  bool is_field_nullable(int field) const;
 
   const IndexMeta *index(const char *name) const;
   const IndexMeta *find_index_by_field(const char *field) const;
@@ -60,11 +61,12 @@ public:
   void to_string(std::string &output) const override;
   void desc(std::ostream &os) const;
 
+
 private:
   void set_nullable_field(int loc, bool nullable);
 
 protected:
-  static RC init_sys_fields();
+  RC init_sys_fields();
 
 protected:
   std::string name_;
@@ -74,7 +76,7 @@ protected:
   int record_size_ = 0;
 
   //@@@ TODO why used static variable?
-  static std::vector<FieldMeta> sys_fields_;
+  std::vector<FieldMeta> sys_fields_;
 };
 
 #endif  // __OBSERVER_STORAGE_COMMON_TABLE_META_H__
