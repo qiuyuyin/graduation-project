@@ -60,6 +60,9 @@ public:
   void to_string(std::string &output) const override;
   void desc(std::ostream &os) const;
 
+private:
+  void set_nullable_field(int loc, bool nullable);
+
 protected:
   static RC init_sys_fields();
 

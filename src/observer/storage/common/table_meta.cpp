@@ -15,10 +15,14 @@ See the Mulan PSL v2 for more details. */
 #include <algorithm>
 #include <common/lang/string.h>
 
+#include <string>
 #include "storage/common/table_meta.h"
 #include "json/json.h"
 #include "common/log/log.h"
 #include "storage/trx/trx.h"
+#include "util/util.h"
+
+using namespace std;
 
 static const Json::StaticString FIELD_TABLE_NAME("table_name");
 static const Json::StaticString FIELD_FIELDS("fields");
@@ -38,17 +42,34 @@ void TableMeta::swap(TableMeta &other) noexcept
   std::swap(record_size_, other.record_size_);
 }
 
+void TableMeta::set_nullable_field(int loc, bool nullable)
+{
+  auto nullable_field_meta = sys_fields_[1];
+  int num = atoi(string(nullable_field_meta.name()).substr(9).c_str());
+  int res = set_bit(num, loc, nullable);
+  FieldMeta new_nullable_field_meta;
+  new_nullable_field_meta.init(string("nullable_" + std::to_string(res)).c_str(), AttrType::INTS, sys_fields_[0].len(), sizeof(AttrType::INTS), false);
+  sys_fields_[1] = new_nullable_field_meta;
+}
+
 RC TableMeta::init_sys_fields()
 {
-  sys_fields_.reserve(1);
-  FieldMeta field_meta;
-  RC rc = field_meta.init(Trx::trx_field_name(), Trx::trx_field_type(), 0, Trx::trx_field_len(), false);
+  sys_fields_.reserve(2);
+  FieldMeta trx_field_meta;
+  RC rc = trx_field_meta.init(Trx::trx_field_name(), Trx::trx_field_type(), 0, Trx::trx_field_len(), false);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to init trx field. rc = %d:%s", rc, strrc(rc));
     return rc;
   }
+  sys_fields_.push_back(trx_field_meta);
 
-  sys_fields_.push_back(field_meta);
+  FieldMeta nullable_field_meta;
+  rc = nullable_field_meta.init("nullable_0", AttrType::INTS, trx_field_meta.len(), sizeof(AttrType::INTS), false);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to init nullable field. rc = %d:%s", rc, strrc(rc));
+    return rc;
+  }
+  sys_fields_.push_back(nullable_field_meta);
   return rc;
 }
 RC TableMeta::init(const char *name, int field_num, const AttrInfo attributes[])
