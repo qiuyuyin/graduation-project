@@ -16,7 +16,7 @@ using namespace std;
 class AggregateField {
 public:
   AggregationType op_type = AggregationType::NO_Aggregation;
-  TupleCellSpec aggregate_field;
+  TupleCellSpec* aggregate_field;
 };
 
 class innerRes {
