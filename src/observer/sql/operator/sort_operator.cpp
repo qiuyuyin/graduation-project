@@ -66,11 +66,11 @@ bool compare_for_sort(VTuple4Sort arg1,VTuple4Sort arg2){
   for(auto iter : arg1.odb_fields){
     int order_flag = (iter.od_type == ASC_ORDER? 1:-1);
     TupleCell tmp_arg1_cell,tmp_arg2_cell;
-    if (arg1.tuple_.find_cell(iter.orderby_field,tmp_arg1_cell) != SUCCESS) {
+    if (arg1.tuple_.find_cell(*iter.orderby_field,tmp_arg1_cell) != SUCCESS) {
       LOG_WARN("fail to get cell");
       return 0;
     }
-    if (arg2.tuple_.find_cell(iter.orderby_field,tmp_arg2_cell) != SUCCESS) {
+    if (arg2.tuple_.find_cell(*iter.orderby_field,tmp_arg2_cell) != SUCCESS) {
       LOG_WARN("fail to get cell");
       return 0;
     }

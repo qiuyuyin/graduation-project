@@ -11,7 +11,7 @@
 class OrderByField {
 public:
   OrderType od_type = OrderType ::ASC_ORDER;
-  TupleCellSpec orderby_field;
+  TupleCellSpec *orderby_field;
 };
 
 

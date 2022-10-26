@@ -166,7 +166,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     TupleCellSpec *tupleCellSpec = new TupleCellSpec(expr);
     OrderByField odb_field;
     odb_field.od_type = od_t;
-    odb_field.orderby_field = *tupleCellSpec;
+    odb_field.orderby_field = tupleCellSpec;
     res_orderby_field.push_back(odb_field);
   }
 
