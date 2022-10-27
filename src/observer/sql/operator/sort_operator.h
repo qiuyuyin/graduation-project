@@ -39,10 +39,10 @@ private:
 };
 
 typedef struct{
-  VTuple tuple_;
+  VTuple tuple_data;
   vector<OrderByField> odb_fields;
-} VTuple4Sort;
+} Tuple4Sort;
 
-bool compare_for_sort(VTuple4Sort arg1,VTuple4Sort arg2);
+bool compare_for_sort(Tuple4Sort arg1,Tuple4Sort arg2);
 
 

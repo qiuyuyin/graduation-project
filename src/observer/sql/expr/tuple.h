@@ -26,7 +26,11 @@ See the Mulan PSL v2 for more details. */
 
 class Table;
 class VTuple;
-
+enum class TupleType {
+  UNKNOWN,
+  V,
+  ROW,
+};
 class TupleCellSpec {
 
   friend VTuple;
@@ -86,8 +90,9 @@ public:
       case ExprType::VALUE: {
         auto expr = static_cast<ValueExpr *>(expression_);
         return expr->tuple_cell_.attr_type();
-      } default: {
-        //todo
+      }
+      default: {
+        // todo
         return AttrType ::UNDEFINED;
       }
     }
@@ -108,11 +113,12 @@ public:
   Tuple() = default;
   virtual ~Tuple() = default;
 
+  virtual TupleType get_tuple_type() const = 0;
   virtual int cell_num() const = 0;
   virtual RC cell_at(int index, TupleCell &cell) const = 0;
   virtual RC find_cell(const Field &field, TupleCell &cell) const = 0;
 
-  virtual RC cell_spec_at(int index, std::shared_ptr<TupleCellSpec>& spec) const = 0;
+  virtual RC cell_spec_at(int index, std::shared_ptr<TupleCellSpec> &spec) const = 0;
 };
 
 class RowTuple : public Tuple {
@@ -137,6 +143,10 @@ public:
     }
   }
 
+  TupleType get_tuple_type() const override
+  {
+    return TupleType::ROW;
+  }
   int cell_num() const override
   {
     return speces_.size();
@@ -217,12 +227,55 @@ public:
     schema_.resize(size);
     cells_.resize(size);
   }
-  ~VTuple() {
+  VTuple(const RowTuple &row_tuple)
+  {
+    clear();
+    append_row_tuple(row_tuple);
+  }
+  VTuple(const Tuple &tuple)
+  {
+    clear();
+    switch (tuple.get_tuple_type()) {
+      case TupleType::V: {
+        merge(tuple, *this);
+      } break;
+      case TupleType::ROW: {
+        append_row_tuple((const RowTuple &)tuple);
+      } break;
+      case TupleType::UNKNOWN:{
+        abort();
+      }
+    }
+  }
+  VTuple &operator=(const VTuple &other)
+  {
+    clear();
+    merge(other, *this);
+    return *this;
+  }
+  VTuple &operator=(const RowTuple &other)
+  {
+    clear();
+    append_row_tuple(other);
+    return *this;
+  }
+  ~VTuple()
+  {
     schema_.clear();
+  }
+  void clear(){
+    this->schema_.clear();
+    this->cells_.clear();
+    this->name_to_idx_.clear();
   }
   int cell_num() const override
   {
     return schema_.size();
+  }
+
+  TupleType get_tuple_type() const override
+  {
+    return TupleType::V;
   }
   RC cell_at(int index, TupleCell &cell) const override
   {
@@ -271,7 +324,8 @@ public:
         return RC::UNIMPLENMENT;
     }
   }
-  RC cell_spec_at(int index, shared_ptr<TupleCellSpec> & spec) const override{
+  RC cell_spec_at(int index, shared_ptr<TupleCellSpec> &spec) const override
+  {
     if (index < 0 || index >= static_cast<int>(schema_.size())) {
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
@@ -279,7 +333,7 @@ public:
     spec = schema_[index];
     return RC::SUCCESS;
   };
-  void append_cell(TupleCell &cell, const shared_ptr<TupleCellSpec>& spec)
+  void append_cell(TupleCell &cell, const shared_ptr<TupleCellSpec> &spec)
   {
     cells_.push_back(cell);
     schema_.push_back(spec);
@@ -288,7 +342,7 @@ public:
       name_to_idx_[full_name] = cells_.size() - 1;
     }
   }
-  RC append_row_tuple(RowTuple &row)
+  RC append_row_tuple(const RowTuple &row)
   {
     int cells = row.cell_num();
     for (int i = 0; i < cells; i++) {
@@ -374,7 +428,8 @@ public:
     return RC::SUCCESS;
   }
 
-  RC get_cell_by_expr_name(std::string col_name, TupleCell &out) const {
+  RC get_cell_by_expr_name(std::string col_name, TupleCell &out) const
+  {
     for (int i = 0; i < schema_.size(); ++i) {
       if (schema_[i]->expr_name() == col_name) {
         cell_at(i, out);
@@ -388,7 +443,7 @@ public:
     return schema_;
   }
 
-  RC merge(VTuple &other, VTuple &out)
+  RC merge(const VTuple &other, VTuple &out)
   {
     size_t cell_num = cells_.size() + other.cell_num();
     out.schema_.resize(cell_num);
@@ -418,7 +473,7 @@ private:
     return spec == nullptr ? "" : spec->table_name() + "." + spec->expr_name();
   }
 
-  std::string get_full_name(const TupleCellSpec* spec) const
+  std::string get_full_name(const TupleCellSpec *spec) const
   {
     return spec == nullptr ? "" : spec->table_name() + "." + spec->expr_name();
   }

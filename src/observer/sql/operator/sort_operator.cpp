@@ -16,7 +16,9 @@ RC SortOperator::open(){
   }
 
   while ((rc = children_[0]->next()) == SUCCESS) {
-    VTuple *temp = (VTuple*)children_[0]->current_tuple();
+    RowTuple *trans = dynamic_cast<RowTuple *>(children_[0]->current_tuple());
+    VTuple *temp = new VTuple;
+    temp->append_row_tuple(*trans);
     tuple_set.push_back(temp);
   }
   if (rc == RECORD_EOF) {
@@ -46,31 +48,31 @@ RC SortOperator::close()
 
 void SortOperator::tupleSort()
 {
-  vector<VTuple4Sort> sort_tuple_set;
+  vector<Tuple4Sort> sort_tuple_set;
   for(auto it:tuple_set){
-    VTuple4Sort tmp;
-    tmp.tuple_ = *it;
+    Tuple4Sort tmp;
+    tmp.tuple_data = *it;
     tmp.odb_fields.assign(orderby_fields_.begin(),orderby_fields_.end());
     sort_tuple_set.push_back(tmp);
   }
   sort(sort_tuple_set.begin(),sort_tuple_set.end(), compare_for_sort);
   vector<VTuple *> res;
   for(auto it:sort_tuple_set){
-    res.push_back(&it.tuple_);
+    res.push_back(&it.tuple_data  );
   }
   tuple_set.swap(res);
 }
 
 
-bool compare_for_sort(VTuple4Sort arg1,VTuple4Sort arg2){
+bool compare_for_sort(Tuple4Sort arg1,Tuple4Sort arg2){
   for(auto iter : arg1.odb_fields){
     int order_flag = (iter.od_type == ASC_ORDER? 1:-1);
     TupleCell tmp_arg1_cell,tmp_arg2_cell;
-    if (arg1.tuple_.find_cell(*iter.orderby_field,tmp_arg1_cell) != SUCCESS) {
+    if (arg1.tuple_data.find_cell(*iter.orderby_field,tmp_arg1_cell) != SUCCESS) {
       LOG_WARN("fail to get cell");
       return 0;
     }
-    if (arg2.tuple_.find_cell(*iter.orderby_field,tmp_arg2_cell) != SUCCESS) {
+    if (arg2.tuple_data.find_cell(*iter.orderby_field,tmp_arg2_cell) != SUCCESS) {
       LOG_WARN("fail to get cell");
       return 0;
     }
