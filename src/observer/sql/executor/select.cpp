@@ -29,7 +29,15 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
 //      scan_oper = new TableScanOperator(select_stmt->tables()[0]);
 //    }
 
-    Operator *scan_oper = new TableScanOperator(select_stmt->tables()[0]);
+  Operator *scan_oper = new TableScanOperator(select_stmt->tables()[0]);
+  if(select_stmt->tables().size()!=1){
+    std::unordered_map<std::string,Operator *> table2operator;
+
+  }else{
+    Operator *scan_oper = try_to_create_index_scan_operator(select_stmt->filter_stmt());
+    if (nullptr == scan_oper) {
+      scan_oper = new TableScanOperator(select_stmt->tables()[0]);
+    }
 
     DEFER([&] () {delete scan_oper;});
     PredicateOperator pred_oper(select_stmt->filter_stmt()->filter_units());
