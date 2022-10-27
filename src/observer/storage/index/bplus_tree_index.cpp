@@ -30,10 +30,9 @@ RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta, co
     return RC::RECORD_OPENNED;
   }
   // TODO: change Index::init
-  auto field_meta = field_metas[0];
-  Index::init(index_meta, field_meta);
+  Index::init(index_meta, field_metas);
 
-  RC rc = index_handler_.create(file_name, field_meta.type(), field_meta.len());
+  RC rc = index_handler_.create(file_name, field_metas);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to create index_handler, file_name:%s, index:%s, field:%s, rc:%s",
         file_name,
@@ -49,7 +48,7 @@ RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta, co
   return RC::SUCCESS;
 }
 
-RC BplusTreeIndex::open(const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
+RC BplusTreeIndex::open(const char *file_name, const IndexMeta &index_meta, const std::vector<FieldMeta> &field_meta)
 {
   if (inited_) {
     LOG_WARN("Failed to open index due to the index has been initedd before. file_name:%s, index:%s, field:%s",
