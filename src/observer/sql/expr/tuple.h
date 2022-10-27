@@ -38,10 +38,10 @@ public:
 
   ~TupleCellSpec()
   {
-//    if (expression_) {
-//      delete expression_;
-//      expression_ = nullptr;
-//    }
+    if (expression_) {
+      delete expression_;
+      expression_ = nullptr;
+    }
   }
 
   void set_alias(const char *alias)
@@ -112,7 +112,7 @@ public:
   virtual RC cell_at(int index, TupleCell &cell) const = 0;
   virtual RC find_cell(const Field &field, TupleCell &cell) const = 0;
 
-  virtual RC cell_spec_at(int index, const TupleCellSpec *&spec) const = 0;
+  virtual RC cell_spec_at(int index, std::shared_ptr<TupleCellSpec>& spec) const = 0;
 };
 
 class RowTuple : public Tuple {
@@ -120,9 +120,6 @@ public:
   RowTuple() = default;
   virtual ~RowTuple()
   {
-    for (TupleCellSpec *spec : speces_) {
-      delete spec;
-    }
     speces_.clear();
   }
 
@@ -136,7 +133,7 @@ public:
     table_ = table;
     this->speces_.reserve(fields->size());
     for (const FieldMeta &field : *fields) {
-      speces_.push_back(new TupleCellSpec(new FieldExpr(table, &field)));
+      speces_.push_back(std::make_shared<TupleCellSpec>(new FieldExpr(table, &field)));
     }
   }
 
@@ -150,7 +147,7 @@ public:
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
     }
-    const TupleCellSpec *spec = speces_[index];
+    auto spec = speces_[index];
     FieldExpr *field_expr = (FieldExpr *)spec->expression();
     const FieldMeta *field_meta = field_expr->field().meta();
     int value_null_map = *(int*)this->record_->data() + field_expr->field().table()->table_meta().field(1)->offset();
@@ -183,7 +180,7 @@ public:
     return RC::NOTFOUND;
   }
 
-  RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
+  RC cell_spec_at(int index, std::shared_ptr<TupleCellSpec> &spec) const override
   {
     if (index < 0 || index >= static_cast<int>(speces_.size())) {
       LOG_WARN("invalid argument. index=%d", index);
@@ -206,7 +203,7 @@ public:
 private:
   Record *record_ = nullptr;
   const Table *table_ = nullptr;
-  std::vector<TupleCellSpec *> speces_;
+  std::vector<std::shared_ptr<TupleCellSpec>> speces_;
 };
 
 class VTuple : public Tuple {
@@ -218,10 +215,7 @@ public:
     cells_.resize(size);
   }
   ~VTuple() {
-//    for (auto&& ptr: allocated_){
-//      delete ptr->expression_;
-//      delete ptr;
-//    }
+    schema_.clear();
   }
   int cell_num() const override
   {
@@ -263,16 +257,15 @@ public:
         return RC::UNIMPLENMENT;
     }
   }
-  RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
-  {
+  RC cell_spec_at(int index, shared_ptr<TupleCellSpec> & spec) const override{
     if (index < 0 || index >= static_cast<int>(schema_.size())) {
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
     }
     spec = schema_[index];
     return RC::SUCCESS;
-  }
-  void append_cell(TupleCell &cell, const TupleCellSpec *spec)
+  };
+  void append_cell(TupleCell &cell, const shared_ptr<TupleCellSpec>& spec)
   {
     cells_.push_back(cell);
     schema_.push_back(spec);
@@ -286,7 +279,7 @@ public:
     int cells = row.cell_num();
     for (int i = 0; i < cells; i++) {
       TupleCell cell;
-      const TupleCellSpec *spec;
+      std::shared_ptr<TupleCellSpec> spec;
       row.cell_at(i, cell);
       row.cell_spec_at(i, spec);
       append_cell(cell, spec);
@@ -296,8 +289,7 @@ public:
   RC append_value(Value &value)
   {
     auto expr = new ValueExpr(value);
-    TupleCellSpec *spec = new TupleCellSpec(expr);
-    allocated_.insert(spec);
+    auto spec = std::make_shared<TupleCellSpec>(expr);
     TupleCell cell;
 
     expr->get_tuple_cell(cell);
@@ -308,20 +300,19 @@ public:
   {
     TupleCell cell(type, static_cast<char *>(data));
     auto expr = new VarExpr(name, type);
-    auto spec = new TupleCellSpec(expr);
+    auto spec = make_shared<TupleCellSpec>(expr);
 
     cells_.push_back(cell);
     schema_.push_back(spec);
-    allocated_.insert(spec);
     return RC::SUCCESS;
   }
-  RC set_schema(std::vector<const TupleCellSpec *> schema)
+  RC set_schema(std::vector<std::shared_ptr<TupleCellSpec>> schema)
   {
     schema_ = schema;
     cells_.resize(schema.size());
     return RC::SUCCESS;
   }
-  RC set_field(int index, TupleCell &cell, TupleCellSpec *spec)
+  RC set_field(int index, TupleCell &cell, std::shared_ptr<TupleCellSpec> spec)
   {
     if (index < 0 || index >= static_cast<int>(schema_.size())) {
       LOG_WARN("invalid argument. index=%d", index);
@@ -332,18 +323,16 @@ public:
 
     std::string col_name = get_full_name(spec);
     cells_[index] = cell;
-    schema_[index] = spec;
     name_to_idx_[col_name] = index;
     return RC::SUCCESS;
   }
   RC set_value(int index, Value &value)
   {
     auto expr = new ValueExpr(value);
-    TupleCellSpec *spec = new TupleCellSpec(expr);
+    auto spec = std::make_shared<TupleCellSpec>(expr);
     TupleCell cell;
 
     expr->get_tuple_cell(cell);
-    allocated_.insert(spec);
 
     erase(index);
 
@@ -368,7 +357,7 @@ public:
     out = cells_[idx];
     return RC::SUCCESS;
   }
-  std::vector<const TupleCellSpec *> schema()
+  std::vector<std::shared_ptr<TupleCellSpec>> schema()
   {
     return schema_;
   }
@@ -393,21 +382,17 @@ public:
   }
 
 private:
-  void free_spec(const TupleCellSpec *ptr)
-  {
-    if (allocated_.count(ptr) > 0) {
-      allocated_.erase(ptr);
-      delete ptr->expression_;
-      delete ptr;
-    }
-  }
   void erase(int index)
   {
     std::string full_name_of_old = get_full_name(schema_[index]);
     name_to_idx_.erase(full_name_of_old);
-    free_spec(schema_[index]);
   }
-  std::string get_full_name(const TupleCellSpec *spec) const
+  std::string get_full_name(const shared_ptr<TupleCellSpec> spec) const
+  {
+    return spec == nullptr ? "" : spec->table_name() + "." + spec->expr_name();
+  }
+
+  std::string get_full_name(const TupleCellSpec* spec) const
   {
     return spec == nullptr ? "" : spec->table_name() + "." + spec->expr_name();
   }
@@ -415,11 +400,10 @@ private:
   {
     return field == nullptr ? "" : (std::string(field->table_name()) + "." + field->field_name());
   }
-  std::vector<const TupleCellSpec *> schema_;
+  std::vector<std::shared_ptr<TupleCellSpec>> schema_;
   std::vector<TupleCell> cells_;
   // record the spec allocated by me
   std::map<std::string, size_t> name_to_idx_;
-  std::set<const TupleCellSpec *> allocated_;
 };
 /*
 class CompositeTuple : public Tuple
@@ -438,9 +422,6 @@ public:
   ProjectTuple() = default;
   virtual ~ProjectTuple()
   {
-    for (TupleCellSpec *spec : speces_) {
-      delete spec;
-    }
     speces_.clear();
   }
 
@@ -449,7 +430,7 @@ public:
     this->tuple_ = tuple;
   }
 
-  void add_cell_spec(TupleCellSpec *spec)
+  void add_cell_spec(std::shared_ptr<TupleCellSpec> spec)
   {
     speces_.push_back(spec);
   }
@@ -467,7 +448,7 @@ public:
       return RC::GENERIC_ERROR;
     }
 
-    const TupleCellSpec *spec = speces_[index];
+    auto spec = speces_[index];
     return spec->expression()->get_value(*tuple_, cell);
   }
 
@@ -475,7 +456,7 @@ public:
   {
     return tuple_->find_cell(field, cell);
   }
-  RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
+  RC cell_spec_at(int index, std::shared_ptr<TupleCellSpec> &spec) const override
   {
     if (index < 0 || index >= static_cast<int>(speces_.size())) {
       return RC::NOTFOUND;
@@ -485,6 +466,6 @@ public:
   }
 
 private:
-  std::vector<TupleCellSpec *> speces_;
+  std::vector<std::shared_ptr<TupleCellSpec>> speces_;
   Tuple *tuple_ = nullptr;
 };

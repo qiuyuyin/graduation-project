@@ -15,12 +15,11 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <string>
+#include <cstring>
 
-using namespace std;
+std::string double2string(double v);
 
-string double2string(double v);
-
-vector<string> split(const string& str, const string& delim);
+std::vector<std::string> split(const std::string& str, const std::string& delim);
 
 bool has_bit_set(int num, int loc);
 
