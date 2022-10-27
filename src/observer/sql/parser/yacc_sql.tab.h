@@ -94,35 +94,36 @@ extern int yydebug;
     LOAD = 295,                    /* LOAD  */
     DATA = 296,                    /* DATA  */
     INFILE = 297,                  /* INFILE  */
-    NOT = 298,                     /* NOT  */
-    LIKE_ = 299,                   /* LIKE_  */
-    GROUP = 300,                   /* GROUP  */
-    BY = 301,                      /* BY  */
-    ORDER = 302,                   /* ORDER  */
-    HAVING = 303,                  /* HAVING  */
-    AS = 304,                      /* AS  */
-    NULLABLE = 305,                /* NULLABLE  */
-    NULL_ = 306,                   /* NULL_  */
-    EQ = 307,                      /* EQ  */
-    LT = 308,                      /* LT  */
-    GT = 309,                      /* GT  */
-    LE = 310,                      /* LE  */
-    GE = 311,                      /* GE  */
-    NE = 312,                      /* NE  */
-    PLUS = 313,                    /* PLUS  */
-    DIV = 314,                     /* DIV  */
-    MINUS = 315,                   /* MINUS  */
-    NUMBER = 316,                  /* NUMBER  */
-    FLOAT = 317,                   /* FLOAT  */
-    ID = 318,                      /* ID  */
-    AGGREGATION_FUNC = 319,        /* AGGREGATION_FUNC  */
-    AGGREGATION_FUNC_VALUE = 320,  /* AGGREGATION_FUNC_VALUE  */
-    PATH = 321,                    /* PATH  */
-    SSS = 322,                     /* SSS  */
-    STAR = 323,                    /* STAR  */
-    STRING_V = 324,                /* STRING_V  */
-    DATE_STR = 325,                /* DATE_STR  */
-    U_neg = 326                    /* U_neg  */
+    IS_ = 298,                     /* IS_  */
+    NOT = 299,                     /* NOT  */
+    LIKE_ = 300,                   /* LIKE_  */
+    GROUP = 301,                   /* GROUP  */
+    BY = 302,                      /* BY  */
+    ORDER = 303,                   /* ORDER  */
+    HAVING = 304,                  /* HAVING  */
+    AS = 305,                      /* AS  */
+    NULLABLE = 306,                /* NULLABLE  */
+    NULL_ = 307,                   /* NULL_  */
+    EQ = 308,                      /* EQ  */
+    LT = 309,                      /* LT  */
+    GT = 310,                      /* GT  */
+    LE = 311,                      /* LE  */
+    GE = 312,                      /* GE  */
+    NE = 313,                      /* NE  */
+    PLUS = 314,                    /* PLUS  */
+    DIV = 315,                     /* DIV  */
+    MINUS = 316,                   /* MINUS  */
+    NUMBER = 317,                  /* NUMBER  */
+    FLOAT = 318,                   /* FLOAT  */
+    ID = 319,                      /* ID  */
+    AGGREGATION_FUNC = 320,        /* AGGREGATION_FUNC  */
+    AGGREGATION_FUNC_VALUE = 321,  /* AGGREGATION_FUNC_VALUE  */
+    PATH = 322,                    /* PATH  */
+    SSS = 323,                     /* SSS  */
+    STAR = 324,                    /* STAR  */
+    STRING_V = 325,                /* STRING_V  */
+    DATE_STR = 326,                /* DATE_STR  */
+    U_neg = 327                    /* U_neg  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -131,7 +132,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 130 "yacc_sql.y"
+#line 131 "yacc_sql.y"
 
   struct _Attr *attr;
   struct _Condition *condition1;
@@ -141,7 +142,7 @@ union YYSTYPE
   float floats;
 	char *position;
 
-#line 145 "yacc_sql.tab.h"
+#line 146 "yacc_sql.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

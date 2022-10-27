@@ -91,6 +91,23 @@ bool PredicateOperator::do_predicate(Tuple* t1)
       //todo(hjh) 这里到底是返回client failure还是false
       return false;
     }
+
+    // check null compare
+    auto compare_null = [](TupleCell& c1, TupleCell& c2, CompOp op){
+      if (op == IS) return c1.is_null();
+      if (op == IS_NOT) return !c1.is_null();
+      return false;
+    };
+    if (left_cell.attr_type() == UNDEFINED && right_cell.attr_type() == UNDEFINED) {
+      if (comp == IS) return true;
+      if (comp == IS_NOT) return false;
+      return false;
+    } else if (left_cell.attr_type() != UNDEFINED && right_cell.attr_type() == UNDEFINED) {
+      return compare_null(left_cell, right_cell, comp);
+    } else if (left_cell.attr_type() == UNDEFINED && right_cell.attr_type() != UNDEFINED) {
+      return compare_null(right_cell, left_cell, comp);
+    }
+
     const int compare = left_cell.compare(right_cell);
     bool filter_result = false;
     switch (comp) {

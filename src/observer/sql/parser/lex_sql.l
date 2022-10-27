@@ -79,6 +79,7 @@ AGGREGATION_FUNC MAX|max|MIN|min|COUNT|count|AVG|avg|SUM|sum
 [Ll][Oo][Aa][Dd]                                     RETURN_TOKEN(LOAD);
 [Dd][Aa][Tt][Aa]                                     RETURN_TOKEN(DATA);
 [Ii][Nn][Ff][Ii][Ll][Ee]                             RETURN_TOKEN(INFILE);
+[Ii][Ss]                                             RETURN_TOKEN(IS_);
 [Nn][Oo][Tt]                                         RETURN_TOKEN(NOT);
 [Ll][Ii][Kk][Ee]                                     RETURN_TOKEN(LIKE_);
 [Gg][Rr][Oo][Uu][Pp]                                 RETURN_TOKEN(GROUP);

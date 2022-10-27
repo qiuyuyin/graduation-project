@@ -108,6 +108,7 @@ ParserContext *get_context(yyscan_t scanner)
         LOAD
         DATA
         INFILE
+        IS_
         NOT
         LIKE_
         GROUP
@@ -327,6 +328,28 @@ attr_def:
             // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length=4; // default attribute length
             CONTEXT->value_length++;
         }
+        |ID_get type NOT NULL_ LBRACE number RBRACE
+            {
+                AttrInfo attribute;
+                attr_info_init(&attribute, CONTEXT->id, $2, $6, 0);
+                create_table_append_attribute(&CONTEXT->ssql->sstr.create_table, &attribute);
+                // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name =(char*)malloc(sizeof(char));
+                // strcpy(CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name, CONTEXT->id);
+                // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].type = $2;
+                // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length = $4;
+                CONTEXT->value_length++;
+            }
+        |ID_get type NOT NULL_
+            {
+                AttrInfo attribute;
+                attr_info_init(&attribute, CONTEXT->id, $2, 4, 0);
+                create_table_append_attribute(&CONTEXT->ssql->sstr.create_table, &attribute);
+                // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name=(char*)malloc(sizeof(char));
+                // strcpy(CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].name, CONTEXT->id);
+                // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].type=$2;
+                // CONTEXT->ssql->sstr.create_table.attributes[CONTEXT->value_length].length=4; // default attribute length
+                CONTEXT->value_length++;
+            }
 
     ;
 number:
@@ -695,6 +718,8 @@ comOp:
     | NE { CONTEXT->comp = NOT_EQUAL; }
     | NOT LIKE_ { CONTEXT->comp = NOT_LIKE; }
     | LIKE_ { CONTEXT->comp = LIKE; }
+    | IS_ NOT { CONTEXT->comp = IS_NOT; }
+    | IS_ {CONTEXT->comp = IS; }
     ;
 
 load_data:
