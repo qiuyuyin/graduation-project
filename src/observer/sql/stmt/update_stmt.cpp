@@ -45,7 +45,13 @@ RC UpdateStmt::create(Db *db, const Updates &update, Stmt *&stmt)
     LOG_WARN("The update attr[%s] doesn't exist",update.attribute_name);
     return SCHEMA_FIELD_NOT_EXIST;
   }
-  if(filed_meta->type()!=update.value.type){
+
+  if (update.value.type == AttrType::UNDEFINED && !table->table_meta().is_field_nullable(table_meta.field_index(update.attribute_name))) {
+    LOG_WARN("The value is null, but the field is not nullable");
+    return INVALID_ARGUMENT;
+  }
+
+  if(update.value.type != AttrType::UNDEFINED && filed_meta->type()!=update.value.type){
     LOG_WARN("The update attr[%s]'s type mismatches with filed meta's",update.attribute_name);
     return SCHEMA_FIELD_TYPE_MISMATCH;
   }

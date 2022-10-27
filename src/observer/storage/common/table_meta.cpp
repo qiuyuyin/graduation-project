@@ -152,6 +152,14 @@ const FieldMeta *TableMeta::field(const char *name) const
   return nullptr;
 }
 
+const int TableMeta::field_index(const char* name) const {
+  for (int i = 0; i < fields_.size(); ++i) {
+    if (strcmp(name, fields_[i].name()) == 0) {
+      return i - sys_field_num();
+    }
+  }
+}
+
 const FieldMeta *TableMeta::find_field_by_offset(int offset) const
 {
   for (const FieldMeta &field : fields_) {
