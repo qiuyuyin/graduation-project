@@ -98,6 +98,7 @@ bool PredicateOperator::do_predicate(Tuple* t1)
       if (op == IS_NOT) return !c1.is_null();
       return false;
     };
+
     if (left_cell.attr_type() == UNDEFINED && right_cell.attr_type() == UNDEFINED) {
       if (comp == IS) return true;
       if (comp == IS_NOT) return false;

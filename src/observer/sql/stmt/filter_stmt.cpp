@@ -142,7 +142,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   // 检查两个类型是否能够比较
   // TODO: not elegant to check date type here
-  if(left_type != right_type && (left_type == DATES || right_type == DATES)){
+  if (left_type != UNDEFINED && right_type != UNDEFINED && left_type != right_type && (left_type == DATES || right_type == DATES)) {
     return RC::INVALID_ARGUMENT;
   }
 
