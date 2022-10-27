@@ -38,11 +38,13 @@ RC ProjectOperator::next()
 {
   RC rc;
   if ((rc = children_[0]->next()) == SUCCESS) {
-    VTuple temp = *(VTuple*)children_[0]->current_tuple();
+    RowTuple *trans = dynamic_cast<RowTuple *>(children_[0]->current_tuple());
+    VTuple *temp = new VTuple;
+    temp->append_row_tuple(*trans);
     VTuple res;
     for (const auto& projection : projections_) {
       TupleCell cell;
-      if ((rc = temp.find_cell(*projection, cell)) != SUCCESS) {
+      if ((rc = temp->find_cell(*projection, cell)) != SUCCESS) {
         LOG_WARN("[projection::next] tupleCell::find_cell error");
         return rc;
       }

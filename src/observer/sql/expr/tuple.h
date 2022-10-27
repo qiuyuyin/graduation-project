@@ -38,10 +38,10 @@ public:
 
   ~TupleCellSpec()
   {
-    if (expression_) {
-      delete expression_;
-      expression_ = nullptr;
-    }
+//    if (expression_) {
+//      delete expression_;
+//      expression_ = nullptr;
+//    }
   }
 
   void set_alias(const char *alias)
@@ -218,10 +218,10 @@ public:
     cells_.resize(size);
   }
   ~VTuple() {
-    for (auto&& ptr: allocated_){
-      delete ptr->expression_;
-      delete ptr;
-    }
+//    for (auto&& ptr: allocated_){
+//      delete ptr->expression_;
+//      delete ptr;
+//    }
   }
   int cell_num() const override
   {
