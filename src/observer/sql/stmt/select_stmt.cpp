@@ -95,6 +95,8 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
         expr = new VarExpr(parse_field.name, AttrType::UNDEFINED);
       }
       TupleCellSpec* tuple_cell_spec = new TupleCellSpec(expr);
+
+
       if (parse_field.alias != "") {
         tuple_cell_spec->set_alias(parse_field.alias.c_str());
       }

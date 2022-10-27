@@ -41,12 +41,12 @@ public:
 static vector<QueryField> get_query_field(string sql) {
   auto parse = [](string temp){
     QueryField queryField;
-    auto pos = temp.find("as");
+    auto pos = temp.find(" as ");
     if (pos == temp.npos) {
-      queryField.name = temp;
+      queryField.name = trim(temp);
     } else {
-      queryField.name = temp.substr(0, pos-1);
-      queryField.alias = temp.substr(pos+3, temp.length()-pos-3);
+      queryField.name = trim(temp.substr(0, pos));
+      queryField.alias = trim(temp.substr(pos+4, temp.length()-pos-4));
     }
     return queryField;
   };

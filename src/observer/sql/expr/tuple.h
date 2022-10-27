@@ -250,8 +250,15 @@ public:
         return RC::SUCCESS;
       }
       case ExprType::VAR: {
-        auto full_name = get_full_name(&spec);
-        return get_cell_by_full_name(full_name, cell);
+        string name = spec.expr_name();
+        if (spec.table_name() != "") {
+          name = get_full_name(&spec);
+          return get_cell_by_full_name(name, cell);
+        }
+        if (name.find(".") != name.npos) {
+          return get_cell_by_full_name(name, cell);
+        }
+        return get_cell_by_expr_name(name, cell);
       }
       default:
         return RC::UNIMPLENMENT;
@@ -357,6 +364,16 @@ public:
     auto idx = it->second;
     out = cells_[idx];
     return RC::SUCCESS;
+  }
+
+  RC get_cell_by_expr_name(std::string col_name, TupleCell &out) const {
+    for (int i = 0; i < schema_.size(); ++i) {
+      if (schema_[i]->expr_name() == col_name) {
+        cell_at(i, out);
+        return SUCCESS;
+      }
+    }
+    return NOTFOUND;
   }
   std::vector<std::shared_ptr<TupleCellSpec>> schema()
   {

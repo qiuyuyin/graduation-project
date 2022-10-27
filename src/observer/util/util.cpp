@@ -66,3 +66,12 @@ int set_bit(int num, int loc, bool set) {
     return (num & (~(1 << loc)));
   }
 }
+
+std::string trim(std::string s) {
+  if (s.empty()) {
+    return s;
+  }
+  s.erase(0, s.find_first_not_of(" "));
+  s.erase(s.find_last_not_of(" ")+1);
+  return s;
+}

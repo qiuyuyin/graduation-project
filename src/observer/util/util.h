@@ -25,3 +25,4 @@ bool has_bit_set(int num, int loc);
 
 int set_bit(int num, int loc, bool set);
 
+std::string trim(std::string s);
