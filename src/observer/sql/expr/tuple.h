@@ -443,14 +443,16 @@ public:
     return schema_;
   }
 
+  // if &other == &out; the behaviour is undefined
   RC merge(const VTuple &other, VTuple &out)
   {
     size_t cell_num = cells_.size() + other.cell_num();
     out.schema_.resize(cell_num);
     out.cells_.resize(cell_num);
-
-    auto schema_next = std::copy(schema_.begin(), schema_.end(), out.schema_.begin());
-    auto cells_next = std::copy(cells_.begin(), cells_.end(), out.cells_.begin());
+    auto schema_next =
+        &out == this ? out.schema_.begin() : (std::copy(schema_.begin(), schema_.end(), out.schema_.begin()));
+    auto cells_next =
+        &out == this ? out.cells_.begin(): (std::copy(cells_.begin(), cells_.end(), out.cells_.begin()));
     std::copy(other.schema_.begin(), other.schema_.end(), schema_next);
     std::copy(other.cells_.begin(), other.cells_.end(), cells_next);
     out.name_to_idx_ = name_to_idx_;

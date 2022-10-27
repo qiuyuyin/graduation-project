@@ -38,7 +38,7 @@ RC ProjectOperator::next()
 {
   RC rc;
   if ((rc = children_[0]->next()) == SUCCESS) {
-    RowTuple *trans = dynamic_cast<RowTuple *>(children_[0]->current_tuple());
+    RowTuple *trans = (RowTuple *)(children_[0]->current_tuple());
     VTuple *temp = new VTuple;
     temp->append_row_tuple(*trans);
     VTuple res;
