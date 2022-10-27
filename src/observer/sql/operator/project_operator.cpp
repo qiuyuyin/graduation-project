@@ -53,7 +53,7 @@ RC ProjectOperator::next()
         field_name = projection->alias();
       }
       //todo 这里的type采用哪一种呢？是projection的还是cell的
-      if ((rc = res.append_var(field_name, cell.attr_type(), (void *)cell.data())) != SUCCESS) {
+      if ((rc = res.append_var(field_name, projection->attr_type(), cell.length(), (void *)cell.data())) != SUCCESS) {
         LOG_WARN("[projection::next] Vtuple::append_var_tuple error");
         return rc;
       }

@@ -94,11 +94,17 @@ RC AggregateOperator::next()
       default:
         return INVALID_ARGUMENT;
     }
-    tuple_.append_var(field_name, field_type, data);
+    int length = 4;
+    if (field_type == CHARS) {
+      length = max(agg_res->min_value.length(), agg_res->max_value.length());
+    }
+    tuple_.append_var(field_name, field_type, length, data);
   }
   for (int i = 0; i < groupby_fields_.size(); ++i) {
+    auto temp = (FieldExpr*)groupby_fields_[i].expression();
+    int length = temp->field().meta()->len();
     void* data = const_cast<char*>(group_values[i].c_str());
-    tuple_.append_var(groupby_fields_.at(i).expr_name(), groupby_fields_.at(i).attr_type(), data);
+    tuple_.append_var(groupby_fields_.at(i).expr_name(), groupby_fields_.at(i).attr_type(), length, data);
   }
   iter++;
   return SUCCESS;

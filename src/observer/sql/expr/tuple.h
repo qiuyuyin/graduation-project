@@ -150,7 +150,7 @@ public:
     auto spec = speces_[index];
     FieldExpr *field_expr = (FieldExpr *)spec->expression();
     const FieldMeta *field_meta = field_expr->field().meta();
-    int value_null_map = *(int*)this->record_->data() + field_expr->field().table()->table_meta().field(1)->offset();
+    int value_null_map = *(int*)(this->record_->data() + field_expr->field().table()->table_meta().field(1)->offset());
     bool is_null = has_bit_set(value_null_map, index);
     if (is_null) {
       cell.set_is_null(true);
@@ -296,9 +296,10 @@ public:
     append_cell(cell, spec);
     return RC::SUCCESS;
   }
-  RC append_var(std::string name, AttrType type, void *data)
+  RC append_var(std::string name, AttrType type, int length, void *data)
   {
     TupleCell cell(type, static_cast<char *>(data));
+    cell.set_length(length);
     auto expr = new VarExpr(name, type);
     auto spec = make_shared<TupleCellSpec>(expr);
 

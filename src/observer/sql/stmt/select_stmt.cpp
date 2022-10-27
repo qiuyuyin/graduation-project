@@ -146,7 +146,12 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
       continue;
     }
     name_set.insert(name);
-    Expression* expr = new VarExpr(name, AttrType::UNDEFINED);
+    Expression* expr = nullptr;
+    if (attr.relation_name == nullptr) {
+      expr = new FieldExpr(tables[0], tables[0]->table_meta().field(attr.attribute_name));
+    } else {
+      expr = new FieldExpr(table_map[attr.relation_name], table_map[attr.relation_name]->table_meta().field(attr.attribute_name));
+    }
     TupleCellSpec* tuple_cell_spec = new TupleCellSpec(expr);
     groupby_fields.push_back(tuple_cell_spec);
   }
