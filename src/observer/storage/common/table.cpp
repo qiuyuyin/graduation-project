@@ -710,6 +710,12 @@ RC Table::update_record(Trx *trx, Record *record,const char *attribute_name, con
     //update record
     int record_size = table_meta_.record_size();
     char *record_data = record->data();
+    int* null_value_map = (int*)record_data + table_meta_.field(1)->offset();
+    if (value->type == UNDEFINED) {
+      *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), true);
+    } else {
+      *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), false);
+    }
     size_t copy_len = field->len();
     if (field->type() == CHARS) {
       const size_t data_len = strlen((const char *)value->data);
