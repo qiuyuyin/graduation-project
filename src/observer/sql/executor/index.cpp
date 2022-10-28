@@ -36,9 +36,8 @@
 #include "storage/trx/trx.h"
 #include "storage/clog/clog.h"
 
-IndexScanOperator *try_to_create_index_scan_operator(FilterStmt *filter_stmt, char* target_table)
+IndexScanOperator *try_to_create_index_scan_operator(vector<FilterUnit*>& filter_units, char* target_table)
 {
-  const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
   if (filter_units.empty() ) {
     return nullptr;
   }
