@@ -53,6 +53,7 @@ RC AggregateOperator::next()
   if (key != "no_group") {
     group_values = split(key, "_");
   }
+  VTuple res;
   for (int i = 0; i < aggregate_ops_.size(); ++i) {
     auto agg_op = aggregate_ops_.at(i);
     auto agg_res = innerRes.at(i);
@@ -101,14 +102,15 @@ RC AggregateOperator::next()
     if (field_type == CHARS) {
       length = max(agg_res->min_value.length(), agg_res->max_value.length());
     }
-    tuple_.append_var(field_name, field_type, length, data, false);
+    res.append_var(field_name, field_type, length, data, false);
   }
   for (int i = 0; i < groupby_fields_.size(); ++i) {
     auto temp = (FieldExpr*)groupby_fields_[i]->expression();
     int length = temp->field().meta()->len();
     void* data = const_cast<char*>(group_values[i].c_str());
-    tuple_.append_var(groupby_fields_.at(i)->expr_name(), groupby_fields_.at(i)->attr_type(), length, data, false);
+    res.append_var(groupby_fields_.at(i)->expr_name(), groupby_fields_.at(i)->attr_type(), length, data, false);
   }
+  tuple_ = res;
   iter++;
   return SUCCESS;
 }
