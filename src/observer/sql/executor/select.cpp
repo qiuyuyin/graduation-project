@@ -137,6 +137,7 @@ RC do_select_v2(SQLStageEvent *sql_event)
       break;
     }
     tuple_to_string(ss, *tuple);
+    cout << ss.str() << endl;
     ss << std::endl;
   }
   if (rc != RC::RECORD_EOF) {

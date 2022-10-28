@@ -61,8 +61,6 @@ RC JoinOperator::next()
     }
     if (rc == RECORD_EOF) {
       round_done_ = true;
-    } else {
-      return rc;
     }
   }
   return rc;

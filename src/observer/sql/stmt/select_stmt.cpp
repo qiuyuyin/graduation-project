@@ -66,7 +66,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
       LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
-    tables.push_back(table);
+    tables.insert(tables.begin(), table);
     if (select_sql.relations[i].alias != nullptr) {
       alias_map.insert(pair<string, string>(table_name, select_sql.relations[i].alias));
     }
