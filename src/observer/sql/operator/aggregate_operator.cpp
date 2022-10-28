@@ -107,7 +107,28 @@ RC AggregateOperator::next()
   for (int i = 0; i < groupby_fields_.size(); ++i) {
     auto temp = (FieldExpr*)groupby_fields_[i]->expression();
     int length = temp->field().meta()->len();
-    void* data = const_cast<char*>(group_values[i].c_str());
+    void* data;
+    switch (temp->field().meta()->type()) {
+      case INTS: {
+        int *temp = new int(atoi(group_values[i].c_str()));
+        data = temp;
+        break;
+      }
+      case FLOATS: {
+        float *temp = new float(atof(group_values[i].c_str()));
+        data = temp;
+        break;
+      }
+      case CHARS:
+      case DATES: {
+        data = strdup(group_values[i].c_str());
+        break;
+      }
+      default: {
+        LOG_WARN("don't support for this type");
+        return INVALID_ARGUMENT;
+      }
+    }
     res.append_var(groupby_fields_.at(i)->expr_name(), groupby_fields_.at(i)->attr_type(), length, data, false);
   }
   tuple_ = res;
