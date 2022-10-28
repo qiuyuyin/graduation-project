@@ -61,7 +61,7 @@ ExprCellType CalculateExpr::get_expr_cell_type(string cell) const
 
 RC CalculateExpr::get_value(const Tuple &tuple, TupleCell &tuple_cell) const
 {
-  auto vtuple = dynamic_cast<const VTuple*>(&tuple);
+  auto vtuple = VTuple(tuple);
   stack<float> cell_stack;
   for (auto cell : expr_cells_) {
     auto type = get_expr_cell_type(cell);
@@ -86,7 +86,7 @@ RC CalculateExpr::get_value(const Tuple &tuple, TupleCell &tuple_cell) const
       VarExpr* varExpr = new VarExpr(cell, AttrType::UNDEFINED);
       auto spec = make_shared<TupleCellSpec>(varExpr);
       TupleCell temp;
-      vtuple->find_cell(*spec, temp);
+      vtuple.find_cell(*spec, temp);
       float data = 0;
       if (temp.attr_type() == INTS) {
         data = *(int*)temp.data();

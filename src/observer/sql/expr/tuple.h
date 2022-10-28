@@ -237,7 +237,7 @@ public:
     clear();
     switch (tuple.get_tuple_type()) {
       case TupleType::V: {
-        merge(tuple, *this);
+        merge(dynamic_cast<const VTuple&>(tuple), *this);
       } break;
       case TupleType::ROW: {
         append_row_tuple((const RowTuple &)tuple);
