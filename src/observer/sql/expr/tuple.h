@@ -444,7 +444,7 @@ public:
   {
     size_t total_cell_num = cells_.size() + other.cell_num();
     auto left = this;
-    auto right = &out;
+    auto right = &other;
     auto left_sz = left->cells_.size();
 
     out.schema_.resize(total_cell_num);
