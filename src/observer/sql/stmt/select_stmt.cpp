@@ -72,7 +72,25 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     }
     table_map.insert(std::pair<std::string, Table*>(table_name, table));
   }
-  
+
+  // 检查attribute里的列是否存在在表中
+  for (int i = 0; i < select_sql.attr_num; ++i) {
+    auto attr = select_sql.attributes[i];
+    Table* table = nullptr;
+    if (common::is_blank(attr.relation_name)) {
+      table = tables[0];
+      if (strcmp(attr.attribute_name, "*") == 0 || strcmp(attr.attribute_name, "1") == 0) {
+        continue;
+      }
+    } else {
+      table = table_map[attr.relation_name];
+    }
+    if (table->table_meta().field(attr.attribute_name) == nullptr) {
+      LOG_WARN("the attribute name isn't in the tables' filed");
+      return INVALID_ARGUMENT;
+    }
+  }
+
   // collect query fields in `select` statement
   // select * from
   vector<shared_ptr<TupleCellSpec>> query_fields;
