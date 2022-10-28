@@ -160,7 +160,7 @@ public:
     auto spec = speces_[index];
     FieldExpr *field_expr = (FieldExpr *)spec->expression();
     const FieldMeta *field_meta = field_expr->field().meta();
-    int value_null_map = *(int*)(this->record_->data() + field_expr->field().table()->table_meta().field(1)->offset());
+    int value_null_map = *(int *)(this->record_->data() + field_expr->field().table()->table_meta().field(1)->offset());
     bool is_null = index >= table_->table_meta().sys_field_num() &&
                    has_bit_set(value_null_map, index - table_->table_meta().sys_field_num());
     if (is_null) {
@@ -168,7 +168,6 @@ public:
     } else {
       cell.set_data(this->record_->data() + field_meta->offset());
     }
-
 
     cell.set_type(field_meta->type());
     cell.set_length(field_meta->len());
@@ -237,12 +236,12 @@ public:
     clear();
     switch (tuple.get_tuple_type()) {
       case TupleType::V: {
-        merge(dynamic_cast<const VTuple&>(tuple), *this);
+        merge(dynamic_cast<const VTuple &>(tuple), *this);
       } break;
       case TupleType::ROW: {
         append_row_tuple((const RowTuple &)tuple);
       } break;
-      case TupleType::UNKNOWN:{
+      case TupleType::UNKNOWN: {
         abort();
       }
     }
@@ -263,7 +262,8 @@ public:
   {
     schema_.clear();
   }
-  void clear(){
+  void clear()
+  {
     this->schema_.clear();
     this->cells_.clear();
     this->name_to_idx_.clear();
@@ -442,20 +442,25 @@ public:
   // if &other == &out; the behaviour is undefined
   RC merge(const VTuple &other, VTuple &out)
   {
-    size_t cell_num = cells_.size() + other.cell_num();
-    auto right_sz = this->cells_.size();
-    out.schema_.resize(cell_num);
-    out.cells_.resize(cell_num);
-    auto schema_next =
-        &out == this ? out.schema_.begin() : (std::copy(schema_.begin(), schema_.end(), out.schema_.begin()));
-    auto cells_next =
-        &out == this ? out.cells_.begin(): (std::copy(cells_.begin(), cells_.end(), out.cells_.begin()));
-    std::copy(other.schema_.begin(), other.schema_.end(), schema_next);
-    std::copy(other.cells_.begin(), other.cells_.end(), cells_next);
-    out.name_to_idx_ = name_to_idx_;
+    size_t total_cell_num = cells_.size() + other.cell_num();
+    auto left = this;
+    auto right = &out;
+    auto left_sz = left->cells_.size();
 
-    for (int i = cells_.size(); i < cell_num; i++) {
-      auto spec = other.schema_[i-right_sz];
+    out.schema_.resize(total_cell_num);
+    out.cells_.resize(total_cell_num);
+    auto schema_next = &out == left ? out.schema_.begin()
+                                    : (std::copy(left->schema_.begin(), left->schema_.end(), out.schema_.begin()));
+    auto cells_next =
+        &out == left ? out.cells_.begin() : (std::copy(left->cells_.begin(), left->cells_.end(), out.cells_.begin()));
+
+    std::copy(right->schema_.begin(), right->schema_.end(), schema_next);
+    std::copy(right->cells_.begin(), right->cells_.end(), cells_next);
+
+    // right
+    out.name_to_idx_ = left->name_to_idx_;
+    for (int i = left_sz; i < total_cell_num; i++) {
+      auto spec = right->schema_[i - left_sz];
       auto full_name = get_full_name(spec);
       out.name_to_idx_[full_name] = i;
     }
