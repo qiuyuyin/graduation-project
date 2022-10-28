@@ -81,18 +81,18 @@ public:
 public:
   const std::vector<Table *> &tables() const { return tables_; }
   const std::unordered_map<string, string>& alias_map() const { return alias_map_; }
-  const std::vector<TupleCellSpec*> &query_fields() const { return query_fields_; }
+  const std::vector<shared_ptr<TupleCellSpec>> &query_fields() const { return query_fields_; }
   const std::vector<AggregateField> &aggregate_fields() const { return aggregate_fields_; }
-  const std::vector<TupleCellSpec*> &groupby_fields() const { return groupby_fields_; }
+  const std::vector<shared_ptr<TupleCellSpec>> &groupby_fields() const { return groupby_fields_; }
   const std::vector<OrderByField> &orderby_fields() const {return orderby_fields_;}
   FilterStmt *filter_stmt() const { return filter_stmt_; }
 
 private:
   //project operator
-  std::vector<TupleCellSpec*> query_fields_;
+  std::vector<shared_ptr<TupleCellSpec>> query_fields_;
   //aggregate
   vector<AggregateField> aggregate_fields_;
-  vector<TupleCellSpec*> groupby_fields_;
+  vector<shared_ptr<TupleCellSpec>> groupby_fields_;
   //predicate
   FilterStmt *filter_stmt_ = nullptr;
   //scan operator

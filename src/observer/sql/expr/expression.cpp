@@ -82,7 +82,7 @@ RC CalculateExpr::get_value(const Tuple &tuple, TupleCell &tuple_cell) const
       } else {
         return INVALID_ARGUMENT;
       }
-    } else if (type == ExprCellType::FIELD){
+    } else if (type == ExprCellType::FIELD || type == ExprCellType::AGGREGATE){
       VarExpr* varExpr = new VarExpr(cell, AttrType::UNDEFINED);
       auto spec = make_shared<TupleCellSpec>(varExpr);
       TupleCell temp;

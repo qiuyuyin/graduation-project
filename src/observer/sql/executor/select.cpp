@@ -38,9 +38,9 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
     AggregateOperator *agg_oper = nullptr;
     SortOperator *sort_oper = nullptr;
     if(select_stmt->aggregate_fields().size()!=0 ){
-      vector<TupleCellSpec> gb_fields;
+      vector<shared_ptr<TupleCellSpec>> gb_fields;
       for(auto gb_field : select_stmt->groupby_fields()){
-        gb_fields.push_back(*gb_field);
+        gb_fields.push_back(gb_field);
       }
       agg_oper = new AggregateOperator(select_stmt->aggregate_fields(),gb_fields);
       agg_oper->add_child(&pred_oper);
@@ -59,7 +59,7 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
       if(agg_oper == nullptr){
         project_oper.add_child(&pred_oper);
       }else{
-        project_oper.add_child(sort_oper);
+        project_oper.add_child(agg_oper);
       }
     }else{
       project_oper.add_child(sort_oper);

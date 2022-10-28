@@ -38,13 +38,11 @@ RC ProjectOperator::next()
 {
   RC rc;
   if ((rc = children_[0]->next()) == SUCCESS) {
-    RowTuple *trans = (RowTuple *)(children_[0]->current_tuple());
-    VTuple *temp = new VTuple;
-    temp->append_row_tuple(*trans);
+    auto temp = VTuple(*children_[0]->current_tuple());
     VTuple res;
     for (const auto& projection : projections_) {
       TupleCell cell;
-      if ((rc = temp->find_cell(*projection, cell)) != SUCCESS) {
+      if ((rc = temp.find_cell(*projection, cell)) != SUCCESS) {
         LOG_WARN("[projection::next] tupleCell::find_cell error");
         return rc;
       }
@@ -73,7 +71,7 @@ Tuple *ProjectOperator::current_tuple()
   return &tuple_;
 }
 
-void ProjectOperator::add_projection(TupleCellSpec *tuple_cell_spec)
+void ProjectOperator::add_projection(shared_ptr<TupleCellSpec>& projection)
 {
-  projections_.push_back(tuple_cell_spec);
+  projections_.push_back(projection);
 }

@@ -20,7 +20,7 @@ RC AggregateOperator::open()
   }
 
   while ((rc = children_[0]->next()) == SUCCESS) {
-    VTuple temp = *(VTuple*)children_[0]->current_tuple();
+    auto temp = VTuple(*children_[0]->current_tuple());
     if ((rc = mergeTupleIntoGroup(temp)) != SUCCESS) {
       return rc;
     }
@@ -49,16 +49,19 @@ RC AggregateOperator::next()
   }
   string key = iter->first;
   auto innerRes = iter->second;
-  vector<string> group_values = split(key, "_");
+  vector<string> group_values;
+  if (key != "no_group") {
+    group_values = split(key, "_");
+  }
   for (int i = 0; i < aggregate_ops_.size(); ++i) {
     auto agg_op = aggregate_ops_.at(i);
-    auto agg_res = innerRes->at(i);
+    auto agg_res = innerRes.at(i);
     string field_name = string(aggregate_type_to_string(agg_op.op_type)) + "(";
     if (agg_op.aggregate_field->table_name() != "") {
       field_name += agg_op.aggregate_field->table_name() + ".";
     }
     field_name += agg_op.aggregate_field->expr_name() + ")";
-    AttrType field_type = agg_op.aggregate_field->attr_type();
+    AttrType field_type = agg_res->max_value.attr_type();
     void* data;
     switch (agg_op.op_type) {
       case MAX:
@@ -101,10 +104,10 @@ RC AggregateOperator::next()
     tuple_.append_var(field_name, field_type, length, data, false);
   }
   for (int i = 0; i < groupby_fields_.size(); ++i) {
-    auto temp = (FieldExpr*)groupby_fields_[i].expression();
+    auto temp = (FieldExpr*)groupby_fields_[i]->expression();
     int length = temp->field().meta()->len();
     void* data = const_cast<char*>(group_values[i].c_str());
-    tuple_.append_var(groupby_fields_.at(i).expr_name(), groupby_fields_.at(i).attr_type(), length, data, false);
+    tuple_.append_var(groupby_fields_.at(i)->expr_name(), groupby_fields_.at(i)->attr_type(), length, data, false);
   }
   iter++;
   return SUCCESS;
@@ -121,7 +124,7 @@ RC AggregateOperator::mergeTupleIntoGroup(VTuple &tuple)
   for (int i = 0; i < groupby_fields_.size(); ++i) {
     auto groupby_field = groupby_fields_[i];
     TupleCell tupleCell;
-    if ((rc = tuple.find_cell(groupby_field, tupleCell)) != SUCCESS) {
+    if ((rc = tuple.find_cell(*groupby_field, tupleCell)) != SUCCESS) {
       return rc;
     }
     key += tupleCell.to_string();
@@ -130,16 +133,20 @@ RC AggregateOperator::mergeTupleIntoGroup(VTuple &tuple)
     }
   }
   if (innerResMap.count(key) == 0) {
-    innerResMap[key] = new vector<innerRes*>(aggregate_ops_.size());
+    vector<innerRes*> arr(aggregate_ops_.size());
+    for (int i = 0; i < arr.size(); ++i) {
+      arr[i] = new innerRes;
+    }
+    innerResMap[key] = arr;
   }
 
-  auto tuple_value2float = [](AttrType field_type, TupleCell& tupleCell){
+  auto cell2float = [](TupleCell& tupleCell){
     float data = 0;
-    if (field_type == AttrType::INTS) {
+    if (tupleCell.attr_type() == AttrType::INTS) {
       data = (float)*(int *)tupleCell.data();
-    } else if (field_type == AttrType::FLOATS) {
+    } else if (tupleCell.attr_type() == AttrType::FLOATS) {
       data = *(float *)tupleCell.data();
-    } else if (field_type == AttrType::CHARS) {
+    } else if (tupleCell.attr_type() == AttrType::CHARS) {
       data = Typecaster::s2f(tupleCell.data());
     }
     return data;
@@ -149,7 +156,7 @@ RC AggregateOperator::mergeTupleIntoGroup(VTuple &tuple)
   for (int i = 0; i < aggregate_ops_.size(); ++i) {
     auto agg_type = aggregate_ops_[i].op_type;
     auto tuple_cell_spec = aggregate_ops_[i].aggregate_field;
-    auto inner = inner_res->at(i);
+    auto inner = inner_res.at(i);
     if (agg_type == NO_Aggregation) {
       return INVALID_ARGUMENT;
     }
@@ -167,7 +174,7 @@ RC AggregateOperator::mergeTupleIntoGroup(VTuple &tuple)
     if (inner->min_value.data() == nullptr || temp.compare(inner->min_value) < 0) {
       inner->min_value = temp;
     }
-    inner->sum += tuple_value2float(tuple_cell_spec->attr_type(), temp);
+    inner->sum += cell2float(temp);
   }
   return SUCCESS;
 }

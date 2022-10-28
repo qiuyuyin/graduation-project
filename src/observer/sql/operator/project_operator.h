@@ -21,16 +21,16 @@ class ProjectOperator : public Operator
 {
 public:
   virtual ~ProjectOperator() = default;
-  void add_projection(TupleCellSpec *tuple_cell_spec);
+  void add_projection(shared_ptr<TupleCellSpec>& projection);
 
   RC open() override;
   RC next() override;
   RC close() override;
 
-  const vector<TupleCellSpec*>* projections() const { return &projections_; };
+  const vector<shared_ptr<TupleCellSpec>> projections() const { return projections_; };
 
   Tuple * current_tuple() override;
 private:
   VTuple tuple_;
-  vector<TupleCellSpec *> projections_;
+  vector<shared_ptr<TupleCellSpec>> projections_;
 };

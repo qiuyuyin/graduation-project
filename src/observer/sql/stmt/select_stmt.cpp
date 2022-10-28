@@ -32,13 +32,13 @@ SelectStmt::~SelectStmt()
   }
 }
 
-static void wildcard_fields(Table *table, std::vector<TupleCellSpec*> &query_fields)
+static void wildcard_fields(Table *table, std::vector<shared_ptr<TupleCellSpec>> &query_fields)
 {
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num();
   for (int i = table_meta.sys_field_num(); i < field_num; i++) {
     Expression* expr = new FieldExpr(table, table_meta.field(i));
-    TupleCellSpec* tuple_cell_spec = new TupleCellSpec(expr);
+    auto tuple_cell_spec = make_shared<TupleCellSpec>(expr);
     query_fields.push_back(tuple_cell_spec);
   }
 }
@@ -75,7 +75,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   
   // collect query fields in `select` statement
   // select * from
-  vector<TupleCellSpec*> query_fields;
+  vector<shared_ptr<TupleCellSpec>> query_fields;
   if (select_sql.attr_num == 1 && common::is_blank(select_sql.attributes[0].relation_name) && 0 == strcmp(select_sql.attributes[0].attribute_name, "*")) {
     for (auto table : tables) {
       wildcard_fields(table, query_fields);
@@ -94,7 +94,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
       } else {
         expr = new VarExpr(parse_field.name, AttrType::UNDEFINED);
       }
-      TupleCellSpec* tuple_cell_spec = new TupleCellSpec(expr);
+      auto tuple_cell_spec = make_shared<TupleCellSpec>(expr);
 
 
       if (parse_field.alias != "") {
@@ -125,7 +125,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     }
     name_set.insert(key);
     Expression* expr = new VarExpr(name, AttrType::UNDEFINED);
-    TupleCellSpec* tuple_cell_spec = new TupleCellSpec(expr);
+    auto tuple_cell_spec = make_shared<TupleCellSpec>(expr);
     AggregateField aggregate_field;
     aggregate_field.op_type = attribute.aggregation_type;
     aggregate_field.aggregate_field = tuple_cell_spec;
@@ -133,7 +133,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   }
 
   // collect group by field
-  vector<TupleCellSpec*> groupby_fields;
+  vector<shared_ptr<TupleCellSpec>> groupby_fields;
   name_set.clear();
   for (int i = 0; i < select_sql.group_by.attr_num; ++i) {
     auto attr = select_sql.group_by.attributes[i];
@@ -154,7 +154,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     } else {
       expr = new FieldExpr(table_map[attr.relation_name], table_map[attr.relation_name]->table_meta().field(attr.attribute_name));
     }
-    TupleCellSpec* tuple_cell_spec = new TupleCellSpec(expr);
+    auto tuple_cell_spec = make_shared<TupleCellSpec>(expr);
     groupby_fields.push_back(tuple_cell_spec);
   }
 
@@ -170,7 +170,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
       name = od_attr.attribute_name;
     }
     Expression *expr = new VarExpr(name,AttrType::UNDEFINED);
-    TupleCellSpec *tupleCellSpec = new TupleCellSpec(expr);
+    auto tupleCellSpec = make_shared<TupleCellSpec>(expr);
     OrderByField odb_field;
     odb_field.od_type = od_t;
     odb_field.orderby_field = tupleCellSpec;
