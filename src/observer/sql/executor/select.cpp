@@ -20,10 +20,13 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
   RC rc = RC::SUCCESS;
   stringstream ss;
 
-  Operator *scan_oper = try_to_create_index_scan_operator(select_stmt->filter_stmt());
-  if (nullptr == scan_oper) {
-    scan_oper = new TableScanOperator(select_stmt->tables()[0]);
-  }
+//  //todo 注意filter_unit包含计算字段或者聚合字段的情况，下面尝试找寻索引的语句会报错
+//  Operator *scan_oper = try_to_create_index_scan_operator(select_stmt->filter_stmt());
+//  if (nullptr == scan_oper) {
+//    scan_oper = new TableScanOperator(select_stmt->tables()[0]);
+//  }
+
+  Operator *scan_oper = new TableScanOperator(select_stmt->tables()[0]);
 
   DEFER([&] () {delete scan_oper;});
   PredicateOperator pred_oper(select_stmt->filter_stmt()->filter_units());

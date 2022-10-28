@@ -263,6 +263,10 @@ public:
         }
         return get_cell_by_expr_name(name, cell);
       }
+      case ExprType::CALCULATE: {
+        auto expr = static_cast<CalculateExpr *>(spec.expression());
+        return expr->get_value(*this, cell);
+      }
       default:
         return RC::UNIMPLENMENT;
     }

@@ -82,11 +82,11 @@ RC CalculateExpr::get_value(const Tuple &tuple, TupleCell &tuple_cell) const
       } else {
         return INVALID_ARGUMENT;
       }
-    } else {
-      VarExpr varExpr(cell, AttrType::UNDEFINED);
-      TupleCellSpec spec(&varExpr);
+    } else if (type == ExprCellType::FIELD){
+      VarExpr* varExpr = new VarExpr(cell, AttrType::UNDEFINED);
+      auto spec = make_shared<TupleCellSpec>(varExpr);
       TupleCell temp;
-      vtuple->find_cell(spec, temp);
+      vtuple->find_cell(*spec, temp);
       float data = 0;
       if (temp.attr_type() == INTS) {
         data = *(int*)temp.data();
@@ -94,21 +94,30 @@ RC CalculateExpr::get_value(const Tuple &tuple, TupleCell &tuple_cell) const
         data = *(float *)temp.data();
       }
       cell_stack.push(data);
+    } else if (type == ExprCellType::INT || type == ExprCellType::FLOAT) {
+      float data = atof(cell.c_str());
+      cell_stack.push(data);
+    } else {
+      LOG_WARN("invalid data type in calculate expr");
+      return INVALID_ARGUMENT;
     }
   }
   if (cell_stack.size() != 1) {
     return INTERNAL;
   }
-  float* res = new float(cell_stack.top());
-  AttrType res_type = int(*res) == *res ? AttrType::INTS : AttrType::FLOATS;
+  float temp = cell_stack.top();
+  AttrType res_type = int(temp) == temp ? AttrType::INTS : AttrType::FLOATS;
   if (res_type == AttrType::INTS) {
     tuple_cell.set_type(AttrType::INTS);
     tuple_cell.set_length(sizeof(int));
+    int* res = new int((int)temp);
+    tuple_cell.set_data((char*)res);
   } else {
     tuple_cell.set_type(AttrType::FLOATS);
     tuple_cell.set_length(sizeof(float));
+    float* res = new float(temp);
+    tuple_cell.set_data((char*)res);
   }
-  tuple_cell.set_data((char*)res);
   return SUCCESS;
 }
 
