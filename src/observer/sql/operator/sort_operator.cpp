@@ -23,17 +23,24 @@ RC SortOperator::open(){
   }
   if (rc == RECORD_EOF) {
     tupleSort();
-    iter = tuple_set.begin();
+    res_iter_type = BEFORE_BEGIN;
     rc = SUCCESS;
   }
   return rc;
 }
 
 RC SortOperator::next(){
-  if(iter == tuple_set.end()){
+  RC rc = SUCCESS;
+  if (res_iter_type == BEFORE_BEGIN){
+    tuple_index = 0;
+    res_iter_type = ON_WAY;
+    return rc;
+  }
+
+  if(tuple_index == tuple_set.size()){
     return RECORD_EOF;
   }
-  iter++;
+  tuple_index++;
 }
 
 RC SortOperator::close()

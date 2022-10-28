@@ -14,6 +14,11 @@ public:
   shared_ptr<TupleCellSpec> orderby_field;
 };
 
+enum ResIterType{
+  BEFORE_BEGIN,
+  ON_WAY,
+  AFTER_END,
+};
 
 class SortOperator : public Operator
 {
@@ -27,15 +32,16 @@ public:
   RC next() override;
   RC close() override;
 
-  Tuple* current_tuple() override { return *iter; };
+  Tuple* current_tuple() override { return tuple_set[tuple_index]; };
 
 private:
   void tupleSort();
 
 private:
   vector<VTuple *> tuple_set;
-  vector<VTuple *>::iterator iter;
+  int tuple_index ;
   vector<OrderByField> orderby_fields_;
+  ResIterType res_iter_type;
 };
 
 typedef struct{

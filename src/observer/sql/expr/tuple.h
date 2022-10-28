@@ -517,6 +517,11 @@ public:
   {
     speces_.push_back(spec);
   }
+
+  TupleType get_tuple_type() const override
+  {
+    return TupleType::UNKNOWN;
+  }
   int cell_num() const override
   {
     return speces_.size();
