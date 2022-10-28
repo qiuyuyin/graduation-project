@@ -32,12 +32,16 @@ SelectStmt::~SelectStmt()
   }
 }
 
-static void wildcard_fields(Table *table, std::vector<shared_ptr<TupleCellSpec>> &query_fields)
+static void wildcard_fields(Table *table, std::vector<shared_ptr<TupleCellSpec>> &query_fields, bool multi_table)
 {
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num();
   for (int i = table_meta.sys_field_num(); i < field_num; i++) {
-    auto expr = new VarExpr(string(table->name()) + "." + table_meta.field(i)->name(), table_meta.field(i)->type());
+    string name = table_meta.field(i)->name();
+    if (multi_table) {
+      name = string(table->name()) + "." + name;
+    }
+    auto expr = new VarExpr(name, table_meta.field(i)->type());
     auto tuple_cell_spec = make_shared<TupleCellSpec>(expr);
     query_fields.push_back(tuple_cell_spec);
   }
@@ -95,8 +99,9 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   // select * from
   vector<shared_ptr<TupleCellSpec>> query_fields;
   if (select_sql.attr_num == 1 && common::is_blank(select_sql.attributes[0].relation_name) && 0 == strcmp(select_sql.attributes[0].attribute_name, "*") && select_sql.attributes[0].aggregation_type == AggregationType::NO_Aggregation) {
+    bool multi_table = (tables.size() > 1);
     for (auto table : tables) {
-      wildcard_fields(table, query_fields);
+      wildcard_fields(table, query_fields, multi_table);
     }
   } else {
     vector<QueryField> parse_fields = get_query_field(sql_string);
