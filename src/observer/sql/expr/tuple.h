@@ -389,8 +389,6 @@ public:
       return RC::INVALID_ARGUMENT;
     }
 
-    erase(index);
-
     std::string col_name = get_full_name(spec);
     cells_[index] = cell;
     name_to_idx_[col_name] = index;
@@ -403,8 +401,6 @@ public:
     TupleCell cell;
 
     expr->get_tuple_cell(cell);
-
-    erase(index);
 
     cells_[index] = cell;
     schema_[index] = spec;
@@ -447,6 +443,7 @@ public:
   RC merge(const VTuple &other, VTuple &out)
   {
     size_t cell_num = cells_.size() + other.cell_num();
+    auto right_sz = this->cells_.size();
     out.schema_.resize(cell_num);
     out.cells_.resize(cell_num);
     auto schema_next =
@@ -456,20 +453,16 @@ public:
     std::copy(other.schema_.begin(), other.schema_.end(), schema_next);
     std::copy(other.cells_.begin(), other.cells_.end(), cells_next);
     out.name_to_idx_ = name_to_idx_;
+
     for (int i = cells_.size(); i < cell_num; i++) {
-      auto spec = other.schema_[i];
+      auto spec = other.schema_[i-right_sz];
       auto full_name = get_full_name(spec);
       out.name_to_idx_[full_name] = i;
     }
-    return SUCCESS;
+    return RC::SUCCESS;
   }
 
 private:
-  void erase(int index)
-  {
-    std::string full_name_of_old = get_full_name(schema_[index]);
-    name_to_idx_.erase(full_name_of_old);
-  }
   std::string get_full_name(const shared_ptr<TupleCellSpec> spec) const
   {
     return spec == nullptr ? "" : spec->table_name() + "." + spec->expr_name();
@@ -485,7 +478,6 @@ private:
   }
   std::vector<std::shared_ptr<TupleCellSpec>> schema_;
   std::vector<TupleCell> cells_;
-  // record the spec allocated by me
   std::map<std::string, size_t> name_to_idx_;
 };
 /*
