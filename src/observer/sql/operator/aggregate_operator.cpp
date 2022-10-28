@@ -129,7 +129,7 @@ RC AggregateOperator::next()
         return INVALID_ARGUMENT;
       }
     }
-    res.append_var(groupby_fields_.at(i)->expr_name(), groupby_fields_.at(i)->attr_type(), length, data, false);
+    res.append_var(string(temp->table_name()) + "." + groupby_fields_.at(i)->expr_name(), groupby_fields_.at(i)->attr_type(), length, data, false);
   }
   tuple_ = res;
   iter++;

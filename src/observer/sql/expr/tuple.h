@@ -307,12 +307,21 @@ public:
       }
       case ExprType::VAR: {
         string name = spec.expr_name();
+        RC rc;
         if (spec.table_name() != "") {
           name = get_full_name(&spec);
-          return get_cell_by_full_name(name, cell);
+          rc = get_cell_by_full_name(name, cell);
+          if (rc != SUCCESS) {
+            return get_cell_by_expr_name(name, cell);
+          }
+          return rc;
         }
         if (name.find(".") != name.npos) {
-          return get_cell_by_full_name(name, cell);
+          rc =  get_cell_by_full_name(name, cell);
+          if (rc != SUCCESS) {
+            return get_cell_by_expr_name(name, cell);
+          }
+          return rc;
         }
         return get_cell_by_expr_name(name, cell);
       }
@@ -430,6 +439,13 @@ public:
       if (schema_[i]->expr_name() == col_name) {
         cell_at(i, out);
         return SUCCESS;
+      } else if (schema_[i]->expr_name().find(".") != schema_[i]->expr_name().npos) {
+        auto begin = schema_[i]->expr_name().find(".");
+        auto field_name = schema_[i]->expr_name().substr(begin+1, schema_[i]->expr_name().npos);
+        if (field_name == col_name) {
+          cell_at(i, out);
+          return SUCCESS;
+        }
       }
     }
     return NOTFOUND;
