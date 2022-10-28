@@ -40,7 +40,6 @@ RC ProjectOperator::next()
   if ((rc = children_[0]->next()) == SUCCESS) {
     auto temp_from_son_op = children_[0]->current_tuple();
     VTuple * temp = new VTuple;
-    //auto temp2 = children_[0]->current_tuple();
     TupleType tuple_t = temp_from_son_op->get_tuple_type();
     switch (tuple_t) {
       case TupleType::V:{

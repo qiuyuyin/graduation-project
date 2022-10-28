@@ -16,18 +16,21 @@ RC SortOperator::open(){
   }
 
   while ((rc = children_[0]->next()) == SUCCESS) {
-    TupleType tuple_t = children_[0]->current_tuple()->get_tuple_type();
-    auto curr_t = children_[0]->current_tuple();
+    auto curr_tuple = children_[0]->current_tuple();
+    TupleType tuple_t = curr_tuple->get_tuple_type();
     VTuple *temp = new VTuple;
     switch (tuple_t) {
       case TupleType::ROW:{
-        RowTuple *trans = dynamic_cast<RowTuple *>(children_[0]->current_tuple());
+        RowTuple *trans = (RowTuple*)(curr_tuple);
         temp->append_row_tuple(*trans);
-      }
+      }break;
+      case TupleType::V:{
+        temp->merge(*curr_tuple,*temp);
+      }break;
+      default:{
+        LOG_WARN("UNKNOWN TUPLE_TYPE");
+      } break ;
     }
-    //RowTuple *trans = dynamic_cast<RowTuple *>(children_[0]->current_tuple());
-//    VTuple *temp = new VTuple;
-//    temp->append_row_tuple(*trans);
     tuple_set.push_back(temp);
   }
   if (rc == RECORD_EOF) {
