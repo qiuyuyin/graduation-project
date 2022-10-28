@@ -21,6 +21,8 @@ class ProjectOperator : public Operator
 {
 public:
   virtual ~ProjectOperator() = default;
+
+  ProjectOperator(vector<shared_ptr<TupleCellSpec>> projections) : projections_(projections){}
   void add_projection(shared_ptr<TupleCellSpec>& projection);
 
   RC open() override;

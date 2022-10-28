@@ -54,6 +54,7 @@ See the Mulan PSL v2 for more details. */
 class SQLStageEvent;
 class SessionEvent;
 class SelectStmt;
+class FilterUnit;
 
 class ExecuteStage : public common::Stage {
 public:
@@ -92,7 +93,7 @@ private:
   Stage *mem_storage_stage_ = nullptr;
 };
 
-IndexScanOperator *try_to_create_index_scan_operator(FilterStmt *filter_stmt, char* target_table_name = nullptr);
+IndexScanOperator *try_to_create_index_scan_operator(std::vector<FilterUnit*>& filter_units, char* target_table_name = nullptr);
 void print_tuple_header(std::ostream &os, const ProjectOperator &oper);
 void tuple_to_string(std::ostream &os, const Tuple &tuple);
 

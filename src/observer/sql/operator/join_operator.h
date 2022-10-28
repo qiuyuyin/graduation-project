@@ -28,8 +28,7 @@ using namespace std;
 class JoinOperator : public Operator
 {
 public:
-  JoinOperator(Operator *left, Operator *right)
-  {}
+  JoinOperator(Operator *left, Operator *right) : left_(left), right_(right) {}
 
   virtual ~JoinOperator() = default;
 
