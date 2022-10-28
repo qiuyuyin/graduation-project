@@ -75,3 +75,9 @@ std::string trim(std::string s) {
   s.erase(s.find_last_not_of(" ")+1);
   return s;
 }
+
+void str_replace(std::string& s, std::string o, std::string n) {
+  while (s.find(o) != s.npos) {
+    s = s.replace(s.find(o), o.length(), n);
+  }
+}

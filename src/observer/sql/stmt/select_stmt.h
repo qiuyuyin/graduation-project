@@ -39,6 +39,9 @@ public:
 };
 
 static vector<QueryField> get_query_field(string sql) {
+  str_replace(sql, "AS", "as");
+  str_replace(sql, "SELECT", "select");
+  str_replace(sql, "FROM", "from");
   auto parse = [](string temp){
     QueryField queryField;
     auto pos = temp.find(" as ");

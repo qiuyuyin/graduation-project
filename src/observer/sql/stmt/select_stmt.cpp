@@ -76,7 +76,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   // collect query fields in `select` statement
   // select * from
   vector<shared_ptr<TupleCellSpec>> query_fields;
-  if (select_sql.attr_num == 1 && common::is_blank(select_sql.attributes[0].relation_name) && 0 == strcmp(select_sql.attributes[0].attribute_name, "*")) {
+  if (select_sql.attr_num == 1 && common::is_blank(select_sql.attributes[0].relation_name) && 0 == strcmp(select_sql.attributes[0].attribute_name, "*") && select_sql.attributes[0].aggregation_type == AggregationType::NO_Aggregation) {
     for (auto table : tables) {
       wildcard_fields(table, query_fields);
     }
