@@ -16,9 +16,18 @@ RC SortOperator::open(){
   }
 
   while ((rc = children_[0]->next()) == SUCCESS) {
-    RowTuple *trans = dynamic_cast<RowTuple *>(children_[0]->current_tuple());
+    TupleType tuple_t = children_[0]->current_tuple()->get_tuple_type();
+    auto curr_t = children_[0]->current_tuple();
     VTuple *temp = new VTuple;
-    temp->append_row_tuple(*trans);
+    switch (tuple_t) {
+      case TupleType::ROW:{
+        RowTuple *trans = dynamic_cast<RowTuple *>(children_[0]->current_tuple());
+        temp->append_row_tuple(*trans);
+      }
+    }
+    //RowTuple *trans = dynamic_cast<RowTuple *>(children_[0]->current_tuple());
+//    VTuple *temp = new VTuple;
+//    temp->append_row_tuple(*trans);
     tuple_set.push_back(temp);
   }
   if (rc == RECORD_EOF) {
@@ -37,10 +46,11 @@ RC SortOperator::next(){
     return rc;
   }
 
-  if(tuple_index == tuple_set.size()){
+  if(tuple_index == tuple_set.size()-1){
     return RECORD_EOF;
   }
   tuple_index++;
+  return rc;
 }
 
 RC SortOperator::close()
@@ -55,17 +65,18 @@ RC SortOperator::close()
 
 void SortOperator::tupleSort()
 {
-  vector<Tuple4Sort> sort_tuple_set;
   for(auto it:tuple_set){
     Tuple4Sort tmp;
-    tmp.tuple_data = *it;
+    VTuple *tmp_data = new VTuple;
+    tmp_data = it;
+    tmp.tuple_data = tmp_data;
     tmp.odb_fields.assign(orderby_fields_.begin(),orderby_fields_.end());
     sort_tuple_set.push_back(tmp);
   }
   sort(sort_tuple_set.begin(),sort_tuple_set.end(), compare_for_sort);
   vector<VTuple *> res;
   for(auto it:sort_tuple_set){
-    res.push_back(&it.tuple_data  );
+    res.push_back(it.tuple_data  );
   }
   tuple_set.swap(res);
 }
@@ -75,13 +86,24 @@ bool compare_for_sort(Tuple4Sort arg1,Tuple4Sort arg2){
   for(auto iter : arg1.odb_fields){
     int order_flag = (iter.od_type == ASC_ORDER? 1:-1);
     TupleCell tmp_arg1_cell,tmp_arg2_cell;
-    if (arg1.tuple_data.find_cell(*iter.orderby_field,tmp_arg1_cell) != SUCCESS) {
+    if (arg1.tuple_data->find_cell(*iter.orderby_field,tmp_arg1_cell) != SUCCESS) {
       LOG_WARN("fail to get cell");
       return 0;
     }
-    if (arg2.tuple_data.find_cell(*iter.orderby_field,tmp_arg2_cell) != SUCCESS) {
+    if (arg2.tuple_data->find_cell(*iter.orderby_field,tmp_arg2_cell) != SUCCESS) {
       LOG_WARN("fail to get cell");
       return 0;
+    }
+    if(tmp_arg1_cell.is_null()||tmp_arg2_cell.is_null()){
+      if(tmp_arg1_cell.is_null()&&tmp_arg2_cell.is_null()){
+        continue ;
+      } else{
+        if(tmp_arg1_cell.is_null()){
+          return true;
+        }else{
+          return false;
+        }
+      }
     }
     order_flag *=tmp_arg1_cell.compare(tmp_arg2_cell);
     if(tmp_arg1_cell.compare(tmp_arg2_cell) == 0){

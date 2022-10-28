@@ -20,6 +20,11 @@ enum ResIterType{
   AFTER_END,
 };
 
+typedef struct{
+  VTuple* tuple_data;
+  vector<OrderByField> odb_fields;
+} Tuple4Sort;
+
 class SortOperator : public Operator
 {
 public:
@@ -42,12 +47,10 @@ private:
   int tuple_index ;
   vector<OrderByField> orderby_fields_;
   ResIterType res_iter_type;
+  vector<Tuple4Sort> sort_tuple_set;
 };
 
-typedef struct{
-  VTuple tuple_data;
-  vector<OrderByField> odb_fields;
-} Tuple4Sort;
+
 
 bool compare_for_sort(Tuple4Sort arg1,Tuple4Sort arg2);
 

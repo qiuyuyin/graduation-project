@@ -38,11 +38,26 @@ RC ProjectOperator::next()
 {
   RC rc;
   if ((rc = children_[0]->next()) == SUCCESS) {
-    auto temp = VTuple(*children_[0]->current_tuple());
+    auto temp_from_son_op = children_[0]->current_tuple();
+    VTuple * temp = new VTuple;
+    //auto temp2 = children_[0]->current_tuple();
+    TupleType tuple_t = temp_from_son_op->get_tuple_type();
+    switch (tuple_t) {
+      case TupleType::V:{
+        temp = (VTuple*) temp_from_son_op;
+      }break;
+      case TupleType::ROW:{
+        RowTuple *tmp_row = (RowTuple*)(temp_from_son_op);
+        temp->append_row_tuple(*tmp_row);
+      }break;
+      default:{
+        LOG_WARN("UNKNOWN TUPLE_TYPE");
+      }break;
+    }
     VTuple res;
     for (const auto& projection : projections_) {
       TupleCell cell;
-      if ((rc = temp.find_cell(*projection, cell)) != SUCCESS) {
+      if ((rc = temp->find_cell(*projection, cell)) != SUCCESS) {
         LOG_WARN("[projection::next] tupleCell::find_cell error");
         return rc;
       }
