@@ -18,8 +18,7 @@ RC JoinOperator::open()
   }
   if ((rc = children_[0]->next()) == SUCCESS) {
     round_done_ = false;
-    //todo(hjh_bug) 这里需要考虑RowTuple转VTuple
-    outer_tuple_ = *(VTuple*)children_[0]->current_tuple();
+    outer_tuple_ = VTuple(*children_[0]->current_tuple());
   }
   if (rc == RECORD_EOF) {
     return SUCCESS;
@@ -42,8 +41,7 @@ RC JoinOperator::next()
   RC rc;
   while (!round_done_) {
     while ((rc = children_[1]->next()) == SUCCESS) {
-      //todo(hjh_bug) 这里需要考虑RowTuple转VTuple
-      VTuple inner = *(VTuple*)children_[1]->current_tuple();
+      VTuple inner = VTuple(*children_[1]->current_tuple());
       VTuple res;
       if((rc = outer_tuple_.merge(inner, res)) != SUCCESS) {
         return rc;
@@ -59,8 +57,7 @@ RC JoinOperator::next()
       return rc;
     }
     if ((rc = children_[0]->next()) == SUCCESS) {
-      //todo(hjh_bug) 这里需要考虑RowTuple转VTuple
-      outer_tuple_ = *(VTuple*)children_[0]->current_tuple();
+      outer_tuple_ = VTuple(*children_[0]->current_tuple());
     }
     if (rc == RECORD_EOF) {
       round_done_ = true;

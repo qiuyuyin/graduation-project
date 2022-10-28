@@ -76,7 +76,7 @@ RC do_select_v2(SQLStageEvent *sql_event)
   // 构造left-deep-join树
   if (tables.size() > 1) {
     auto left = operators[0];
-    for (int i = 1; i < tables.size()-1; ++i) {
+    for (int i = 1; i < tables.size(); ++i) {
       auto right = operators[i];
       Operator* join_oper = new JoinOperator(left, right);
       if (cross_join_filters[tables[i]->name()].size() > 0) {
