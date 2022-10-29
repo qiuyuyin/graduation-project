@@ -39,9 +39,10 @@ public:
 };
 
 static vector<QueryField> get_query_field(string sql, bool multi_table) {
-  str_replace(sql, "AS", "as");
-  str_replace(sql, "SELECT", "select");
-  str_replace(sql, "FROM", "from");
+  str_replace_by_regex(sql, "[Aa][Ss]", "as");
+  str_replace_by_regex(sql, "[Ss][Ee][Ll][Ee][Cc][Tt]", "select");
+  str_replace_by_regex(sql, "[Ff][Rr][Oo][Mm]", "from");
+
   auto parse = [](string temp, bool multi_table){
     QueryField queryField;
     auto pos = temp.find(" as ");

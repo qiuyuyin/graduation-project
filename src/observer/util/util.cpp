@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 #include <vector>
 #include "util/util.h"
+#include <regex>
 
 using namespace std;
 
@@ -79,5 +80,14 @@ std::string trim(std::string s) {
 void str_replace(std::string& s, std::string o, std::string n) {
   while (s.find(o) != s.npos) {
     s = s.replace(s.find(o), o.length(), n);
+  }
+}
+
+void str_replace_by_regex(std::string& s, std::string regex_str, std::string other) {
+  try {
+    regex rule(regex_str);
+    s = regex_replace(s, rule, other);
+  } catch (regex_error &e) {
+    return;
   }
 }

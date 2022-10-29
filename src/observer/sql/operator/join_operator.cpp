@@ -63,7 +63,7 @@ RC JoinOperator::next()
       round_done_ = true;
     }
   }
-  return rc;
+  return RECORD_EOF;
 }
 
 
