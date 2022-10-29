@@ -242,11 +242,30 @@ desc_table:
     }
     ;
 
+index_field_list:
+    ID index_field_list_ {
+            create_index_append_attr(&CONTEXT->ssql->sstr.create_index, $1);
+    }
+    ;
+index_field_list_:
+    /* empty */
+        {
+			create_index_init(&CONTEXT->ssql->sstr.create_index);
+        }
+        ;
+    | COMMA ID index_field_list_ {
+            create_index_append_attr(&CONTEXT->ssql->sstr.create_index, $2);
+    }
+    ;
+
 create_index:		/*create index 语句的语法解析树*/
-    CREATE INDEX ID ON ID LBRACE ID RBRACE SEMICOLON
+    CREATE INDEX ID ON ID LBRACE index_field_list RBRACE SEMICOLON
 		{
 			CONTEXT->ssql->flag = SCF_CREATE_INDEX;//"create_index";
-			create_index_init(&CONTEXT->ssql->sstr.create_index, $3, $5, $7);
+			// create_index_init(&CONTEXT->ssql->sstr.create_index, $3, $5);
+			create_index_set_relation_name(&CONTEXT->ssql->sstr.create_index, $5);
+			create_index_set_index_name(&CONTEXT->ssql->sstr.create_index, $3);
+			// create_index_append_attr(&CONTEXT->ssql->sstr.create_index, $7);
 		}
     ;
 

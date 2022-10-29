@@ -22,8 +22,6 @@ See the Mulan PSL v2 for more details. */
 #include "storage/trx/trx.h"
 #include "util/util.h"
 
-using namespace std;
-
 static const Json::StaticString FIELD_TABLE_NAME("table_name");
 static const Json::StaticString FIELD_FIELDS("fields");
 static const Json::StaticString FIELD_INDEXES("indexes");
@@ -43,10 +41,10 @@ void TableMeta::swap(TableMeta &other) noexcept
 void TableMeta::set_nullable_field(int loc, bool nullable)
 {
   auto nullable_field_meta = fields_[1];
-  int num = atoi(string(nullable_field_meta.name()).substr(9).c_str());
+  int num = atoi(std::string(nullable_field_meta.name()).substr(9).c_str());
   int res = set_bit(num, loc, nullable);
   FieldMeta new_nullable_field_meta;
-  new_nullable_field_meta.init(string("nullable_" + std::to_string(res)).c_str(), AttrType::INTS, fields_[0].len(), sizeof(AttrType::INTS), false);
+  new_nullable_field_meta.init(std::string("nullable_" + std::to_string(res)).c_str(), AttrType::INTS, fields_[0].len(), sizeof(AttrType::INTS), false);
   fields_[1] = new_nullable_field_meta;
 }
 
@@ -151,6 +149,16 @@ const FieldMeta *TableMeta::field(const char *name) const
   }
   return nullptr;
 }
+RC TableMeta::field(std::vector<std::string>fields, std::vector<const FieldMeta *> &out){
+  for (const auto &field_name : fields){
+    auto meta = field(field_name.c_str());
+    if(meta == nullptr){
+      return RC::SCHEMA_FIELD_NOT_EXIST;
+    }
+    out.push_back(meta);
+  }
+  return RC::SUCCESS;
+}
 
 const int TableMeta::field_index(const char* name) const {
   for (int i = 0; i < fields_.size(); ++i) {
@@ -189,10 +197,15 @@ const IndexMeta *TableMeta::index(const char *name) const
   return nullptr;
 }
 
-const IndexMeta *TableMeta::find_index_by_field(const char *field) const
+const IndexMeta *TableMeta::find_index_by_field(const char* field) const{
+  std::vector<std::string> fields_vec = {field};
+  return find_index_by_field(fields_vec);
+}
+const IndexMeta *TableMeta::find_index_by_field(std::vector<std::string>& fields) const
 {
+  std::string fields_str = vector2str(fields);
   for (const IndexMeta &index : indexes_) {
-    if (0 == strcmp(index.field(), field)) {
+    if (0 == strcmp(index.field().c_str(), fields_str.c_str())) {
       return &index;
     }
   }
@@ -350,7 +363,7 @@ void TableMeta::desc(std::ostream &os) const
 
 bool TableMeta::is_field_nullable(int field) const
 {
-  string name = string(fields_[1].name());
+  std::string name = std::string(fields_[1].name());
   int num = atoi(name.substr(9).c_str());
   return has_bit_set(num, field);
 }

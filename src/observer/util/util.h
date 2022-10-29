@@ -16,8 +16,11 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 #include <cstring>
+#include <vector>
 
 std::string double2string(double v);
+std::string vector2str(const std::vector<std::string>& v, const std::string separator= ",");
+std::string stringarr2str(const char* str_arr[], int len);
 
 std::vector<std::string> split(const std::string& str, const std::string& delim);
 

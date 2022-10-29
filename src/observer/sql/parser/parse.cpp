@@ -252,7 +252,7 @@ int value_init_date(Value *value, const char *v)
     LOG_ERROR("Failed to init %s as date", v);
     return -1;
   }
-  value->data = malloc(sizeof (Date));
+  value->data = malloc(sizeof(Date));
   auto date_ptr = static_cast<Date *>(value->data);
   date_ptr->year = y;
   date_ptr->month = m;
@@ -260,13 +260,14 @@ int value_init_date(Value *value, const char *v)
   return 0;
 }
 // init from
-int value_init_date_from_integer(Value *value, int v){
+int value_init_date_from_integer(Value *value, int v)
+{
   value->type = DATES;
   Date *dv = reinterpret_cast<Date *>(&v);
   if (!check_date(dv->year, dv->month, dv->day)) {
     return RC::INVALID_ARGUMENT;
   }
-  value->data = malloc(sizeof (Date));
+  value->data = malloc(sizeof(Date));
   memcpy(value->data, dv, sizeof(Date));
 }
 void value_init_integer(Value *value, int v)
@@ -368,7 +369,7 @@ void expr_list_destroy(ExprList* exprList) {
 void attr_info_init(AttrInfo *attr_info, const char *name, AttrType type, size_t length, int nullable)
 {
   attr_info->name = strdup(name);
-  if(type == TEXT){
+  if (type == TEXT) {
     attr_info->type = CHARS;
     attr_info->length = 4096;
     return;
@@ -570,23 +571,35 @@ void drop_table_destroy(DropTable *drop_table)
   drop_table->relation_name = nullptr;
 }
 
-void create_index_init(
-    CreateIndex *create_index, const char *index_name, const char *relation_name, const char *attr_name)
+void create_index_init(CreateIndex *create_index)
+{
+  create_index->index_name = nullptr;
+  create_index->relation_name = nullptr;
+  string_array_init(&create_index->attribute_names);
+}
+
+void create_index_set_relation_name(CreateIndex *create_index, const char *real_name)
+{
+  create_index->relation_name = strdup(real_name);
+}
+void create_index_set_index_name(CreateIndex *create_index, const char *index_name)
 {
   create_index->index_name = strdup(index_name);
-  create_index->relation_name = strdup(relation_name);
-  create_index->attribute_name = strdup(attr_name);
+}
+
+void create_index_append_attr(CreateIndex *create_index, const char *attr_name)
+{
+  string_array_append(&create_index->attribute_names, attr_name);
 }
 
 void create_index_destroy(CreateIndex *create_index)
 {
   free(create_index->index_name);
   free(create_index->relation_name);
-  free(create_index->attribute_name);
+  string_array_free(&create_index->attribute_names);
 
   create_index->index_name = nullptr;
   create_index->relation_name = nullptr;
-  create_index->attribute_name = nullptr;
 }
 
 void drop_index_init(DropIndex *drop_index, const char *index_name)
@@ -600,7 +613,7 @@ void drop_index_destroy(DropIndex *drop_index)
   drop_index->index_name = nullptr;
 }
 
-void show_index_init(ShowIndex *show_index, const char* relation_name)
+void show_index_init(ShowIndex *show_index, const char *relation_name)
 {
   show_index->relation_name = strdup(relation_name);
 }
@@ -610,7 +623,6 @@ void show_index_destroy(ShowIndex *show_index)
   free((char *)show_index->relation_name);
   show_index->relation_name = nullptr;
 }
-
 
 void desc_table_init(DescTable *desc_table, const char *relation_name)
 {
@@ -723,6 +735,46 @@ void query_destroy(Query *query)
   query_reset(query);
   free(query);
 }
+
+void string_array_init(StringArray *array)
+{
+  array->count = 0;
+  array->capacity = 0;
+  array->strings = NULL;
+}
+
+void string_array_append(StringArray *array, const char *str)
+{
+  if (array->capacity < array->count + 1) {
+    int old_capacity = array->capacity;
+    array->capacity = GROW_CAPACITY(old_capacity);
+    array->strings = GROW_ARRAY(char *, array->strings, old_capacity, array->capacity);
+  }
+  array->strings[array->count] = strdup(str);
+  array->count++;
+}
+
+void string_array_free(StringArray *array)
+{
+  for (int i = 0; i < array->count; i++) {
+    free(array->strings[i]);
+  }
+  FREE_ARRAY(char *, array->strings, array->capacity);
+  string_array_init(array);
+}
+
+void *reallocate(void *pointer, size_t old_size, size_t new_size)
+{
+  if (new_size == 0) {
+    free(pointer);
+    return NULL;
+  }
+  void *result = realloc(pointer, new_size);
+  if (result == NULL)
+    exit(1);
+  return result;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus

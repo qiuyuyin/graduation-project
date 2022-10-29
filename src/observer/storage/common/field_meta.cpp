@@ -44,6 +44,7 @@ AttrType attr_type_from_string(const char *s)
   return UNDEFINED;
 }
 
+// Field is 4 Bytes by default.
 FieldMeta::FieldMeta() : attr_type_(AttrType::UNDEFINED), attr_offset_(-1), attr_len_(0), visible_(false)
 {}
 

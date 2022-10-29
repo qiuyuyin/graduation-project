@@ -28,6 +28,13 @@ class Value;
 class FieldMeta {
 public:
   FieldMeta();
+  FieldMeta(const FieldMeta &other)
+      : name_(other.name_),
+        attr_type_(other.attr_type_),
+        attr_offset_(other.attr_offset_),
+        attr_len_(other.attr_len_),
+        visible_(other.visible_)
+  {}
   ~FieldMeta() = default;
 
   RC init(const char *name, AttrType attr_type, int attr_offset, int attr_len, bool visible);

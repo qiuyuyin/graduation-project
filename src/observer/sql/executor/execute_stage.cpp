@@ -49,8 +49,8 @@ See the Mulan PSL v2 for more details. */
 
 using namespace common;
 
-//RC create_selection_executor(
-//   Trx *trx, const Selects &selects, const char *db, const char *table_name, SelectExeNode &select_node);
+// RC create_selection_executor(
+//    Trx *trx, const Selects &selects, const char *db, const char *table_name, SelectExeNode &select_node);
 
 //! Constructor
 ExecuteStage::ExecuteStage(const char *tag) : Stage(tag)
@@ -137,86 +137,86 @@ void ExecuteStage::handle_request(common::StageEvent *event)
 
   if (stmt != nullptr) {
     switch (stmt->type()) {
-    case StmtType::SELECT: {
-      do_select(sql_event);
-    } break;
-    case StmtType::INSERT: {
-      do_insert(sql_event);
-    } break;
-    case StmtType::UPDATE: {
-      do_update(sql_event);
-    } break;
-    case StmtType::DELETE: {
-      do_delete(sql_event);
-    } break;
-    default: {
-      LOG_WARN("should not happen. please implenment");
-    } break;
+      case StmtType::SELECT: {
+        do_select(sql_event);
+      } break;
+      case StmtType::INSERT: {
+        do_insert(sql_event);
+      } break;
+      case StmtType::UPDATE: {
+        do_update(sql_event);
+      } break;
+      case StmtType::DELETE: {
+        do_delete(sql_event);
+      } break;
+      default: {
+        LOG_WARN("should not happen. please implenment");
+      } break;
     }
   } else {
     switch (sql->flag) {
-    case SCF_HELP: {
-      do_help(sql_event);
-    } break;
-    case SCF_CREATE_TABLE: {
-      do_create_table(sql_event);
-    } break;
-    case SCF_CREATE_INDEX: {
-      do_create_index(sql_event);
-    } break;
-    case SCF_SHOW_INDEX: {
-      do_show_index(sql_event);
-    } break;
-    case SCF_SHOW_TABLES: {
-      do_show_tables(sql_event);
-    } break;
-    case SCF_DESC_TABLE: {
-      do_desc_table(sql_event);
-    } break;
+      case SCF_HELP: {
+        do_help(sql_event);
+      } break;
+      case SCF_CREATE_TABLE: {
+        do_create_table(sql_event);
+      } break;
+      case SCF_CREATE_INDEX: {
+        do_create_index(sql_event);
+      } break;
+      case SCF_SHOW_INDEX: {
+        do_show_index(sql_event);
+      } break;
+      case SCF_SHOW_TABLES: {
+        do_show_tables(sql_event);
+      } break;
+      case SCF_DESC_TABLE: {
+        do_desc_table(sql_event);
+      } break;
 
-    case SCF_DROP_TABLE:
-    case SCF_DROP_INDEX:
-    case SCF_LOAD_DATA: {
-      default_storage_stage_->handle_event(event);
-    } break;
-    case SCF_SYNC: {
-      /*
-      RC rc = DefaultHandler::get_default().sync();
-      session_event->set_response(strrc(rc));
-      */
-    } break;
-    case SCF_BEGIN: {
-      do_begin(sql_event);
-      /*
-      session_event->set_response("SUCCESS\n");
-      */
-    } break;
-    case SCF_COMMIT: {
-      do_commit(sql_event);
-      /*
-      Trx *trx = session->current_trx();
-      RC rc = trx->commit();
-      session->set_trx_multi_operation_mode(false);
-      session_event->set_response(strrc(rc));
-      */
-    } break;
-    case SCF_CLOG_SYNC: {
-      do_clog_sync(sql_event);
-    }
-    case SCF_ROLLBACK: {
-      Trx *trx = session_event->get_client()->session->current_trx();
-      RC rc = trx->rollback();
-      session->set_trx_multi_operation_mode(false);
-      session_event->set_response(strrc(rc));
-    } break;
-    case SCF_EXIT: {
-      // do nothing
-      const char *response = "Unsupported\n";
-      session_event->set_response(response);
-    } break;
-    default: {
-      LOG_ERROR("Unsupported command=%d\n", sql->flag);
-    }
+      case SCF_DROP_TABLE:
+      case SCF_DROP_INDEX:
+      case SCF_LOAD_DATA: {
+        default_storage_stage_->handle_event(event);
+      } break;
+      case SCF_SYNC: {
+        /*
+        RC rc = DefaultHandler::get_default().sync();
+        session_event->set_response(strrc(rc));
+        */
+      } break;
+      case SCF_BEGIN: {
+        do_begin(sql_event);
+        /*
+        session_event->set_response("SUCCESS\n");
+        */
+      } break;
+      case SCF_COMMIT: {
+        do_commit(sql_event);
+        /*
+        Trx *trx = session->current_trx();
+        RC rc = trx->commit();
+        session->set_trx_multi_operation_mode(false);
+        session_event->set_response(strrc(rc));
+        */
+      } break;
+      case SCF_CLOG_SYNC: {
+        do_clog_sync(sql_event);
+      }
+      case SCF_ROLLBACK: {
+        Trx *trx = session_event->get_client()->session->current_trx();
+        RC rc = trx->rollback();
+        session->set_trx_multi_operation_mode(false);
+        session_event->set_response(strrc(rc));
+      } break;
+      case SCF_EXIT: {
+        // do nothing
+        const char *response = "Unsupported\n";
+        session_event->set_response(response);
+      } break;
+      default: {
+        LOG_ERROR("Unsupported command=%d\n", sql->flag);
+      }
     }
   }
 }
@@ -289,8 +289,7 @@ RC ExecuteStage::do_create_table(SQLStageEvent *sql_event)
   const CreateTable &create_table = sql_event->query()->sstr.create_table;
   SessionEvent *session_event = sql_event->session_event();
   Db *db = session_event->session()->get_current_db();
-  RC rc = db->create_table(create_table.relation_name,
-			create_table.attribute_count, create_table.attributes);
+  RC rc = db->create_table(create_table.relation_name, create_table.attribute_count, create_table.attributes);
   if (rc == RC::SUCCESS) {
     session_event->set_response("SUCCESS\n");
   } else {
@@ -314,13 +313,19 @@ RC ExecuteStage::do_create_index(SQLStageEvent *sql_event)
     session_event->set_response("FAILURE\n");
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
-
-  RC rc = table->create_index(nullptr, create_index.index_name, create_index.attribute_name);
+  char **attribute_names = create_index.attribute_names.strings;
+  int attr_count = create_index.attribute_names.count;
+  std::vector<std::string> fields;
+  for (int i = attr_count - 1; i >= 0; i--) {
+    fields.push_back(attribute_names[i]);
+  }
+  RC rc = table->create_index(nullptr, create_index.index_name, fields);
   sql_event->session_event()->set_response(rc == RC::SUCCESS ? "SUCCESS\n" : "FAILURE\n");
   return rc;
 }
 
-RC ExecuteStage::do_show_index(SQLStageEvent *sql_event) {
+RC ExecuteStage::do_show_index(SQLStageEvent *sql_event)
+{
   SessionEvent *session_event = sql_event->session_event();
   Db *db = session_event->session()->get_current_db();
   const char *relation_name = sql_event->query()->sstr.show_index.relation_name;
@@ -333,7 +338,10 @@ RC ExecuteStage::do_show_index(SQLStageEvent *sql_event) {
   ss << "Table | Non_unique | Key_name | Seq_in_index | Column_name\n";
   for (int i = 0; i < table->table_meta().index_num(); ++i) {
     const IndexMeta *index = table->table_meta().index(i);
-    ss << table->name() << " | 1 | " << index->name() << " | 1 | " << index->field() << "\n";
+    auto num_of_fields = index->get_num_of_fields();
+    for (int j = 1; j <= num_of_fields; j++) {
+      ss << table->name() << " | 1 | " << index->name() << " | " << j << " | " << index->field(j - 1) << "\n";
+    }
   }
   session_event->set_response(ss.str().c_str());
   return RC::SUCCESS;
@@ -410,7 +418,7 @@ RC ExecuteStage::do_insert(SQLStageEvent *sql_event)
       if (rc != RC::SUCCESS) {
         session_event->set_response("FAILURE\n");
         return rc;
-      } 
+      }
 
       trx->next_current_id();
       session_event->set_response("SUCCESS\n");
@@ -470,30 +478,29 @@ RC ExecuteStage::do_delete(SQLStageEvent *sql_event)
   return SUCCESS;
 }
 
-RC ExecuteStage::do_update(SQLStageEvent *sql_event){
+RC ExecuteStage::do_update(SQLStageEvent *sql_event)
+{
   Stmt *stmt = sql_event->stmt();
   SessionEvent *session_event = sql_event->session_event();
-
 
   if (stmt == nullptr) {
     LOG_WARN("cannot find statement");
     return RC::GENERIC_ERROR;
   }
-    UpdateStmt * update_stmt =(UpdateStmt *)stmt;
-    TableScanOperator scan_operator(update_stmt->table());
-    PredicateOperator predicate_operator(update_stmt->filter_stmt()->filter_units());
-    predicate_operator.add_child(&scan_operator);
-    UpdateOperator update_operator(update_stmt);
-    update_operator.add_child(&predicate_operator);
+  UpdateStmt *update_stmt = (UpdateStmt *)stmt;
+  TableScanOperator scan_operator(update_stmt->table());
+  PredicateOperator predicate_operator(update_stmt->filter_stmt()->filter_units());
+  predicate_operator.add_child(&scan_operator);
+  UpdateOperator update_operator(update_stmt);
+  update_operator.add_child(&predicate_operator);
 
-    RC rc = update_operator.open();
-    if (rc != RC::SUCCESS) {
-      session_event->set_response("FAILURE\n");
-    } else {
-      session_event->set_response("SUCCESS\n");
-    }
-    return rc;
-
+  RC rc = update_operator.open();
+  if (rc != RC::SUCCESS) {
+    session_event->set_response("FAILURE\n");
+  } else {
+    session_event->set_response("SUCCESS\n");
+  }
+  return rc;
 }
 
 RC ExecuteStage::do_begin(SQLStageEvent *sql_event)

@@ -14,11 +14,11 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 #include <vector>
+#include <string.h>
+#include <sstream>
 #include "util/util.h"
 
-using namespace std;
-
-string double2string(double v)
+std::string double2string(double v)
 {
   char buf[256];
   snprintf(buf, sizeof(buf), "%.2f", v);
@@ -31,11 +31,11 @@ string double2string(double v)
     len--;
   }
 
-  return string(buf, len);
+  return std::string(buf, len);
 }
 
-vector<string> split(const string& str, const string& delim) {
-  vector<string> res;
+std::vector<std::string> split(const std::string& str, const std::string& delim) {
+  std::vector<std::string> res;
   if("" == str) return res;
   //先将要切割的字符串从string类型转换为char*类型
   char * strs = new char[str.length() + 1] ; //不要忘了
@@ -46,7 +46,7 @@ vector<string> split(const string& str, const string& delim) {
 
   char *p = strtok(strs, d);
   while(p) {
-    string s = p; //分割得到的字符串转换为string类型
+    std::string s = p; //分割得到的字符串转换为string类型
     res.push_back(s); //存入结果数组
     p = strtok(NULL, d);
   }
@@ -74,6 +74,22 @@ std::string trim(std::string s) {
   s.erase(0, s.find_first_not_of(" "));
   s.erase(s.find_last_not_of(" ")+1);
   return s;
+}
+std::string stringarr2str(const char *str_arr[], int len)
+{
+  std::vector<std::string> v(str_arr, str_arr+len);
+  return vector2str(v);
+}
+std::string vector2str(const std::vector<std::string> &v, const std::string separator)
+{
+  std::stringstream ss;
+  for(size_t i = 0, sz = v.size(); i < sz; i++){
+    if(i != 0){
+      ss << separator;
+    }
+    ss << v[i];
+  }
+  return ss.str();
 }
 
 void str_replace(std::string& s, std::string o, std::string n) {

@@ -7,3 +7,10 @@ select * from no_table;
 -- echo 2. select from a non-existent column
 select home from Select_meta;
 select * from Select_meta where home='001';
+
+create table t(id int, age int);
+select * from t where name='a';
+select address from t where id=1;
+select * from t_1000;
+select * from t where not_exists_col=1;
+select *, address from t;

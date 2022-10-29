@@ -46,6 +46,7 @@ struct CLogMTRManager;
 enum CLogType { REDO_ERROR = 0, REDO_MTR_BEGIN, REDO_MTR_COMMIT, REDO_INSERT, REDO_DELETE };
 
 struct CLogRecordHeader {
+  // log sequence number
   int32_t lsn_;
   int32_t trx_id_;
   int type_;
@@ -82,6 +83,7 @@ struct CLogDeleteRecord {
   }
 };
 
+// Mini Transaction
 struct CLogMTRRecord {
   CLogRecordHeader hdr_;
 
@@ -98,6 +100,7 @@ union CLogRecords {
   char *errors;
 };
 
+// it is just a wrapper of ClogRecords; don't use class, since there is no abi of class
 class CLogRecord {
   friend class Db;
 
