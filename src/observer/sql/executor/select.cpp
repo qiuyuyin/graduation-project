@@ -14,7 +14,7 @@
 
 using namespace std;
 
-RC do_select_v2(SQLStageEvent *sql_event)
+RC ExecuteStage::do_select(SQLStageEvent *sql_event)
 {
   auto select_stmt = (SelectStmt*)(sql_event->stmt());
   auto session_event = sql_event->session_event();
@@ -146,11 +146,16 @@ RC do_select_v2(SQLStageEvent *sql_event)
     rc = oper->close();
   }
   session_event->set_response(ss.str());
+  return RC::SUCCESS;
+  /*
+sql_event->session_event()->set_response("B");
+return RC::SUCCESS;
+   */
 }
 
-RC ExecuteStage::do_select(SQLStageEvent *sql_event)
-{
-  return do_select_v2(sql_event);
+//RC ExecuteStage::do_select(SQLStageEvent *sql_event)
+//{
+// return do_select_v2(sql_event);
 //  SelectStmt *select_stmt = (SelectStmt *)(sql_event->stmt());
 //  SessionEvent *session_event = sql_event->session_event();
 //  RC rc = RC::SUCCESS;
@@ -235,6 +240,6 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
 //  }
 //  session_event->set_response(ss.str());
 //  return rc;
-}
+//}
 
 
