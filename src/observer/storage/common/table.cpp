@@ -706,7 +706,6 @@ RC Table::update_record(Trx *trx, Record *record,const char *attribute_name, con
       LOG_ERROR("Failed to delete indexes of record (rid=%d.%d). rc=%d:%s",record->rid().page_num, record->rid().slot_num, rc, strrc(rc));
       return rc;
     }
-
     //update record
     int record_size = table_meta_.record_size();
     char *record_data = record->data();

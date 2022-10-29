@@ -104,7 +104,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
       wildcard_fields(table, query_fields, multi_table);
     }
   } else {
-    vector<QueryField> parse_fields = get_query_field(sql_string);
+    vector<QueryField> parse_fields = get_query_field(sql_string, tables.size() > 1);
     for (int i = 0; i < parse_fields.size(); ++i) {
       auto parse_field = parse_fields[i];
       Expression* expr = nullptr;

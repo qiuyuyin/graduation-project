@@ -38,15 +38,19 @@ public:
   string alias;
 };
 
-static vector<QueryField> get_query_field(string sql) {
+static vector<QueryField> get_query_field(string sql, bool multi_table) {
   str_replace(sql, "AS", "as");
   str_replace(sql, "SELECT", "select");
   str_replace(sql, "FROM", "from");
-  auto parse = [](string temp){
+  auto parse = [](string temp, bool multi_table){
     QueryField queryField;
     auto pos = temp.find(" as ");
     if (pos == temp.npos) {
-      queryField.name = trim(temp);
+      string name = trim(temp);
+      if (name.find(".") != name.npos && !multi_table) {
+        name = name.substr(name.find(".")+1, name.npos);
+      }
+      queryField.name = name;
     } else {
       queryField.name = trim(temp.substr(0, pos));
       queryField.alias = trim(temp.substr(pos+4, temp.length()-pos-4));
@@ -60,11 +64,11 @@ static vector<QueryField> get_query_field(string sql) {
   }
   sql = sql.substr(pos1+7, pos2-pos1-8);
   if ((pos1 = sql.find(",")) == sql.npos) {
-    res.push_back(parse(sql));
+    res.push_back(parse(sql, multi_table));
   } else {
     auto sql_list = split(sql, ",");
     for (auto s : sql_list) {
-      res.push_back(parse(s));
+      res.push_back(parse(s, multi_table));
     }
   }
   return res;
