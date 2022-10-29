@@ -140,6 +140,7 @@ void build_condition_by_buffer_expr(CompOp comp, Value* buffer_values, Condition
       return attr;
     };
     ExprList* exprList = new ExprList;
+    memset(exprList, 0, sizeof(ExprList));
     if (len == 1) {
       if (cells[0].type == 7) {
         value = &buffer_values[cells[0].value_pos];
