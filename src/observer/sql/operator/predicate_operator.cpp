@@ -109,6 +109,8 @@ bool PredicateOperator::do_predicate(Tuple* t1)
       return compare_null(right_cell, left_cell, comp);
     }
 
+
+
     const int compare = left_cell.compare(right_cell);
     bool filter_result = false;
     switch (comp) {

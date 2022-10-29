@@ -223,16 +223,23 @@ char* value_to_string(Value* value) {
   switch (value->type) {
     case CHARS:
       return (char *)value->data;
-    case INTS:
+    case INTS:{
       sprintf(temp, "%d", *(int*)value->data);
       return temp;
-    case FLOATS:
+    }
+    case FLOATS:{
       sprintf(temp, "%f",*(float*)value->data);
       return temp;
-    case DATES:
+    }
+    case DATES: {
       Date date = *(Date*)value->data;
       sprintf(temp, "%d-%d-%d", (int)date.year, (int)date.month, (int)date.day);
       return temp;
+    }
+    case UNDEFINED: {
+      sprintf(temp, "%s", "null");
+      return temp;
+    }
   }
 }
 
