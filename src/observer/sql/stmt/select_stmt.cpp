@@ -54,7 +54,6 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     return RC::INVALID_ARGUMENT;
   }
 
-
   //检测规则1 聚合和单个字段的混合测试语句如果没有groupby直接返回failure
   int agg_num = 0;
   for (int i = 0; i < select_sql.attr_num; ++i) {
@@ -62,7 +61,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
       agg_num++;
     }
   }
-  if (agg_num != select_sql.attr_num && select_sql.group_by.attr_num == 0) {
+  if (agg_num > 0 && agg_num != select_sql.attr_num && select_sql.group_by.attr_num == 0) {
     return INVALID_ARGUMENT;
   }
 

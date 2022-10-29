@@ -84,12 +84,14 @@ bool PredicateOperator::do_predicate(Tuple* t1)
     if (comp == LIKE || comp == NOT_LIKE) {
       if (left_cell.attr_type() == AttrType::CHARS && right_cell.attr_type() == AttrType::CHARS) {
         bool flag = compare_string((void *)left_cell.data(), left_cell.length(), (void *)right_cell.data(), right_cell.length(), true);
-        if ((comp == LIKE && flag) || (comp == NOT_LIKE && !flag)) {
-          return true;
+        if ((comp == LIKE && !flag) || (comp == NOT_LIKE && flag)) {
+          return false;
         }
+      } else {
+        LOG_WARN("invalid data type, only the chars can use like");
+        return INVALID_ARGUMENT;
       }
-      //todo(hjh) 这里到底是返回client failure还是false
-      return false;
+      continue;
     }
 
     // check null compare
