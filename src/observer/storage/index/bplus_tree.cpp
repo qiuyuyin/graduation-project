@@ -1773,10 +1773,10 @@ RC BplusTreeScanner::open(const std::vector<const char *> &left_user_key, const 
   } else {
     char *left_key = nullptr;
 
-    std::vector<const char *> fixed_left_key;
+    std::vector<const char *> fixed_left_key = left_user_key;
     if (tree_handler_.file_header_.has_var_type()) {
       bool should_inclusive_after_fix = false;
-      rc = fix_user_key(left_user_key, left_lens, false /*want_greater*/, fixed_left_key, &should_inclusive_after_fix);
+      rc = fix_user_key(left_user_key, left_lens, true /*want_greater*/, fixed_left_key, &should_inclusive_after_fix);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to fix left user key. rc=%s", strrc(rc));
         return rc;
@@ -1835,7 +1835,7 @@ RC BplusTreeScanner::open(const std::vector<const char *> &left_user_key, const 
   } else {
     char *right_key = nullptr;
 
-    std::vector<const char *> fixed_right_key;
+    std::vector<const char *> fixed_right_key = right_user_key;
     if (tree_handler_.file_header_.has_var_type()) {
       bool should_include_after_fix = false;
       rc = fix_user_key(right_user_key, right_lens, false /*want_greater*/, fixed_right_key, &should_include_after_fix);
