@@ -129,6 +129,9 @@ public:
   {
     attr_comparator_.init(attr_types, attr_lengths, attr_num);
   }
+  void init(AttrType attr_type, int attr_length){
+    init(&attr_type, &attr_length, 1);
+  }
 
   const AttrComparator &attr_comparator() const
   {

@@ -1,4 +1,5 @@
 -- echo initialization
+DROP TABLE insert_table;
 CREATE TABLE insert_table(id int, t_name char, col1 int, col2 int);
 
 -- echo 1. insert
@@ -10,4 +11,4 @@ INSERT INTO insert_table VALUES (4,'N4',1,1),(1,1,1);
 INSERT INTO insert_table VALUES (4,'N4',1,1),(1,1,1,1);
 
 -- echo 3. select
--- sort SELECT * FROM insert_table;
+SELECT * FROM insert_table;
