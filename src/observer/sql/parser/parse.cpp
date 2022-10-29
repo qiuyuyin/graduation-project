@@ -59,7 +59,7 @@ void append_buffer_expr_to_select_exprlist(ExprList* target, ExprCellBuffer* cel
     expr->expr_cell_num++;
   };
 
-  char temp[20];
+  char temp[100];
   for (int i = 0; i < num; ++i) {
     auto cell = cells[i];
     switch (cell.type) {
