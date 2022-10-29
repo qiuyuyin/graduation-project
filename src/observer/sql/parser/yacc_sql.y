@@ -6,6 +6,7 @@
 #include "sql/parser/lex.yy.h"
 // #include "common/log/log.h" // 包含C++中的头文件
 
+int yydebug = 1;
 
 #include<stdio.h>
 #include<stdlib.h>
@@ -476,6 +477,11 @@ select_list:
             relation_attr_init(&attr, NULL, "*", NULL);
             selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
         }
+    | STAR COMMA selects_expression_all {
+            RelAttr attr;
+            relation_attr_init(&attr, NULL, "*", NULL);
+            selects_append_attribute(&CONTEXT->ssql->sstr.selection, &attr);
+    }
     | selects_expression_all {
       }
     ;

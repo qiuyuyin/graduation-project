@@ -117,6 +117,12 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   } else {
     vector<QueryField> parse_fields = get_query_field(sql_string, tables.size() > 1);
     for (int i = 0; i < parse_fields.size(); ++i) {
+      if (parse_fields[i].name == "*") {
+        for (auto table : tables) {
+          wildcard_fields(table, query_fields, tables.size() > 1);
+        }
+        continue;
+      }
       auto parse_field = parse_fields[i];
       Expression* expr = nullptr;
       if (select_sql.expr_list.exprs[i].expr_cell_num > 1) {
@@ -129,8 +135,6 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
         expr = new VarExpr(parse_field.name, AttrType::UNDEFINED);
       }
       auto tuple_cell_spec = make_shared<TupleCellSpec>(expr);
-
-
       if (parse_field.alias != "") {
         tuple_cell_spec->set_alias(parse_field.alias.c_str());
       }
