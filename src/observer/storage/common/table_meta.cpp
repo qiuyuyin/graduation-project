@@ -131,13 +131,13 @@ const FieldMeta *TableMeta::field(const char *name) const
   }
   return nullptr;
 }
-RC TableMeta::field(std::vector<std::string>fields, std::vector<FieldMeta> &out){
+RC TableMeta::field(std::vector<std::string>fields, std::vector<const FieldMeta *> &out){
   for (const auto &field_name : fields){
     auto meta = field(field_name.c_str());
     if(meta == nullptr){
       return RC::SCHEMA_FIELD_NOT_EXIST;
     }
-    out.push_back(*meta);
+    out.push_back(meta);
   }
   return RC::SUCCESS;
 }
@@ -179,7 +179,7 @@ const IndexMeta *TableMeta::find_index_by_field(std::vector<std::string>& fields
 {
   std::string fields_str = vector2str(fields);
   for (const IndexMeta &index : indexes_) {
-    if (0 == strcmp(index.field(), fields_str.c_str())) {
+    if (0 == strcmp(index.field().c_str(), fields_str.c_str())) {
       return &index;
     }
   }

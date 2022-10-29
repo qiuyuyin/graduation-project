@@ -184,12 +184,8 @@ RC Table::open(const char *meta_file, const char *base_dir, CLogManager *clog_ma
   const int index_num = table_meta_.index_num();
   for (int i = 0; i < index_num; i++) {
     const IndexMeta *index_meta = table_meta_.index(i);
-    const FieldMeta *field_meta = table_meta_.field(index_meta->field());
-    if (field_meta == nullptr) {
-      LOG_ERROR("Found invalid index meta info which has a non-exists field. table=%s, index=%s, field=%s",
-          name(),
-          index_meta->name(),
-          index_meta->field());
+    std::vector<const FieldMeta*> field_metas;
+    if(index_meta->get_field_metas(table_meta_, field_metas) != RC::SUCCESS){
       // skip cleanup
       //  do all cleanup action in destructive Table function
       return RC::GENERIC_ERROR;
@@ -197,7 +193,7 @@ RC Table::open(const char *meta_file, const char *base_dir, CLogManager *clog_ma
 
     BplusTreeIndex *index = new BplusTreeIndex();
     std::string index_file = table_index_file(base_dir, name(), index_meta->name());
-    rc = index->open(index_file.c_str(), *index_meta, *field_meta);
+    rc = index->open(index_file.c_str(), *index_meta, field_metas);
     if (rc != RC::SUCCESS) {
       delete index;
       LOG_ERROR("Failed to open index. table=%s, index=%s, file=%s, rc=%d:%s",
@@ -600,10 +596,10 @@ RC Table::create_index(Trx *trx, const char *index_name, std::vector<std::string
     LOG_INFO("Invalid input arguments, table name is %s, index %s exist or schema (%s) exist index",
         name(),
         index_name,
-        vector2str<std::string>(fields).c_str());
+        vector2str(fields).c_str());
     return RC::SCHEMA_INDEX_EXIST;
   }
-  std::vector<FieldMeta> field_metas;
+  std::vector<const FieldMeta*> field_metas;
   RC rc = table_meta_.field(fields, field_metas);
   if (rc != RC::SUCCESS) {
     LOG_INFO("Invalid input arguments, there is no schema of %s in table:%s.", vector2str(fields).c_str(), name());
@@ -1004,7 +1000,7 @@ IndexScanner *Table::find_index_for_scan(const DefaultConditionFilter &filter)
     left_len = left_key != nullptr ? strlen(left_key) : 0;
     right_len = right_key != nullptr ? strlen(right_key) : 0;
   }
-  return index->create_scanner(left_key, left_len, left_inclusive, right_key, right_len, right_inclusive);
+  return index->create_scanner({left_key}, {left_len}, left_inclusive, {right_key}, {right_len}, right_inclusive);
 }
 
 IndexScanner *Table::find_index_for_scan(const ConditionFilter *filter)

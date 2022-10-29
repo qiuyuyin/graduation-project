@@ -38,7 +38,7 @@ RC IndexMeta::init(const char *name, const FieldMeta &field)
   return RC::SUCCESS;
 }
 
-RC IndexMeta::init(const char *name, const std::vector<FieldMeta> &fields)
+RC IndexMeta::init(const char *name, const std::vector<const FieldMeta *> &field)
 {
   if (common::is_blank(name)) {
     LOG_ERROR("Failed to init index, name is empty.");
@@ -46,10 +46,10 @@ RC IndexMeta::init(const char *name, const std::vector<FieldMeta> &fields)
   }
 
   name_ = name;
-  for (const auto &field : fields) {
-    fields_.push_back(field.name());
+  for (const auto &field : field) {
+    fields_.push_back(field->name());
   }
-  num_of_fields_ = fields.size();
+  num_of_fields_ = field.size();
   return RC::SUCCESS;
 }
 
@@ -94,14 +94,14 @@ RC IndexMeta::from_json(const TableMeta &table, const Json::Value &json_value, I
         field_values.toStyledString().c_str());
     return RC::GENERIC_ERROR;
   }
-  std::vector<FieldMeta> fields(num_of_fields);
+  std::vector<const FieldMeta*> fields(num_of_fields);
   for (int i = 0; i < num_of_fields; i++) {
-    const FieldMeta *field = table.field(field_values[i].asCString());
+    auto field = table.field(field_values[i].asCString());
     if (nullptr == field) {
       LOG_ERROR("Deserialize index [%s]: no such field: %s", name_value.asCString(), field_values.asCString());
       return RC::SCHEMA_FIELD_MISSING;
     }
-    fields[i] = *field;
+    fields[i] = field;
   }
 
   return index.init(name_value.asCString(), fields);
@@ -111,10 +111,13 @@ const char *IndexMeta::name() const
 {
   return name_.c_str();
 }
-
-const char *IndexMeta::field() const
+const char *IndexMeta::field(int idx) const
 {
-  return vector2str<std::string>(fields_).c_str();
+  return fields_[idx].c_str();
+}
+std::string IndexMeta::field() const
+{
+  return vector2str(fields_);
 }
 
 void IndexMeta::desc(std::ostream &os) const
@@ -127,4 +130,21 @@ void IndexMeta::desc(std::ostream &os) const
       os << fields_[i] << (i == sz - 1 ? ")" : ", ");
     }
   }
+}
+RC IndexMeta::get_field_metas(TableMeta& table_meta, std::vector<const FieldMeta*>&out) const
+{
+  std::vector<FieldMeta> field_metas;
+  for (const auto &field_name : fields_){
+    auto field_meta = table_meta.field(field_name.c_str());
+    if(field_meta == nullptr){
+      LOG_ERROR("Found invalid index meta info which has a non-exists field. table=%s, index=%s, field=%s",
+                table_meta.name(),
+                name(),
+                field_name.c_str());
+      out.clear();
+      return RC::SCHEMA_FIELD_NOT_EXIST;
+    }
+    out.push_back(field_meta);
+  }
+  return RC::SUCCESS;
 }

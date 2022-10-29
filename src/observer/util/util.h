@@ -18,6 +18,5 @@ See the Mulan PSL v2 for more details. */
 #include <vector>
 
 std::string double2string(double v);
-template<typename T>
-std::string vector2str(const std::vector<T>& v, const std::string separator= ",");
+std::string vector2str(const std::vector<std::string>& v, const std::string separator= ",");
 std::string stringarr2str(const char* str_arr[], int len);

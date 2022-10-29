@@ -41,7 +41,7 @@ public:
   const FieldMeta *trx_field() const;
   const FieldMeta *field(int index) const;
   const FieldMeta *field(const char *name) const;
-  RC field(std::vector<std::string>fields, std::vector<FieldMeta> &out);
+  RC field(std::vector<std::string>fields, std::vector<const FieldMeta *> &out);
   const FieldMeta *find_field_by_offset(int offset) const;
   const std::vector<FieldMeta> *field_metas() const { return &fields_; }
   int field_num() const; // sys field included

@@ -25,22 +25,20 @@ int calc_internal_page_capacity(int attr_length)
 {
   int item_size = attr_length + sizeof(RID) + sizeof(PageNum);
 
-  int capacity =
-    ((int)BP_PAGE_DATA_SIZE - InternalIndexNode::HEADER_SIZE) / item_size;
+  int capacity = ((int)BP_PAGE_DATA_SIZE - InternalIndexNode::HEADER_SIZE) / item_size;
   return capacity;
 }
 
 int calc_leaf_page_capacity(int attr_length)
 {
   int item_size = attr_length + sizeof(RID) + sizeof(RID);
-  int capacity =
-    ((int)BP_PAGE_DATA_SIZE - LeafIndexNode::HEADER_SIZE) / item_size;
+  int capacity = ((int)BP_PAGE_DATA_SIZE - LeafIndexNode::HEADER_SIZE) / item_size;
   return capacity;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
 IndexNodeHandler::IndexNodeHandler(const IndexFileHeader &header, Frame *frame)
-  : header_(header), page_num_(frame->page_num()), node_((IndexNode *)frame->data())
+    : header_(header), page_num_(frame->page_num()), node_((IndexNode *)frame->data())
 {}
 
 bool IndexNodeHandler::is_leaf() const
@@ -97,8 +95,7 @@ std::string to_string(const IndexNodeHandler &handler)
 {
   std::stringstream ss;
 
-  ss << "PageNum:" << handler.page_num()
-     << ",is_leaf:" << handler.is_leaf() << ","
+  ss << "PageNum:" << handler.page_num() << ",is_leaf:" << handler.is_leaf() << ","
      << "key_num:" << handler.size() << ","
      << "parent:" << handler.parent_page_num() << ",";
 
@@ -124,7 +121,7 @@ bool IndexNodeHandler::validate() const
 
 /////////////////////////////////////////////////////////////////////////////////
 LeafIndexNodeHandler::LeafIndexNodeHandler(const IndexFileHeader &header, Frame *frame)
-  : IndexNodeHandler(header, frame), leaf_node_((LeafIndexNode *)frame->data())
+    : IndexNodeHandler(header, frame), leaf_node_((LeafIndexNode *)frame->data())
 {}
 
 void LeafIndexNodeHandler::init_empty()
@@ -219,7 +216,7 @@ RC LeafIndexNodeHandler::move_half_to(LeafIndexNodeHandler &other, DiskBufferPoo
 
   memcpy(other.__item_at(0), this->__item_at(move_index), item_size() * (size - move_index));
   other.increase_size(size - move_index);
-  this->increase_size(- ( size - move_index));
+  this->increase_size(-(size - move_index));
   return RC::SUCCESS;
 }
 RC LeafIndexNodeHandler::move_first_to_end(LeafIndexNodeHandler &other, DiskBufferPool *disk_buffer_pool)
@@ -227,7 +224,7 @@ RC LeafIndexNodeHandler::move_first_to_end(LeafIndexNodeHandler &other, DiskBuff
   other.append(__item_at(0));
 
   if (size() >= 1) {
-    memmove(__item_at(0), __item_at(1), (size() - 1) * item_size() );
+    memmove(__item_at(0), __item_at(1), (size() - 1) * item_size());
   }
   increase_size(-1);
   return RC::SUCCESS;
@@ -247,7 +244,7 @@ RC LeafIndexNodeHandler::move_to(LeafIndexNodeHandler &other, DiskBufferPool *bp
 {
   memcpy(other.__item_at(other.size()), this->__item_at(0), this->size() * item_size());
   other.increase_size(this->size());
-  this->increase_size(- this->size());
+  this->increase_size(-this->size());
 
   other.set_next_page(this->next_page());
 
@@ -299,10 +296,9 @@ char *LeafIndexNodeHandler::__value_at(int index) const
 std::string to_string(const LeafIndexNodeHandler &handler, const KeyPrinter &printer)
 {
   std::stringstream ss;
-  ss << to_string((const IndexNodeHandler &)handler)
-     << ",prev page:" << handler.prev_page()
+  ss << to_string((const IndexNodeHandler &)handler) << ",prev page:" << handler.prev_page()
      << ",next page:" << handler.next_page();
-  ss << ",values=[" << printer(handler.__key_at(0)) ;
+  ss << ",values=[" << printer(handler.__key_at(0));
   for (int i = 1; i < handler.size(); i++) {
     ss << "," << printer(handler.__key_at(i));
   }
@@ -321,7 +317,10 @@ bool LeafIndexNodeHandler::validate(const KeyComparator &comparator, DiskBufferP
   for (int i = 1; i < node_size; i++) {
     if (comparator(__key_at(i - 1), __key_at(i)) >= 0) {
       LOG_WARN("page number = %d, invalid key order. id1=%d,id2=%d, this=%s",
-	       page_num(), i-1, i, to_string(*this).c_str());
+          page_num(),
+          i - 1,
+          i,
+          to_string(*this).c_str());
       return false;
     }
   }
@@ -334,8 +333,7 @@ bool LeafIndexNodeHandler::validate(const KeyComparator &comparator, DiskBufferP
   Frame *parent_frame;
   RC rc = bp->get_this_page(parent_page_num, &parent_frame);
   if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to fetch parent page. page num=%d, rc=%d:%s",
-	     parent_page_num, rc, strrc(rc));
+    LOG_WARN("failed to fetch parent page. page num=%d, rc=%d:%s", parent_page_num, rc, strrc(rc));
     return false;
   }
 
@@ -343,7 +341,8 @@ bool LeafIndexNodeHandler::validate(const KeyComparator &comparator, DiskBufferP
   int index_in_parent = parent_node.value_index(this->page_num());
   if (index_in_parent < 0) {
     LOG_WARN("invalid leaf node. cannot find index in parent. this page num=%d, parent page num=%d",
-	     this->page_num(), parent_page_num);
+        this->page_num(),
+        parent_page_num);
     bp->unpin_page(parent_frame);
     return false;
   }
@@ -351,9 +350,11 @@ bool LeafIndexNodeHandler::validate(const KeyComparator &comparator, DiskBufferP
   if (0 != index_in_parent) {
     int cmp_result = comparator(__key_at(0), parent_node.key_at(index_in_parent));
     if (cmp_result < 0) {
-      LOG_WARN("invalid leaf node. first item should be greate than or equal to parent item. " \
-	       "this page num=%d, parent page num=%d, index in parent=%d",
-	       this->page_num(), parent_node.page_num(), index_in_parent);
+      LOG_WARN("invalid leaf node. first item should be greate than or equal to parent item. "
+               "this page num=%d, parent page num=%d, index in parent=%d",
+          this->page_num(),
+          parent_node.page_num(),
+          index_in_parent);
       bp->unpin_page(parent_frame);
       return false;
     }
@@ -362,9 +363,11 @@ bool LeafIndexNodeHandler::validate(const KeyComparator &comparator, DiskBufferP
   if (index_in_parent < parent_node.size() - 1) {
     int cmp_result = comparator(__key_at(size() - 1), parent_node.key_at(index_in_parent + 1));
     if (cmp_result >= 0) {
-      LOG_WARN("invalid leaf node. last item should be less than the item at the first after item in parent." \
-	       "this page num=%d, parent page num=%d, parent item to compare=%d",
-	       this->page_num(), parent_node.page_num(), index_in_parent + 1);
+      LOG_WARN("invalid leaf node. last item should be less than the item at the first after item in parent."
+               "this page num=%d, parent page num=%d, parent item to compare=%d",
+          this->page_num(),
+          parent_node.page_num(),
+          index_in_parent + 1);
       bp->unpin_page(parent_frame);
       return false;
     }
@@ -375,7 +378,7 @@ bool LeafIndexNodeHandler::validate(const KeyComparator &comparator, DiskBufferP
 
 /////////////////////////////////////////////////////////////////////////////////
 InternalIndexNodeHandler::InternalIndexNodeHandler(const IndexFileHeader &header, Frame *frame)
-  : IndexNodeHandler(header, frame), internal_node_((InternalIndexNode *)frame->data())
+    : IndexNodeHandler(header, frame), internal_node_((InternalIndexNode *)frame->data())
 {}
 
 std::string to_string(const InternalIndexNodeHandler &node, const KeyPrinter &printer)
@@ -387,8 +390,7 @@ std::string to_string(const InternalIndexNodeHandler &node, const KeyPrinter &pr
      << "value:" << *(PageNum *)node.__value_at(0) << "}";
 
   for (int i = 1; i < node.size(); i++) {
-    ss << ",{key:" << printer(node.__key_at(i))
-       << ",value:"<< *(PageNum *)node.__value_at(i) << "}";
+    ss << ",{key:" << printer(node.__key_at(i)) << ",value:" << *(PageNum *)node.__value_at(i) << "}";
   }
   ss << "]";
   return ss.str();
@@ -434,7 +436,7 @@ RC InternalIndexNodeHandler::move_half_to(InternalIndexNodeHandler &other, DiskB
     return rc;
   }
 
-  increase_size(- (size - move_index));
+  increase_size(-(size - move_index));
   return rc;
 }
 
@@ -451,10 +453,10 @@ int InternalIndexNodeHandler::min_size() const
 /**
  * lookup the first item which key <= item
  * @return unlike the leafNode, the return value is not the insert position,
- * but only the index of child to find. 
+ * but only the index of child to find.
  */
-int InternalIndexNodeHandler::lookup(const KeyComparator &comparator, const char *key,
-				     bool *found /* = nullptr */, int *insert_position /*= nullptr */) const
+int InternalIndexNodeHandler::lookup(const KeyComparator &comparator, const char *key, bool *found /* = nullptr */,
+    int *insert_position /*= nullptr */) const
 {
   const int size = this->size();
   if (size == 0) {
@@ -502,7 +504,7 @@ PageNum InternalIndexNodeHandler::value_at(int index)
 int InternalIndexNodeHandler::value_index(PageNum page_num)
 {
   for (int i = 0; i < size(); i++) {
-    if (page_num == *(PageNum*)__value_at(i)) {
+    if (page_num == *(PageNum *)__value_at(i)) {
       return i;
     }
   }
@@ -526,7 +528,7 @@ RC InternalIndexNodeHandler::move_to(InternalIndexNodeHandler &other, DiskBuffer
     return rc;
   }
 
-  increase_size(- this->size());
+  increase_size(-this->size());
   return RC::SUCCESS;
 }
 
@@ -539,7 +541,7 @@ RC InternalIndexNodeHandler::move_first_to_end(InternalIndexNodeHandler &other, 
   }
 
   if (size() >= 1) {
-    memmove(__item_at(0), __item_at(1), (size() - 1) * item_size() );
+    memmove(__item_at(0), __item_at(1), (size() - 1) * item_size());
   }
   increase_size(-1);
   return rc;
@@ -571,7 +573,10 @@ RC InternalIndexNodeHandler::copy_from(const char *items, int num, DiskBufferPoo
     rc = disk_buffer_pool->get_this_page(page_num, &frame);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to set child's page num. child page num:%d, this page num=%d, rc=%d:%s",
-	       page_num, this_page_num, rc, strrc(rc));
+          page_num,
+          this_page_num,
+          rc,
+          strrc(rc));
       return rc;
     }
     IndexNodeHandler child_node(header_, frame);
@@ -649,7 +654,10 @@ bool InternalIndexNodeHandler::validate(const KeyComparator &comparator, DiskBuf
   for (int i = 2; i < node_size; i++) {
     if (comparator(__key_at(i - 1), __key_at(i)) >= 0) {
       LOG_WARN("page number = %d, invalid key order. id1=%d,id2=%d, this=%s",
-	       page_num(), i-1, i, to_string(*this).c_str());
+          page_num(),
+          i - 1,
+          i,
+          to_string(*this).c_str());
       return false;
     }
   }
@@ -662,16 +670,18 @@ bool InternalIndexNodeHandler::validate(const KeyComparator &comparator, DiskBuf
       Frame *child_frame;
       RC rc = bp->get_this_page(page_num, &child_frame);
       if (rc != RC::SUCCESS) {
-	LOG_WARN("failed to fetch child page while validate internal page. page num=%d, rc=%d:%s",
-		 page_num, rc, strrc(rc));
+        LOG_WARN(
+            "failed to fetch child page while validate internal page. page num=%d, rc=%d:%s", page_num, rc, strrc(rc));
       } else {
-	IndexNodeHandler child_node(header_, child_frame);
-	if (child_node.parent_page_num() != this->page_num()) {
-	  LOG_WARN("child's parent page num is invalid. child page num=%d, parent page num=%d, this page num=%d",
-		   child_node.page_num(), child_node.parent_page_num(), this->page_num());
-	  result = false;
-	}
-	bp->unpin_page(child_frame);
+        IndexNodeHandler child_node(header_, child_frame);
+        if (child_node.parent_page_num() != this->page_num()) {
+          LOG_WARN("child's parent page num is invalid. child page num=%d, parent page num=%d, this page num=%d",
+              child_node.page_num(),
+              child_node.parent_page_num(),
+              this->page_num());
+          result = false;
+        }
+        bp->unpin_page(child_frame);
       }
     }
   }
@@ -696,7 +706,8 @@ bool InternalIndexNodeHandler::validate(const KeyComparator &comparator, DiskBuf
   int index_in_parent = parent_node.value_index(this->page_num());
   if (index_in_parent < 0) {
     LOG_WARN("invalid internal node. cannot find index in parent. this page num=%d, parent page num=%d",
-	     this->page_num(), parent_page_num);
+        this->page_num(),
+        parent_page_num);
     bp->unpin_page(parent_frame);
     return false;
   }
@@ -704,9 +715,11 @@ bool InternalIndexNodeHandler::validate(const KeyComparator &comparator, DiskBuf
   if (0 != index_in_parent) {
     int cmp_result = comparator(__key_at(1), parent_node.key_at(index_in_parent));
     if (cmp_result < 0) {
-      LOG_WARN("invalid internal node. the second item should be greate than or equal to parent item. " \
-	       "this page num=%d, parent page num=%d, index in parent=%d",
-	       this->page_num(), parent_node.page_num(), index_in_parent);
+      LOG_WARN("invalid internal node. the second item should be greate than or equal to parent item. "
+               "this page num=%d, parent page num=%d, index in parent=%d",
+          this->page_num(),
+          parent_node.page_num(),
+          index_in_parent);
       bp->unpin_page(parent_frame);
       return false;
     }
@@ -715,9 +728,11 @@ bool InternalIndexNodeHandler::validate(const KeyComparator &comparator, DiskBuf
   if (index_in_parent < parent_node.size() - 1) {
     int cmp_result = comparator(__key_at(size() - 1), parent_node.key_at(index_in_parent + 1));
     if (cmp_result >= 0) {
-      LOG_WARN("invalid internal node. last item should be less than the item at the first after item in parent." \
-	       "this page num=%d, parent page num=%d, parent item to compare=%d",
-	       this->page_num(), parent_node.page_num(), index_in_parent + 1);
+      LOG_WARN("invalid internal node. last item should be less than the item at the first after item in parent."
+               "this page num=%d, parent page num=%d, parent item to compare=%d",
+          this->page_num(),
+          parent_node.page_num(),
+          index_in_parent + 1);
       bp->unpin_page(parent_frame);
       return false;
     }
@@ -734,8 +749,8 @@ RC BplusTreeHandler::sync()
   return disk_buffer_pool_->flush_all_pages();
 }
 
-RC BplusTreeHandler::create(const char *file_name, const std::vector<FieldMeta>& field_metas,
-			    int internal_max_size /* = -1*/, int leaf_max_size /* = -1 */)
+RC BplusTreeHandler::create(const char *file_name, const std::vector<const FieldMeta *> &field_metas,
+    int internal_max_size /* = -1*/, int leaf_max_size /* = -1 */)
 {
   BufferPoolManager &bpm = BufferPoolManager::instance();
   RC rc = bpm.create_file(file_name);
@@ -745,10 +760,10 @@ RC BplusTreeHandler::create(const char *file_name, const std::vector<FieldMeta>&
   int32_t length[MAX_NUM];
   int attr_lengths[MAX_NUM];
 
-  for (int i = 0; i < attr_num; i++){
-    attr_total_length += field_metas[i].len();
-    attr_types[i] = field_metas[i].type();
-    attr_lengths[i] = field_metas[i].len();
+  for (int i = 0; i < attr_num; i++) {
+    attr_total_length += field_metas[i]->len();
+    attr_types[i] = field_metas[i]->type();
+    attr_lengths[i] = field_metas[i]->len();
   }
   if (rc != RC::SUCCESS) {
     LOG_WARN("Failed to create file. file name=%s, rc=%d:%s", file_name, rc, strrc(rc));
@@ -774,7 +789,9 @@ RC BplusTreeHandler::create(const char *file_name, const std::vector<FieldMeta>&
 
   if (header_frame->page_num() != FIRST_INDEX_PAGE) {
     LOG_WARN("header page num should be %d but got %d. is it a new file : %s",
-	     FIRST_INDEX_PAGE, header_frame->page_num(), file_name);
+        FIRST_INDEX_PAGE,
+        header_frame->page_num(),
+        file_name);
     bpm.close_file(file_name);
     return RC::INTERNAL;
   }
@@ -790,8 +807,8 @@ RC BplusTreeHandler::create(const char *file_name, const std::vector<FieldMeta>&
   IndexFileHeader *file_header = (IndexFileHeader *)pdata;
   file_header->attr_length = attr_total_length;
   file_header->key_length = attr_total_length + sizeof(RID);
-  memcpy(file_header->attr_types, attr_types, MAX_NUM*sizeof(AttrType));
-  memcpy(file_header->attr_lengths, attr_lengths, MAX_NUM*sizeof(int32_t));
+  memcpy(file_header->attr_types, attr_types, MAX_NUM * sizeof(AttrType));
+  memcpy(file_header->attr_lengths, attr_lengths, MAX_NUM * sizeof(int32_t));
   file_header->attr_nums = attr_num;
   file_header->internal_max_size = internal_max_size;
   file_header->leaf_max_size = leaf_max_size;
@@ -866,7 +883,7 @@ RC BplusTreeHandler::close()
 {
   if (disk_buffer_pool_ != nullptr) {
 
-    disk_buffer_pool_->close_file(); // TODO
+    disk_buffer_pool_->close_file();  // TODO
 
     delete mem_pool_item_;
     mem_pool_item_ = nullptr;
@@ -937,7 +954,7 @@ RC BplusTreeHandler::print_tree()
     LOG_WARN("failed to fetch page. page id=%d, rc=%d:%s", page_num, rc, strrc(rc));
     return rc;
   }
-  
+
   IndexNodeHandler node(file_header_, frame);
   if (node.is_leaf()) {
     rc = print_leaf(frame);
@@ -955,7 +972,7 @@ RC BplusTreeHandler::print_leafs()
   }
 
   Frame *frame;
-  
+
   RC rc = left_most_page(frame);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get left most page. rc=%d:%s", rc, strrc(rc));
@@ -1028,7 +1045,9 @@ bool BplusTreeHandler::validate_leaf_link()
   LeafIndexNodeHandler leaf_node(file_header_, frame);
   if (leaf_node.prev_page() != prev_page_num) {
     LOG_WARN("invalid page. current_page_num=%d, prev page num should be %d but got %d",
-  	       frame->page_num(), prev_page_num, leaf_node.prev_page());
+        frame->page_num(),
+        prev_page_num,
+        leaf_node.prev_page());
     return false;
   }
   PageNum next_page_num = leaf_node.next_page();
@@ -1050,7 +1069,9 @@ bool BplusTreeHandler::validate_leaf_link()
     LeafIndexNodeHandler leaf_node(file_header_, frame);
     if (leaf_node.prev_page() != prev_page_num) {
       LOG_WARN("invalid page. current_page_num=%d, prev page num should be %d but got %d",
-	       frame->page_num(), prev_page_num, leaf_node.prev_page());
+          frame->page_num(),
+          prev_page_num,
+          leaf_node.prev_page());
       result = false;
     }
     if (key_comparator_(prev_key, leaf_node.key_at(0)) >= 0) {
@@ -1100,33 +1121,24 @@ bool BplusTreeHandler::is_empty() const
 RC BplusTreeHandler::find_leaf(const char *key, Frame *&frame)
 {
   return find_leaf_internal(
-			    [&](InternalIndexNodeHandler &internal_node) {
-			      return internal_node.value_at(internal_node.lookup(key_comparator_, key));
-			    },
-			    frame);
+      [&](InternalIndexNodeHandler &internal_node) {
+        return internal_node.value_at(internal_node.lookup(key_comparator_, key));
+      },
+      frame);
 }
 
 RC BplusTreeHandler::left_most_page(Frame *&frame)
 {
-  return find_leaf_internal(
-			    [&](InternalIndexNodeHandler &internal_node) {
-			      return internal_node.value_at(0);
-			    },
-			    frame
-			    );
+  return find_leaf_internal([&](InternalIndexNodeHandler &internal_node) { return internal_node.value_at(0); }, frame);
 }
 RC BplusTreeHandler::right_most_page(Frame *&frame)
 {
   return find_leaf_internal(
-			    [&](InternalIndexNodeHandler &internal_node) {
-			      return internal_node.value_at(internal_node.size() - 1);
-			    },
-			    frame
-			    );
+      [&](InternalIndexNodeHandler &internal_node) { return internal_node.value_at(internal_node.size() - 1); }, frame);
 }
 
-RC BplusTreeHandler::find_leaf_internal(const std::function<PageNum(InternalIndexNodeHandler &)> &child_page_getter,
-					Frame *&frame)
+RC BplusTreeHandler::find_leaf_internal(
+    const std::function<PageNum(InternalIndexNodeHandler &)> &child_page_getter, Frame *&frame)
 {
   if (is_empty()) {
     return RC::EMPTY;
@@ -1173,7 +1185,7 @@ RC BplusTreeHandler::insert_entry_into_leaf_node(Frame *frame, const char *key, 
     return RC::SUCCESS;
   }
 
-  Frame * new_frame = nullptr;
+  Frame *new_frame = nullptr;
   RC rc = split<LeafIndexNodeHandler>(frame, new_frame);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to split leaf node. rc=%d:%s", rc, strrc(rc));
@@ -1188,7 +1200,7 @@ RC BplusTreeHandler::insert_entry_into_leaf_node(Frame *frame, const char *key, 
 
   PageNum next_page_num = new_index_node.next_page();
   if (next_page_num != BP_INVALID_PAGE_NUM) {
-    Frame * next_frame;
+    Frame *next_frame;
     rc = disk_buffer_pool_->get_this_page(next_page_num, &next_frame);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to fetch next page. page num=%d, rc=%d:%s", next_page_num, rc, strrc(rc));
@@ -1239,7 +1251,7 @@ RC BplusTreeHandler::insert_entry_into_parent(Frame *frame, Frame *new_frame, co
     disk_buffer_pool_->unpin_page(new_frame);
 
     file_header_.root_page = root_frame->page_num();
-    update_root_page_num(); // TODO
+    update_root_page_num();  // TODO
     root_frame->mark_dirty();
     disk_buffer_pool_->unpin_page(root_frame);
 
@@ -1272,28 +1284,28 @@ RC BplusTreeHandler::insert_entry_into_parent(Frame *frame, Frame *new_frame, co
     } else {
 
       // we should split the node and insert the entry and then insert new entry to current node's parent
-      Frame * new_parent_frame;
+      Frame *new_parent_frame;
       rc = split<InternalIndexNodeHandler>(parent_frame, new_parent_frame);
       if (rc != RC::SUCCESS) {
-	LOG_WARN("failed to split internal node. rc=%d:%s", rc, strrc(rc));
-	disk_buffer_pool_->unpin_page(frame);
-	disk_buffer_pool_->unpin_page(new_frame);
-	disk_buffer_pool_->unpin_page(parent_frame);
+        LOG_WARN("failed to split internal node. rc=%d:%s", rc, strrc(rc));
+        disk_buffer_pool_->unpin_page(frame);
+        disk_buffer_pool_->unpin_page(new_frame);
+        disk_buffer_pool_->unpin_page(parent_frame);
       } else {
-	// insert into left or right ? decide by key compare result
-	InternalIndexNodeHandler new_node(file_header_, new_parent_frame);
-	if (key_comparator_(key, new_node.key_at(0)) > 0) {
-	  new_node.insert(key, new_frame->page_num(), key_comparator_);
+        // insert into left or right ? decide by key compare result
+        InternalIndexNodeHandler new_node(file_header_, new_parent_frame);
+        if (key_comparator_(key, new_node.key_at(0)) > 0) {
+          new_node.insert(key, new_frame->page_num(), key_comparator_);
           new_node_handler.set_parent_page_num(new_node.page_num());
-	} else {
-	  node.insert(key, new_frame->page_num(), key_comparator_);
+        } else {
+          node.insert(key, new_frame->page_num(), key_comparator_);
           new_node_handler.set_parent_page_num(node.page_num());
-	}
+        }
 
-	disk_buffer_pool_->unpin_page(frame);
-	disk_buffer_pool_->unpin_page(new_frame);
-	
-	rc = insert_entry_into_parent(parent_frame, new_parent_frame, new_node.key_at(0));
+        disk_buffer_pool_->unpin_page(frame);
+        disk_buffer_pool_->unpin_page(new_frame);
+
+        rc = insert_entry_into_parent(parent_frame, new_parent_frame, new_node.key_at(0));
       }
     }
   }
@@ -1331,7 +1343,7 @@ RC BplusTreeHandler::split(Frame *frame, Frame *&new_frame)
 
 RC BplusTreeHandler::update_root_page_num()
 {
-  Frame * header_frame;
+  Frame *header_frame;
   RC rc = disk_buffer_pool_->get_this_page(FIRST_INDEX_PAGE, &header_frame);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to fetch header page. rc=%d:%s", rc, strrc(rc));
@@ -1344,7 +1356,6 @@ RC BplusTreeHandler::update_root_page_num()
   disk_buffer_pool_->unpin_page(header_frame);
   return rc;
 }
-
 
 RC BplusTreeHandler::create_new_tree(const char *key, const RID *rid)
 {
@@ -1374,14 +1385,36 @@ RC BplusTreeHandler::create_new_tree(const char *key, const RID *rid)
   return rc;
 }
 
-char *BplusTreeHandler::make_key(const char *user_key, const RID &rid)
+// deal with continuous key
+char *BplusTreeHandler::make_key(const char *con_key, const RID &rid)
 {
   char *key = (char *)mem_pool_item_->alloc();
   if (key == nullptr) {
     LOG_WARN("Failed to alloc memory for key.");
     return nullptr;
   }
-  memcpy(key, user_key, file_header_.attr_length);
+  memcpy(key, con_key, file_header_.attr_length);
+  memcpy(key + file_header_.attr_length, &rid, sizeof(rid));
+  if (key == nullptr) {
+    LOG_WARN("Failed to alloc memory for key.");
+    return nullptr;
+  }
+  return key;
+}
+char *BplusTreeHandler::make_key(const std::vector<const char *> &user_key, const RID &rid)
+{
+  char *key = (char *)mem_pool_item_->alloc();
+  if (key == nullptr) {
+    LOG_WARN("Failed to alloc memory for key.");
+    return nullptr;
+  }
+  const int sz = user_key.size();
+  int offset = 0;
+  for (int i = 0; i < sz; i++) {
+    auto attr_length = file_header_.attr_lengths[i];
+    memcpy(key + offset, user_key[i], attr_length);
+    offset += attr_length;
+  }
   memcpy(key + file_header_.attr_length, &rid, sizeof(rid));
   return key;
 }
@@ -1391,9 +1424,9 @@ void BplusTreeHandler::free_key(char *key)
   mem_pool_item_->free(key);
 }
 
-RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
+RC BplusTreeHandler::insert_entry(const std::vector<const char *> &user_key, const RID *rid)
 {
-  if (user_key == nullptr || rid == nullptr) {
+  if (user_key.empty() || rid == nullptr) {
     LOG_WARN("Invalid arguments, key is empty or rid is empty");
     return RC::INVALID_ARGUMENT;
   }
@@ -1433,10 +1466,11 @@ RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
   return RC::SUCCESS;
 }
 
-RC BplusTreeHandler::get_entry(const char *user_key, int key_len, std::list<RID> &rids)
+RC BplusTreeHandler::get_entry(
+    const std::vector<const char *> &user_key, const std::vector<int> &key_lens, std::list<RID> &rids)
 {
   BplusTreeScanner scanner(*this);
-  RC rc = scanner.open(user_key, key_len, true/*left_inclusive*/, user_key, key_len, true/*right_inclusive*/);
+  RC rc = scanner.open(user_key, key_lens, true /*left_inclusive*/, user_key, key_lens, true /*right_inclusive*/);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to open scanner. rc=%d:%s", rc, strrc(rc));
     return rc;
@@ -1473,7 +1507,7 @@ RC BplusTreeHandler::adjust_root(Frame *root_frame)
     InternalIndexNodeHandler internal_node(file_header_, root_frame);
 
     const PageNum child_page_num = internal_node.value_at(0);
-    Frame * child_frame;
+    Frame *child_frame;
     RC rc = disk_buffer_pool_->get_this_page(child_page_num, &child_frame);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to fetch child page. page num=%d, rc=%d:%s", child_page_num, rc, strrc(rc));
@@ -1483,7 +1517,7 @@ RC BplusTreeHandler::adjust_root(Frame *root_frame)
     IndexNodeHandler child_node(file_header_, child_frame);
     child_node.set_parent_page_num(BP_INVALID_PAGE_NUM);
     disk_buffer_pool_->unpin_page(child_frame);
-    
+
     file_header_.root_page = child_page_num;
   }
 
@@ -1515,7 +1549,7 @@ RC BplusTreeHandler::coalesce_or_redistribute(Frame *frame)
     return RC::SUCCESS;
   }
 
-  Frame * parent_frame;
+  Frame *parent_frame;
   RC rc = disk_buffer_pool_->get_this_page(parent_page_num, &parent_frame);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to fetch parent page. page id=%d, rc=%d:%s", parent_page_num, rc, strrc(rc));
@@ -1527,7 +1561,9 @@ RC BplusTreeHandler::coalesce_or_redistribute(Frame *frame)
   int index = parent_index_node.lookup(key_comparator_, index_node.key_at(index_node.size() - 1));
   if (parent_index_node.value_at(index) != frame->page_num()) {
     LOG_ERROR("lookup return an invalid value. index=%d, this page num=%d, but got %d",
-	      index, frame->page_num(), parent_index_node.value_at(index));
+        index,
+        frame->page_num(),
+        parent_index_node.value_at(index));
   }
   PageNum neighbor_page_num;
   if (index == 0) {
@@ -1536,7 +1572,7 @@ RC BplusTreeHandler::coalesce_or_redistribute(Frame *frame)
     neighbor_page_num = parent_index_node.value_at(index - 1);
   }
 
-  Frame * neighbor_frame;
+  Frame *neighbor_frame;
   rc = disk_buffer_pool_->get_this_page(neighbor_page_num, &neighbor_frame);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to fetch neighbor page. page id=%d, rc=%d:%s", neighbor_page_num, rc, strrc(rc));
@@ -1567,11 +1603,11 @@ RC BplusTreeHandler::coalesce(Frame *neighbor_frame, Frame *frame, Frame *parent
   Frame *right_frame = nullptr;
   if (index == 0) {
     // neighbor node is at right
-    left_frame  = frame;
+    left_frame = frame;
     right_frame = neighbor_frame;
     index++;
   } else {
-    left_frame  = neighbor_frame;
+    left_frame = neighbor_frame;
     right_frame = frame;
     // neighbor is at left
   }
@@ -1599,9 +1635,9 @@ RC BplusTreeHandler::coalesce(Frame *neighbor_frame, Frame *frame, Frame *parent
       rc = disk_buffer_pool_->get_this_page(next_right_page_num, &next_right_frame);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to fetch next right page. page number:%d. rc=%d:%s", next_right_page_num, rc, strrc(rc));
-	disk_buffer_pool_->unpin_page(frame);
-	disk_buffer_pool_->unpin_page(neighbor_frame);
-	disk_buffer_pool_->unpin_page(parent_frame);
+        disk_buffer_pool_->unpin_page(frame);
+        disk_buffer_pool_->unpin_page(neighbor_frame);
+        disk_buffer_pool_->unpin_page(parent_frame);
         return rc;
       }
 
@@ -1609,7 +1645,6 @@ RC BplusTreeHandler::coalesce(Frame *neighbor_frame, Frame *frame, Frame *parent
       next_right_node.set_prev_page(left_node.page_num());
       disk_buffer_pool_->unpin_page(next_right_frame);
     }
-    
   }
 
   PageNum right_page_num = right_frame->page_num();
@@ -1626,8 +1661,7 @@ RC BplusTreeHandler::redistribute(Frame *neighbor_frame, Frame *frame, Frame *pa
   IndexNodeHandlerType neighbor_node(file_header_, neighbor_frame);
   IndexNodeHandlerType node(file_header_, frame);
   if (neighbor_node.size() < node.size()) {
-    LOG_ERROR("got invalid nodes. neighbor node size %d, this node size %d",
-	      neighbor_node.size(), node.size());
+    LOG_ERROR("got invalid nodes. neighbor node size %d, this node size %d", neighbor_node.size(), node.size());
   }
   if (index == 0) {
     // the neighbor is at right
@@ -1676,15 +1710,9 @@ RC BplusTreeHandler::delete_entry_internal(Frame *leaf_frame, const char *key)
   return coalesce_or_redistribute<LeafIndexNodeHandler>(leaf_frame);
 }
 
-RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
+RC BplusTreeHandler::delete_entry(const std::vector<const char *> &user_key, const RID *rid)
 {
-  char *key = (char *)mem_pool_item_->alloc();
-  if (nullptr == key) {
-    LOG_WARN("Failed to alloc memory for key. size=%d", file_header_.key_length);
-    return RC::NOMEM;
-  }
-  memcpy(key, user_key, file_header_.attr_length);
-  memcpy(key + file_header_.attr_length, rid, sizeof(*rid));
+  auto key = make_key(user_key, *rid);
 
   Frame *leaf_frame;
   RC rc = find_leaf(key, leaf_frame);
@@ -1711,8 +1739,9 @@ BplusTreeScanner::~BplusTreeScanner()
   close();
 }
 
-RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inclusive,
-                          const char *right_user_key, int right_len, bool right_inclusive)
+RC BplusTreeScanner::open(const std::vector<const char *> &left_user_key, const std::vector<int> &left_lens,
+    bool left_inclusive, const std::vector<const char *> &right_user_key, const std::vector<int> &right_lens,
+    bool right_inclusive)
 {
   RC rc = RC::SUCCESS;
   if (inited_) {
@@ -1721,19 +1750,19 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
   }
 
   inited_ = true;
-  
+
   // 校验输入的键值是否是合法范围
-  if (left_user_key && right_user_key) {
+  if (!left_user_key.empty() && !right_user_key.empty()) {
     const auto &attr_comparator = tree_handler_.key_comparator_.attr_comparator();
     const int result = attr_comparator(left_user_key, right_user_key);
-    if (result > 0 || // left < right
-         // left == right but is (left,right)/[left,right) or (left,right]
-	(result == 0 && (left_inclusive == false || right_inclusive == false))) { 
+    if (result > 0 ||  // left < right
+                       // left == right but is (left,right)/[left,right) or (left,right]
+        (result == 0 && (left_inclusive == false || right_inclusive == false))) {
       return RC::INVALID_ARGUMENT;
     }
   }
 
-  if (nullptr == left_user_key) {
+  if (left_user_key.empty()) {
     rc = tree_handler_.left_most_page(left_frame_);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to find left most page. rc=%d:%s", rc, strrc(rc));
@@ -1744,17 +1773,17 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
   } else {
     char *left_key = nullptr;
 
-    char *fixed_left_key = const_cast<char *>(left_user_key);
-    if (tree_handler_.file_header_.attr_types == CHARS) {
+    std::vector<const char *> fixed_left_key;
+    if (tree_handler_.file_header_.has_var_type()) {
       bool should_inclusive_after_fix = false;
-      rc = fix_user_key(left_user_key, left_len, true/*greater*/, &fixed_left_key, &should_inclusive_after_fix);
+      rc = fix_user_key(left_user_key, left_lens, false /*want_greater*/, fixed_left_key, &should_inclusive_after_fix);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to fix left user key. rc=%s", strrc(rc));
         return rc;
       }
 
       if (should_inclusive_after_fix) {
-	      left_inclusive = true;
+        left_inclusive = true;
       }
     }
 
@@ -1764,10 +1793,6 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
       left_key = tree_handler_.make_key(fixed_left_key, *RID::max());
     }
 
-    if (fixed_left_key != left_user_key) {
-      delete[] fixed_left_key;
-      fixed_left_key = nullptr;
-    }
     rc = tree_handler_.find_leaf(left_key, left_frame_);
 
     if (rc != RC::SUCCESS) {
@@ -1779,10 +1804,10 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
     int left_index = left_node.lookup(tree_handler_.key_comparator_, left_key);
     tree_handler_.free_key(left_key);
     // lookup 返回的是适合插入的位置，还需要判断一下是否在合适的边界范围内
-    if (left_index >= left_node.size()) { // 超出了当前页，就需要向后移动一个位置
+    if (left_index >= left_node.size()) {  // 超出了当前页，就需要向后移动一个位置
       const PageNum next_page_num = left_node.next_page();
-      if (next_page_num == BP_INVALID_PAGE_NUM) { // 这里已经是最后一页，说明当前扫描，没有数据
-	      return RC::SUCCESS;
+      if (next_page_num == BP_INVALID_PAGE_NUM) {  // 这里已经是最后一页，说明当前扫描，没有数据
+        return RC::SUCCESS;
       }
 
       tree_handler_.disk_buffer_pool_->unpin_page(left_frame_);
@@ -1798,7 +1823,7 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
   }
 
   // 没有指定右边界范围，那么就返回右边界最大值
-  if (nullptr == right_user_key) {
+  if (right_user_key.empty()) {
     rc = tree_handler_.right_most_page(right_frame_);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to fetch right most page. rc=%d:%s", rc, strrc(rc));
@@ -1808,30 +1833,25 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
     LeafIndexNodeHandler node(tree_handler_.file_header_, right_frame_);
     end_index_ = node.size() - 1;
   } else {
-
     char *right_key = nullptr;
-    char *fixed_right_key = const_cast<char *>(right_user_key);
-    bool should_include_after_fix = false;
-    if (tree_handler_.file_header_.attr_types == CHARS) {
-      rc = fix_user_key(right_user_key, right_len, false/*want_greater*/, &fixed_right_key, &should_include_after_fix);
+
+    std::vector<const char *> fixed_right_key;
+    if (tree_handler_.file_header_.has_var_type()) {
+      bool should_include_after_fix = false;
+      rc = fix_user_key(right_user_key, right_lens, false /*want_greater*/, fixed_right_key, &should_include_after_fix);
       if (rc != RC::SUCCESS) {
         LOG_WARN("failed to fix right user key. rc=%s", strrc(rc));
         return rc;
       }
 
       if (should_include_after_fix) {
-	      right_inclusive = true;
+        right_inclusive = true;
       }
     }
     if (right_inclusive) {
       right_key = tree_handler_.make_key(fixed_right_key, *RID::max());
     } else {
       right_key = tree_handler_.make_key(fixed_right_key, *RID::min());
-    }
-
-    if (fixed_right_key != right_user_key) {
-      delete[] fixed_right_key;
-      fixed_right_key = nullptr;
     }
 
     rc = tree_handler_.find_leaf(right_key, right_frame_);
@@ -1873,8 +1893,7 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
   // 判断是否左边界比右边界要靠后
   // 两个边界最多会多一页
   // 查找不存在的元素，或者不存在的范围数据时，可能会存在这个问题
-  if (left_frame_->page_num() == right_frame_->page_num() &&
-      iter_index_ > end_index_) {
+  if (left_frame_->page_num() == right_frame_->page_num() && iter_index_ > end_index_) {
     end_index_ = -1;
   } else {
     LeafIndexNodeHandler left_node(tree_handler_.file_header_, left_frame_);
@@ -1895,8 +1914,7 @@ RC BplusTreeScanner::next_entry(RID *rid)
   LeafIndexNodeHandler node(tree_handler_.file_header_, left_frame_);
   memcpy(rid, node.value_at(iter_index_), sizeof(*rid));
 
-  if (left_frame_->page_num() == right_frame_->page_num() &&
-      iter_index_ == end_index_) {
+  if (left_frame_->page_num() == right_frame_->page_num() && iter_index_ == end_index_) {
     end_index_ = -1;
     return RC::SUCCESS;
   }
@@ -1917,7 +1935,7 @@ RC BplusTreeScanner::next_entry(RID *rid)
     } else {
       rc = tree_handler_.disk_buffer_pool_->get_this_page(page_num, &left_frame_);
       if (rc != RC::SUCCESS) {
-	      left_frame_ = nullptr;
+        left_frame_ = nullptr;
         LOG_WARN("failed to fetch next page. page num=%d, rc=%d:%s", page_num, rc, strrc(rc));
         return rc;
       }
@@ -1926,7 +1944,8 @@ RC BplusTreeScanner::next_entry(RID *rid)
     }
   } else if (end_index_ != -1) {
     LOG_WARN("should have more pages but not. left page=%d, right page=%d",
-	     left_frame_->page_num(), right_frame_->page_num());
+        left_frame_->page_num(),
+        right_frame_->page_num());
     rc = RC::INTERNAL;
   }
   return rc;
@@ -1948,52 +1967,61 @@ RC BplusTreeScanner::close()
   return RC::SUCCESS;
 }
 
-RC BplusTreeScanner::fix_user_key(const char *user_key, int key_len, bool want_greater,
-			      char **fixed_key, bool *should_inclusive)
+RC BplusTreeScanner::fix_user_key(const std::vector<const char *> &user_key, const std::vector<int> &key_lens,
+    bool want_greater, std::vector<const char *> &fixed_key, bool *should_inclusive)
 {
-  if (nullptr == fixed_key || nullptr == should_inclusive) {
+  if (user_key.empty() || nullptr == should_inclusive) {
     return RC::INVALID_ARGUMENT;
   }
 
   // 这里很粗暴，变长字段才需要做调整，其它默认都不需要做调整
-  assert(tree_handler_.file_header_.attr_types == CHARS);
-  assert(strlen(user_key) >= static_cast<size_t>(key_len));
-  
+  // assert(tree_handler_.file_header_.attr_types == CHARS);
+  // assert(strlen(user_key) >= static_cast<size_t>(key_len));
+
   *should_inclusive = false;
-  
-  int32_t attr_length = tree_handler_.file_header_.attr_length;
-  char *key_buf = new (std::nothrow)char [attr_length];
-  if (nullptr == key_buf) {
-    return RC::NOMEM;
+  fixed_key.resize(user_key.size());
+
+  const auto field_num = user_key.size();
+  for (int i = 0; i < field_num; i++) {
+    if (tree_handler_.file_header_.attr_types[i] != CHARS) {
+      fixed_key[i] = user_key[i];
+      continue;
+    }
+    const auto char_max_length = tree_handler_.file_header_.attr_lengths[i];
+    const auto key_len = key_lens[i];
+    char *key_buf = new (std::nothrow) char[char_max_length];
+    if (nullptr == key_buf) {
+      return RC::NOMEM;
+    }
+
+    if (key_len <= char_max_length) {
+      memcpy(key_buf, user_key[i], key_len);
+      memset(key_buf + key_len, 0, char_max_length - key_len);
+
+      fixed_key[i] = key_buf;
+    } else {
+      // key_len > char_max_length
+      memcpy(key_buf, user_key[i], char_max_length);
+
+      char c = user_key[i][char_max_length];
+      if (c == 0) {
+        fixed_key[i] = key_buf;
+      } else {
+        // 扫描 >=/> user_key 的数据
+        // 示例：>=/> ABCD1 的数据，char_max_length=4,
+        //      等价于扫描 >= ABCE 的数据
+        // (类似小数向上取整)
+        // 如果是扫描 <=/< user_key的数据
+        // 示例：<=/< ABCD1  <==> <= ABCD  (char_max_length=4)
+        // (类似小数向下取整)
+        *should_inclusive = true;
+        if (want_greater) {
+          key_buf[char_max_length - 1]++;
+        }
+
+        fixed_key[i] = key_buf;
+      }
+    }
   }
-
-  if (key_len <= attr_length) {
-    memcpy(key_buf, user_key, key_len);
-    memset(key_buf + key_len, 0, attr_length - key_len);
-
-    *fixed_key = key_buf;
-    return RC::SUCCESS;
-  }
-
-  // key_len > attr_length
-  memcpy(key_buf, user_key, attr_length);
-
-  char c = user_key[attr_length];
-  if (c == 0) {
-    *fixed_key = key_buf;
-    return RC::SUCCESS;
-  }
-
-  // 扫描 >=/> user_key 的数据
-  // 示例：>=/> ABCD1 的数据，attr_length=4,
-  //      等价于扫描 >= ABCE 的数据
-  // 如果是扫描 <=/< user_key的数据
-  // 示例：<=/< ABCD1  <==> <= ABCD  (attr_length=4)
-  *should_inclusive = true;
-  if (want_greater) {
-    key_buf[attr_length - 1]++;
-  }
-  
-  *fixed_key = key_buf;
   return RC::SUCCESS;
 }

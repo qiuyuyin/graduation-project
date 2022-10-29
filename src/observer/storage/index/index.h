@@ -36,7 +36,12 @@ class Index {
 
 public:
   Index() = default;
-  virtual ~Index() = default;
+  virtual ~Index()
+  {
+    for (const auto &item : field_meta_) {
+      delete item;
+    }
+  }
 
   const IndexMeta &index_meta() const
   {
@@ -46,17 +51,18 @@ public:
   virtual RC insert_entry(const char *record, const RID *rid) = 0;
   virtual RC delete_entry(const char *record, const RID *rid) = 0;
 
-  virtual IndexScanner *create_scanner(const char *left_key, int left_len, bool left_inclusive,
-				       const char *right_key, int right_len, bool right_inclusive) = 0;
+  virtual IndexScanner *create_scanner(const std::vector<const char *> &left_keys, const std::vector<int> &left_lens,
+      bool left_inclusive, const std::vector<const char *> &right_key, const std::vector<int> &right_lens,
+      bool right_inclusive) = 0;
 
   virtual RC sync() = 0;
 
 protected:
-  RC init(const IndexMeta &index_meta, const std::vector<FieldMeta> &field_meta);
+  RC init(const IndexMeta &index_meta, const std::vector<const FieldMeta *> &field_meta);
 
 protected:
   IndexMeta index_meta_;
-  std::vector<FieldMeta> field_meta_;  /// 当前实现仅考虑一个字段的索引
+  std::vector<const FieldMeta *> field_meta_;
 };
 
 class IndexScanner {

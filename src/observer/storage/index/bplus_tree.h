@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include <string.h>
 #include <sstream>
 #include <functional>
+#include <algorithm>
 
 #include "storage/record/record_manager.h"
 #include "storage/default/disk_buffer_pool.h"
@@ -35,8 +36,8 @@ public:
   {
     // TODO: CHECK count range
     attr_num_ = attr_num;
-    memcpy(attr_types_, attr_types, attr_num *sizeof(AttrType));
-    memcpy(attr_lengths_, attr_lengths, attr_num *sizeof(int));
+    memcpy(attr_types_, attr_types, attr_num * sizeof(AttrType));
+    memcpy(attr_lengths_, attr_lengths, attr_num * sizeof(int));
   }
 
   int attr_length() const
@@ -50,13 +51,13 @@ public:
 
   int operator()(const char *v1, const char *v2) const
   {
-    int length = 0;
+    int offset = 0;
     for (int i = 0; i < attr_num_; i++) {
       AttrType attr_type = attr_types_[i];
-      void *ptr1 = (void *)(v1 + length);
-      void *ptr2 = (void *)(v2 + length);
+      void *ptr1 = (void *)(v1 + offset);
+      void *ptr2 = (void *)(v2 + offset);
       int attr_length = attr_lengths_[i];
-      length += attr_length;
+      offset += attr_length;
       int res;
       switch (attr_type) {
         case INTS: {
@@ -76,9 +77,44 @@ public:
           abort();
         }
       }
-      if(res) return res;
+      if (res)
+        return res;
     }
     return 0;
+  }
+  int operator()(const std::vector<const char *> &left_user_key, const std::vector<const char *> &right_user_key) const
+  {
+    const auto left_sz = left_user_key.size();
+    const auto right_sz = right_user_key.size();
+    const auto sz = std::min(left_sz, right_sz);
+    for (int i = 0; i < sz; i++) {
+      AttrType attr_type = attr_types_[i];
+      void *ptr1 = (void *)(left_user_key[i]);
+      void *ptr2 = (void *)(right_user_key[i]);
+      int attr_length = attr_lengths_[i];
+      int res;
+      switch (attr_type) {
+        case INTS: {
+          res = compare_int(ptr1, ptr2);
+        } break;
+        case FLOATS: {
+          res = compare_float(ptr1, ptr2);
+        } break;
+        case CHARS: {
+          res = compare_string(ptr1, attr_length, ptr2, attr_length);
+        } break;
+        case DATES: {
+          res = compare_date(ptr1, ptr2);
+        } break;
+        default: {
+          LOG_ERROR("unknown attr type. %d", attr_types_);
+          abort();
+        }
+      }
+      if (res)
+        return res;
+    }
+    return right_sz - left_sz;
   }
 
 private:
@@ -120,8 +156,8 @@ public:
   void init(AttrType attr_types[], int attr_lengths[], int attr_num)
   {
     attr_num_ = attr_num;
-    memcpy(attr_types_, attr_types, attr_num *sizeof(AttrType));
-    memcpy(attr_lengths_, attr_lengths, attr_num *sizeof(int));
+    memcpy(attr_types_, attr_types, attr_num * sizeof(AttrType));
+    memcpy(attr_lengths_, attr_lengths, attr_num * sizeof(int));
   }
 
   int attr_length() const
@@ -136,19 +172,19 @@ public:
   std::string operator()(const char *v) const
   {
     int offset = 0;
-    for(int i = 0; i < attr_num_; i++){
+    for (int i = 0; i < attr_num_; i++) {
       AttrType attr_type = attr_types_[i];
       int attr_length = attr_lengths_[i];
       offset += attr_length;
       switch (attr_type) {
         case INTS: {
-          return std::to_string(*(int *)(v+offset));
+          return std::to_string(*(int *)(v + offset));
         } break;
         case FLOATS: {
-          return std::to_string(*(float *)(v+offset));
+          return std::to_string(*(float *)(v + offset));
         }
         case DATES: {
-          Date d = *(Date *)(v+offset);
+          Date d = *(Date *)(v + offset);
           char date_c_str[11];
           sprintf(date_c_str, "%0.4d-%0.2d-%0.2d", d.year, d.day, d.day);
           return date_c_str;
@@ -156,10 +192,10 @@ public:
         case CHARS: {
           std::string str;
           for (int i = 0; i < attr_length; i++) {
-            if (v[i+offset] == 0) {
+            if (v[i + offset] == 0) {
               break;
             }
-            str.push_back(v[i+offset]);
+            str.push_back(v[i + offset]);
           }
           return str;
         }
@@ -217,12 +253,16 @@ struct IndexFileHeader {
   PageNum root_page;
   int32_t internal_max_size;
   int32_t leaf_max_size;
-  int32_t attr_length;          // Total length
-  int32_t attr_nums;            // num of attribute
-  int32_t key_length;           // attr length + sizeof(RID)
+  int32_t attr_length;  // Total length
+  int32_t attr_nums;    // num of attribute
+  int32_t key_length;   // attr length + sizeof(RID)
   AttrType attr_types[MAX_NUM];
   int32_t attr_lengths[MAX_NUM];
 
+  bool has_var_type() const
+  {
+    return std::any_of(attr_types, attr_types + attr_nums, [](auto attr_type) { return attr_type == CHARS; });
+  }
   const std::string to_string()
   {
     std::stringstream ss;
@@ -432,7 +472,7 @@ public:
    * 此函数创建一个名为fileName的索引。
    * attrType描述被索引属性的类型，attrLength描述被索引属性的长度
    */
-  RC create(const char *file_name, const std::vector<FieldMeta> &field_metas, int internal_max_size = -1,
+  RC create(const char *file_name, const std::vector<const FieldMeta *> &field_metas, int internal_max_size = -1,
       int leaf_max_size = -1);
 
   /**
@@ -453,23 +493,23 @@ public:
    * 即向索引中插入一个值为（user_key，rid）的键值对
    * @note 这里假设user_key的内存大小与attr_length 一致
    */
-  RC insert_entry(const char *user_key, const RID *rid);
+  RC insert_entry(const std::vector<const char *> &user_key, const RID *rid);
 
   /**
    * 从IndexHandle句柄对应的索引中删除一个值为（*pData，rid）的索引项
    * @return RECORD_INVALID_KEY 指定值不存在
    * @note 这里假设user_key的内存大小与attr_length 一致
    */
-  RC delete_entry(const char *user_key, const RID *rid);
+  RC delete_entry(const std::vector<const char *> &user_key, const RID *rid);
 
   bool is_empty() const;
 
   /**
    * 获取指定值的record
-   * @param key_len user_key的长度
+   * @param key_lens user_key的长度
    * @param rid  返回值，记录记录所在的页面号和slot
    */
-  RC get_entry(const char *user_key, int key_len, std::list<RID> &rids);
+  RC get_entry(const std::vector<const char *> &user_key, const std::vector<int> &key_lens, std::list<RID> &rids);
 
   RC sync();
 
@@ -521,7 +561,8 @@ protected:
   RC adjust_root(Frame *root_frame);
 
 private:
-  char *make_key(const char *user_key, const RID &rid);
+  char *make_key(const std::vector<const char *> &user_key, const RID &rid);
+  char *make_key(const char *key, const RID &rid);
   void free_key(char *key);
 
 protected:
@@ -547,14 +588,14 @@ public:
   /**
    * 扫描指定范围的数据
    * @param left_user_key 扫描范围的左边界，如果是null，则没有左边界
-   * @param left_len left_user_key 的内存大小(只有在变长字段中才会关注)
+   * @param left_lens left_user_key 的内存大小(只有在变长字段中才会关注)
    * @param left_inclusive 左边界的值是否包含在内
    * @param right_user_key 扫描范围的右边界。如果是null，则没有右边界
-   * @param right_len right_user_key 的内存大小(只有在变长字段中才会关注)
+   * @param right_lens right_user_key 的内存大小(只有在变长字段中才会关注)
    * @param right_inclusive 右边界的值是否包含在内
    */
-  RC open(const char *left_user_key, int left_len, bool left_inclusive, const char *right_user_key, int right_len,
-      bool right_inclusive);
+  RC open(const std::vector<const char *> &left_user_key, const std::vector<int> &left_lens, bool left_inclusive,
+      const std::vector<const char *> &right_user_key, const std::vector<int> &right_lens, bool right_inclusive);
 
   RC next_entry(RID *rid);
 
@@ -564,7 +605,8 @@ private:
   /**
    * 如果key的类型是CHARS, 扩展或缩减user_key的大小刚好是schema中定义的大小
    */
-  RC fix_user_key(const char *user_key, int key_len, bool want_greater, char **fixed_key, bool *should_inclusive);
+  RC fix_user_key(const std::vector<const char *> &user_key, const std::vector<int> &key_lens, bool want_greater,
+      std::vector<const char *> &fixed_key, bool *should_inclusive);
 
 private:
   bool inited_ = false;

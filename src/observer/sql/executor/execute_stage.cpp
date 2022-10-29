@@ -317,8 +317,8 @@ RC ExecuteStage::do_create_index(SQLStageEvent *sql_event)
   char **attribute_names = create_index.attribute_names.strings;
   int attr_count = create_index.attribute_names.count;
   std::vector<std::string> fields;
-  for(int i = attr_count - 1; i >= 0; i--){
-    fields.push_back(create_index.attribute_names.strings[i]);
+  for (int i = attr_count - 1; i >= 0; i--) {
+    fields.push_back(attribute_names[i]);
   }
   RC rc = table->create_index(nullptr, create_index.index_name, fields);
   sql_event->session_event()->set_response(rc == RC::SUCCESS ? "SUCCESS\n" : "FAILURE\n");
@@ -339,7 +339,10 @@ RC ExecuteStage::do_show_index(SQLStageEvent *sql_event)
   ss << "Table | Non_unique | Key_name | Seq_in_index | Column_name\n";
   for (int i = 0; i < table->table_meta().index_num(); ++i) {
     const IndexMeta *index = table->table_meta().index(i);
-    ss << table->name() << " | 1 | " << index->name() << " | 1 | " << index->field() << "\n";
+    auto num_of_fields = index->get_num_of_fields();
+    for (int j = 1; j <= num_of_fields; j++) {
+      ss << table->name() << " | 1 | " << index->name() << " | " << j << " | " << index->field(j - 1) << "\n";
+    }
   }
   session_event->set_response(ss.str().c_str());
   return RC::SUCCESS;
