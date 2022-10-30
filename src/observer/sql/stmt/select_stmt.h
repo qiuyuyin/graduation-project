@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/aggregate_operator.h"
 #include "sql/operator/sort_operator.h"
 #include <unordered_map>
+#include <unordered_set>
 #include "util/util.h"
 
 class FieldMeta;
@@ -74,6 +75,38 @@ static vector<QueryField> get_query_field(string sql, bool multi_table) {
   }
   return res;
 }
+
+static void append_agg_field_by_condition(Condition &condition, vector<AggregateField>& agg_fields, unordered_set<string>& excludes_set) {
+  auto build = [&](Expr& expr){
+    for (int i = 0; i < expr.expr_cell_num; ++i) {
+      string e = expr.data[i];
+      if (e.find("(") != e.npos && e.find(")") != e.npos) {
+        auto left_index = e.find("("), right_index = e.find(")");
+        string name = e.substr(left_index+1, right_index-left_index-1);
+        string agg_name = e.substr(0, left_index);
+        string key = agg_name + "(" + name + ")";
+        if (excludes_set.count(key) == 1) {
+          continue;
+        }
+        excludes_set.insert(key);
+        auto type = string_to_aggregate_type(agg_name.c_str());
+        Expression* expr = new VarExpr(name, AttrType::UNDEFINED);
+        auto tuple_cell_spec = make_shared<TupleCellSpec>(expr);
+        AggregateField aggregate_field;
+        aggregate_field.op_type = type;
+        aggregate_field.aggregate_field = tuple_cell_spec;
+        agg_fields.push_back(aggregate_field);
+      }
+    }
+  };
+  if (condition.left_type == 3)  {
+    build(condition.left_expr);
+  }
+  if (condition.right_type == 3) {
+    build(condition.right_expr);
+  }
+}
+
 
 class SelectStmt : public Stmt
 {

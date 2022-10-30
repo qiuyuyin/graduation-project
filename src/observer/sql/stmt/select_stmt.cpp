@@ -170,6 +170,12 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     aggregate_fields.push_back(aggregate_field);
   }
 
+  // 将having中未出现的聚合函数添加进去
+  for (int i = 0; i < select_sql.group_by.having_condition_num; ++i) {
+    auto condition = select_sql.group_by.having_condition[i];
+    append_agg_field_by_condition(condition, aggregate_fields, name_set);
+  }
+
   // collect group by field
   vector<shared_ptr<TupleCellSpec>> groupby_fields;
   name_set.clear();
