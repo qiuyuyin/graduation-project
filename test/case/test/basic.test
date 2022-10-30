@@ -9,11 +9,11 @@ insert into t_basic values(5,5, 'e', 5.5);
 insert into t_basic values(6,6, 'f', 6.6);
 insert into t_basic values(7,7, 'g', 7.7);
 
-sElEct id, age, name from t_basic;
+select id, age, name from t_basic;
 
 
 delete from t_basic where id=3;
-seLect * fRom t_basic;
+select * from t_basic;
 
 
 select * from t_basic where id=1;
