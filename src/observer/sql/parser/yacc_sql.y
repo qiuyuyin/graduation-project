@@ -532,6 +532,13 @@ expr:   expr PLUS  expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->e
     |   expr MINUS expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 9, "-", NULL, NULL);}
     |   expr STAR  expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 10, "*", NULL, NULL);}
     |   expr DIV   expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 11, "/", NULL, NULL);}
+    |   expr NUMBER        {
+                                value_init_integer(&CONTEXT->values[CONTEXT->value_length++], $2 * -1);
+                                char* temp = value_to_string(&CONTEXT->values[CONTEXT->value_length-1]);
+                                set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num], 13, temp, NULL, NULL);
+                                set_buffer_expr_cell_value_pos(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], CONTEXT->value_length-1);
+                                set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 13, "-", NULL, NULL);
+                            }
     |   LBRACE expr RBRACE {}
     |   MINUS expr %prec U_neg {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 12, "-", NULL, NULL);}
     |   expr_cell {}
