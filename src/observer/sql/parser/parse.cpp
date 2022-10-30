@@ -32,6 +32,19 @@ const char *aggregate_type_to_string(AggregationType type)
   return "unknown";
 }
 
+const AggregationType string_to_aggregate_type(const char* s) {
+  char* temp = strdup(s);
+  for (int i = 0; i < strlen(temp); ++i) {
+    temp[i] = tolower(temp[i]);
+  }
+  for (int i = 0; i < 5; ++i) {
+    if (strcmp(temp, AGGREGATE_TYPE_NAME[i]) == 0) {
+      return AggregationType(i);
+    }
+  }
+  return NO_Aggregation;
+}
+
 
 
 void set_buffer_expr_cell(ExprCellBuffer *expr_cell, int type, char* param1, char* param2, char* param3) {
@@ -140,6 +153,7 @@ void build_condition_by_buffer_expr(CompOp comp, Value* buffer_values, Condition
       return attr;
     };
     ExprList* exprList = new ExprList;
+    memset(exprList, 0, sizeof(ExprList));
     if (len == 1) {
       if (cells[0].type == 7) {
         value = &buffer_values[cells[0].value_pos];

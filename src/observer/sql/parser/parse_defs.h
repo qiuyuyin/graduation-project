@@ -307,6 +307,7 @@ extern "C" {
 #endif  // __cplusplus
 
 const char *aggregate_type_to_string(AggregationType type);
+const AggregationType string_to_aggregate_type(const char* temp);
 
 void append_buffer_expr_to_select_exprlist(ExprList* target, ExprCellBuffer* cells, size_t num);
 void append_buffer_expr_to_select_attribute(Selects *selects, ExprCellBuffer* cells, size_t num);
