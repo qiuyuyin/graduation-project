@@ -64,6 +64,7 @@ bool PredicateOperator::do_predicate(Tuple* t1)
   if (filter_units_.empty()) {
     return true;
   }
+  RC rc = SUCCESS;
   for (auto filter_unit : filter_units_) {
     TupleCell left_cell, right_cell;
     auto left = filter_unit->left();
@@ -78,8 +79,12 @@ bool PredicateOperator::do_predicate(Tuple* t1)
       left->get_value(temp, left_cell);
       right->get_value(temp, right_cell);
     } else {
-      left->get_value(*t1, left_cell);
-      right->get_value(*t1, right_cell);
+      if ((rc = left->get_value(*t1, left_cell)) != SUCCESS) {
+        return false;
+      }
+      if ((rc = right->get_value(*t1, right_cell)) != SUCCESS) {
+       return false;
+      }
     }
     if (comp == LIKE || comp == NOT_LIKE) {
       if (left_cell.attr_type() == AttrType::CHARS && right_cell.attr_type() == AttrType::CHARS) {

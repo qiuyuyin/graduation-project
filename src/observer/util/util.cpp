@@ -107,3 +107,29 @@ void str_replace_by_regex(std::string& s, std::string regex_str, std::string oth
     return;
   }
 }
+
+void str_replace_by_regex(std::string& s, std::string regex_str, std::string(*func)(std::string)) {
+  std::smatch result;
+  std::regex pattern("[A-Za-z_]+[A-Za-z0-9_]*-[0-9]+");
+  std::string::const_iterator iterStart = s.begin();
+  std::string::const_iterator iterEnd = s.end();
+  std::string res = s;
+  while (std::regex_search(iterStart, iterEnd, result, pattern)) {
+    auto key = result[0];
+    auto value = func(key);
+    str_replace(res, key, value);
+    iterStart = result[0].second;
+  }
+  s = res;
+}
+
+bool str_contains_by_regex(std::string& s, std::string regex_str) {
+  bool res = false;
+  try {
+    std::regex rule(regex_str);
+    res = std::regex_match(s, rule);
+  } catch (std::regex_error &e) {
+    return false;
+  }
+  return res;
+}

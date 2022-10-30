@@ -224,6 +224,7 @@ enum RC {
   NOTADB,           /* File opened that is not a database file */
   FILE_ERROR,       /* File error */
   LOGBUF,           /* clog buffer error */
+  DIV_ZERO,
   NOTICE = 100,     /* Notifications from log() */
 
   /* buffer pool part */

@@ -13,6 +13,7 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/expr/tuple.h"
+#include "util/util.h"
 #include <stack>
 
 
@@ -53,9 +54,9 @@ ExprCellType CalculateExpr::get_expr_cell_type(string cell) const
   if (cell == "-") return ExprCellType::MINUS;
   if (cell == "*") return ExprCellType::MULTI;
   if (cell == "/") return ExprCellType::DIV;
-  if (cell.find("-") != cell.npos) return ExprCellType::DATE;
-  if (cell.find(".") != cell.npos) return ExprCellType::FLOAT;
-  if (cell[0] >= '0' && cell[0] <= '9') return ExprCellType::INT;
+  if (str_contains_by_regex(cell, "[0-9]+\\-[0-9]+\\-[0-9]+")) return ExprCellType::DATE;
+  if (str_contains_by_regex(cell, "[0-9]+.[0-9]+")) return ExprCellType::FLOAT;
+  if (str_contains_by_regex(cell, "[\\-]?[0-9]+")) return ExprCellType::INT;
   return ExprCellType::FIELD;
 }
 
@@ -74,7 +75,12 @@ RC CalculateExpr::get_value(const Tuple &tuple, TupleCell &tuple_cell) const
         if (type == ExprCellType::PLUS) cell_stack.push(a+b);
         if (type == ExprCellType::MINUS) cell_stack.push(a-b);
         if (type == ExprCellType::MULTI) cell_stack.push(a*b);
-        if (type == ExprCellType::DIV) cell_stack.push(a/b);
+        if (type == ExprCellType::DIV) {
+          if (b == 0) {
+            return RC::DIV_ZERO;
+          }
+          cell_stack.push(a/b);
+        }
       } else if (cell_stack.size() == 1 && type == ExprCellType::MINUS) {
         float b = cell_stack.top();
         cell_stack.pop();

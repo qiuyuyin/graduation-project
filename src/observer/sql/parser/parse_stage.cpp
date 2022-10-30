@@ -14,9 +14,9 @@ See the Mulan PSL v2 for more details. */
 
 #include <string.h>
 #include <string>
-
+#include <regex>
 #include "parse_stage.h"
-
+#include "util/util.h"
 #include "common/conf/ini.h"
 #include "common/io/io.h"
 #include "common/lang/string.h"
@@ -128,7 +128,16 @@ RC ParseStage::handle_request(StageEvent *event)
     LOG_ERROR("Failed to create query.");
     return RC::INTERNAL;
   }
-  RC ret = parse(sql.c_str(), query_result);
+  //sql预处理, 规避id-num的歧义
+  std::string temp = sql;
+
+  auto func = [](std::string s){
+    auto begin = s.find("-");
+    auto temp = s.substr(0, begin) + " - " + s.substr(begin+1, s.npos);
+    return temp;
+  };
+  str_replace_by_regex(temp, "[A-Za-z_]+[A-Za-z0-9_]*-[0-9]+", func);
+  RC ret = parse(temp.c_str(), query_result);
   query_result->sql = sql.c_str();
   if (ret != RC::SUCCESS) {
     // set error information to event

@@ -33,3 +33,7 @@ std::string trim(std::string s);
 void str_replace(std::string& s, std::string o, std::string n);
 
 void str_replace_by_regex(std::string& s, std::string regex_str, std::string other);
+
+void str_replace_by_regex(std::string& s, std::string regex_str, std::string(*func)(std::string));
+
+bool str_contains_by_regex(std::string& s, std::string regex_str);
