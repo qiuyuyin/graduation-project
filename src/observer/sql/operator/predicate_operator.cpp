@@ -101,16 +101,19 @@ bool PredicateOperator::do_predicate(Tuple* t1)
       return false;
     };
 
-    if (left_cell.attr_type() == UNDEFINED && right_cell.attr_type() == UNDEFINED) {
+    auto is_null = [](TupleCell& cell){
+      return cell.attr_type() == UNDEFINED || cell.is_null();
+    };
+
+    if (is_null(left_cell) && is_null(right_cell)) {
       if (comp == IS) return true;
       if (comp == IS_NOT) return false;
       return false;
-    } else if (left_cell.attr_type() != UNDEFINED && right_cell.attr_type() == UNDEFINED) {
+    } else if (!is_null(left_cell) && is_null(right_cell)) {
       return compare_null(left_cell, right_cell, comp);
-    } else if (left_cell.attr_type() == UNDEFINED && right_cell.attr_type() != UNDEFINED) {
+    } else if (is_null(left_cell) && !is_null(right_cell)) {
       return compare_null(right_cell, left_cell, comp);
     }
-
 
 
     const int compare = left_cell.compare(right_cell);

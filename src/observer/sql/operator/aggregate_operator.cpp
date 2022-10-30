@@ -63,13 +63,16 @@ RC AggregateOperator::next()
     }
     field_name += agg_op.aggregate_field->expr_name() + ")";
     AttrType field_type = agg_res->max_value.attr_type();
-    void* data;
+    bool is_cell_null = false;
+    void* data = nullptr;
     switch (agg_op.op_type) {
       case MAX:
-        data = const_cast<char*>(agg_res->max_value.data());
+        is_cell_null = agg_res->max_value.is_null();
+        if (!is_cell_null) data = const_cast<char*>(agg_res->max_value.data());
         break;
       case MIN:
-        data = const_cast<char*>(agg_res->min_value.data());
+        is_cell_null = agg_res->min_value.is_null();
+        if (!is_cell_null) data = const_cast<char*>(agg_res->min_value.data());
         break;
       case COUNT:
       {
@@ -91,8 +94,12 @@ RC AggregateOperator::next()
       case AVG:
       {
         field_type = FLOATS;
-        float* temp = new float(agg_res->sum/(float)agg_res->count);
-        data = temp;
+        if (agg_res->count > 0) {
+          float* temp = new float(agg_res->sum/(float)agg_res->count);
+          data = temp;
+        } else {
+          is_cell_null = true;
+        }
         break;
       }
       default:
@@ -102,7 +109,7 @@ RC AggregateOperator::next()
     if (field_type == CHARS) {
       length = max(agg_res->min_value.length(), agg_res->max_value.length());
     }
-    res.append_var(field_name, field_type, length, data, false);
+    res.append_var(field_name, field_type, length, data, is_cell_null);
   }
   for (int i = 0; i < groupby_fields_.size(); ++i) {
     auto temp = (FieldExpr*)groupby_fields_[i]->expression();
@@ -187,14 +194,26 @@ RC AggregateOperator::mergeTupleIntoGroup(VTuple &tuple)
     if (agg_type == NO_Aggregation) {
       return INVALID_ARGUMENT;
     }
-    inner->count += 1;
-    if (agg_type == COUNT) {
-      continue;
+    //如果count的字段值是null的话不加1
+    auto name = (*aggregate_ops_[i].aggregate_field).expr_name();
+    if (name == "1" || name == "*") {
+      if (agg_type == COUNT) {
+        inner->count += 1;
+        continue;
+      }
+      LOG_WARN("only support * or 1 with count");
+      return INVALID_ARGUMENT;
     }
     TupleCell temp;
     if ((rc = tuple.find_cell(*aggregate_ops_[i].aggregate_field, temp)) != SUCCESS) {
       return rc;
     }
+    if (temp.is_null()) {
+      if (inner->max_value.data() == nullptr) inner->max_value = temp;
+      if (inner->min_value.data() == nullptr) inner->min_value = temp;
+      continue;
+    }
+    inner->count += 1;
     if (inner->max_value.data() == nullptr || temp.compare(inner->max_value) > 0) {
       inner->max_value = temp;
     }
