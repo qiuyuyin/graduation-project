@@ -60,6 +60,6 @@ public:
 private:
   bool is_null_ = false;
   AttrType attr_type_ = UNDEFINED;
-  int length_ = -1;
+  int length_ = 4;
   char *data_ = nullptr; // real data. no need to move to field_meta.offset
 };

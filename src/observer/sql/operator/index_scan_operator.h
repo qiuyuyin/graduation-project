@@ -32,6 +32,7 @@ public:
 
   Tuple * current_tuple() override;
 private:
+  void extract_key_and_length(std::vector<const char *> &user_key, std::vector<int> &key_lens, TupleCell &cell);
   const Table *table_ = nullptr;
   Index *index_ = nullptr;
   IndexScanner *index_scanner_ = nullptr;
