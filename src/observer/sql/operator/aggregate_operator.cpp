@@ -82,6 +82,10 @@ RC AggregateOperator::next()
         break;
       }
       case SUM:
+        if (agg_res->max_value.is_null()) {
+          is_cell_null = true;
+          break;
+        }
         if (field_type == INTS) {
           int *temp = new int(agg_res->sum);
           data = temp;
