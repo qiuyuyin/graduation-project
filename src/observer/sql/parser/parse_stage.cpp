@@ -133,10 +133,10 @@ RC ParseStage::handle_request(StageEvent *event)
 
   auto func = [](std::string s){
     auto begin = s.find("-");
-    auto temp = s.substr(0, begin) + " - " + s.substr(begin+1, s.npos);
+    auto temp = "-(" + s.substr(begin+1, s.size()-begin) + ")";
     return temp;
   };
-  str_replace_by_regex(temp, "[A-Za-z_]+[A-Za-z0-9_]*-[0-9]+", func);
+  str_replace_by_regex(temp, "[\\-][0-9]+(\\.[0-9]+)?", func);
   RC ret = parse(temp.c_str(), query_result);
   query_result->sql = sql.c_str();
   if (ret != RC::SUCCESS) {

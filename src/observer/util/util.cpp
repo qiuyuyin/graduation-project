@@ -110,14 +110,34 @@ void str_replace_by_regex(std::string& s, std::string regex_str, std::string oth
 
 void str_replace_by_regex(std::string& s, std::string regex_str, std::string(*func)(std::string)) {
   std::smatch result;
-  std::regex pattern("[A-Za-z_]+[A-Za-z0-9_]*-[0-9]+");
+  std::regex pattern(regex_str);
   std::string::const_iterator iterStart = s.begin();
   std::string::const_iterator iterEnd = s.end();
   std::string res = s;
   while (std::regex_search(iterStart, iterEnd, result, pattern)) {
     auto key = result[0];
-    auto value = func(key);
-    str_replace(res, key, value);
+    auto before = key.first-1, right = key.second;
+    bool left_brace = false, right_brace = false;
+    while (before >= s.begin()) {
+      if (*before == ' ') {
+        before--;
+        continue;
+      }
+      left_brace = (*before == '(');
+      break;
+    }
+    while (right <= s.end()) {
+      if (*right == ' ') {
+        right++;
+        continue;
+      }
+      right_brace = (*right == ')');
+      break;
+    }
+    if (!left_brace || !right_brace) {
+      auto value = func(key);
+      str_replace(res, key, value);
+    }
     iterStart = result[0].second;
   }
   s = res;

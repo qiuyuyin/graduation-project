@@ -153,6 +153,7 @@ public:
   ~CalculateExpr() override = default;
   RC get_value(const Tuple &tuple, TupleCell &cell) const override;
   std::string get_name() const override;
+  vector<string> expr_cells() { return expr_cells_; }
 
 private:
   ExprCellType get_expr_cell_type(string expr_cell) const;
