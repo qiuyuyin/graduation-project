@@ -107,6 +107,10 @@ RC AggregateOperator::next()
   for (int i = 0; i < groupby_fields_.size(); ++i) {
     auto temp = (FieldExpr*)groupby_fields_[i]->expression();
     int length = temp->field().meta()->len();
+    if (group_values[i] == "null") {
+      res.append_var(string(temp->table_name()) + "." + groupby_fields_.at(i)->expr_name(), groupby_fields_.at(i)->attr_type(), length, nullptr, true);
+      continue;
+    }
     void* data;
     switch (temp->field().meta()->type()) {
       case INTS: {

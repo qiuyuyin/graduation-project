@@ -1,5 +1,5 @@
 -- echo 1. create table
-create table t_group_by (id int, score float, name char);
+create table t_group_by (id int, score float, name char nullable);
 create table t_group_by_2 (id int, age int);
 
 -- echo 2. insert records
