@@ -51,17 +51,19 @@ RC UpdateStmt::create(Db *db, const Updates &update, Stmt *&stmt)
       return INVALID_ARGUMENT;
     }
 
-    RC rc = Typecaster::attr_cast(update.value[i],field_meta->type());
-    if (RC::TYPECAST == rc){
-      LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
-          table_name, field_meta->name(), field_meta->type(), update.value[i]->type);
-      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+    if(update.value[i]->type != AttrType::UNDEFINED){
+      RC rc = Typecaster::attr_cast(update.value[i],field_meta->type());
+      if (RC::TYPECAST == rc){
+        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
+            table_name, field_meta->name(), field_meta->type(), update.value[i]->type);
+        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      }
     }
 
-    if(update.value[i]->type != AttrType::UNDEFINED && field_meta->type()!=update.value[i]->type){
-      LOG_WARN("The update attr[%s]'s type mismatches with filed meta's",update.attribute_name[i]);
-      return SCHEMA_FIELD_TYPE_MISMATCH;
-    }
+//    if(update.value[i]->type != AttrType::UNDEFINED && field_meta->type()!=update.value[i]->type){
+//      LOG_WARN("The update attr[%s]'s type mismatches with filed meta's",update.attribute_name[i]);
+//      return SCHEMA_FIELD_TYPE_MISMATCH;
+//    }
   }
 
 //  const TableMeta &table_meta = table->table_meta();
