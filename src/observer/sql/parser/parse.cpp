@@ -103,6 +103,7 @@ void append_buffer_expr_to_select_exprlist(ExprList* target, ExprCellBuffer* cel
       case 10:
       case 11:
       case 12:
+      case 13:
         append(cell.data[0]);
         break ;
     }
@@ -290,6 +291,13 @@ void value_init_integer(Value *value, int v)
   value->data = malloc(sizeof(v));
   memcpy(value->data, &v, sizeof(v));
 }
+
+void value_last_multi_beg(Value *value) {
+  int* temp = new int(*(int*)value->data);
+  *temp *= -1;
+  memcpy(value->data, temp, sizeof(int));
+}
+
 void value_init_float(Value *value, float v)
 {
   value->type = FLOATS;

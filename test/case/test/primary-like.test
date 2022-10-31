@@ -7,5 +7,5 @@ insert into t values(5, 'lemon');
 insert into t values(6, 'banana');
 insert into t values(7, 'grape');
 
-select * from t where name not like 'c%' and not like '%e';
+
 select * from t where name not like 'c%' and name not like '%e';

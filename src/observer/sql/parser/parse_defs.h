@@ -331,6 +331,7 @@ char* value_to_string(Value* value);
 int value_init_date(Value *value, const char *v);
 int value_init_date_from_integer(Value *value, int v);
 void value_init_integer(Value *value, int v);
+void value_last_multi_beg(Value *value);
 void value_init_float(Value *value, float v);
 void value_init_string(Value *value, const char *v);
 void value_destroy(Value *value);

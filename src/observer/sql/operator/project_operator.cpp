@@ -56,7 +56,8 @@ RC ProjectOperator::next()
     VTuple res;
     for (const auto& projection : projections_) {
       TupleCell cell;
-      if ((rc = temp->find_cell(*projection, cell)) != SUCCESS) {
+      rc = temp->find_cell(*projection, cell);
+      if (rc != SUCCESS && rc != DIV_ZERO) {
         LOG_WARN("[projection::next] tupleCell::find_cell error");
         return rc;
       }
@@ -64,8 +65,12 @@ RC ProjectOperator::next()
       if (projection->alias() != nullptr) {
         field_name = projection->alias();
       }
+      bool is_null = cell.is_null();
+      if (rc == DIV_ZERO) {
+        is_null = true;
+      }
       //todo 这里的type采用哪一种呢？是projection的还是cell的
-      if ((rc = res.append_var(field_name, cell.attr_type(), cell.length(), (void *)cell.data(), cell.is_null())) != SUCCESS) {
+      if ((rc = res.append_var(field_name, cell.attr_type(), cell.length(), (void *)cell.data(), is_null)) != SUCCESS) {
         LOG_WARN("[projection::next] Vtuple::append_var_tuple error");
         return rc;
       }

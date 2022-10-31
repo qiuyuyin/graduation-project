@@ -698,7 +698,7 @@ RC Table::update_record(Trx *trx, Record *record, const char *attribute_name, co
     LOG_WARN("[Table::update_record] find field by attribute_name[%s] error", attribute_name);
     return GENERIC_ERROR;
   }
-  if (field->type() != value->type) {
+  if (value->type != UNDEFINED && field->type() != value->type) {
     LOG_WARN(
         "[table::update_record] the type of attribute[%s] and value[%s] are different", field->type(), value->type);
     return GENERIC_ERROR;
@@ -722,20 +722,23 @@ RC Table::update_record(Trx *trx, Record *record, const char *attribute_name, co
     // update record
     int record_size = table_meta_.record_size();
     char *record_data = record->data();
-    int* null_value_map = (int*)record_data + table_meta_.field(1)->offset();
+    int* null_value_map = (int*)(record_data + table_meta_.field(1)->offset());
     if (value->type == UNDEFINED) {
       *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), true);
     } else {
       *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), false);
     }
-    size_t copy_len = field->len();
-    if (field->type() == CHARS) {
-      const size_t data_len = strlen((const char *)value->data);
-      if (copy_len > data_len) {
-        copy_len = data_len + 1;
+    if (value->type != UNDEFINED) {
+      size_t copy_len = field->len();
+      if (field->type() == CHARS) {
+        const size_t data_len = strlen((const char *)value->data);
+        if (copy_len > data_len) {
+          copy_len = data_len + 1;
+        }
       }
+      memcpy(record_data + field->offset(), value->data, copy_len);
     }
-    memcpy(record_data + field->offset(), value->data, copy_len);
+
     record->set_data(record_data);
     rc = record_handler_->update_record(record);
     if (rc != SUCCESS) {

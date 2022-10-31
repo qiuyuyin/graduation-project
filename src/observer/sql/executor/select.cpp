@@ -25,6 +25,7 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
   vector<Operator*> operators;
   unordered_map<string, vector<FilterUnit*>> table_single_filters;
   unordered_map<string, vector<FilterUnit*>> cross_join_filters;
+  vector<FilterUnit*> join_between_agg_filters;
   vector<FilterUnit*> other_filters;
   for (int i = 0; i < tables.size(); ++i) {
     auto table = tables[i];
@@ -56,7 +57,29 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
         cross_join_filters[right->table_name()].push_back(filter_unit);
       }
     } else {
-      other_filters.push_back(filter_unit);
+      bool flag = false;
+      auto has_agg = [](CalculateExpr* expr){
+        auto agg_names = {"max", "MAX", "min", "MIN", "count", "COUNT", "sum", "SUM", "avg", "AVG"};
+        for (auto cell : expr->expr_cells()) {
+          for (auto agg_name : agg_names) {
+            if (cell.find(string(agg_name)) != cell.npos) {
+              return true;
+            }
+          }
+        }
+        return false;
+      };
+      if (left_type == ExprType::CALCULATE) {
+        flag |= has_agg((CalculateExpr*)filter_unit->left());
+      }
+      if (!flag && right_type == ExprType::CALCULATE) {
+        flag |= has_agg((CalculateExpr*)filter_unit->right());
+      }
+      if (!flag) {
+        join_between_agg_filters.push_back(filter_unit);
+      } else {
+        other_filters.push_back(filter_unit);
+      }
     }
   }
   //构造scan + 单表predicate
@@ -96,6 +119,12 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
     operators.clear();
     operators.push_back(oper);
   };
+
+  //构造join between agg filters
+  if (join_between_agg_filters.size() > 0) {
+    Operator* predicate_oper = new PredicateOperator(join_between_agg_filters);
+    rebuild(predicate_oper);
+  }
 
   //构造aggregate
   if(select_stmt->aggregate_fields().size() != 0){
