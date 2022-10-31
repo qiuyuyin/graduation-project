@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/db.h"
 #include "storage/common/table.h"
 #include "filter_stmt.h"
+#include "typecaster.h"
 
 RC UpdateStmt::create(Db *db, const Updates &update, Stmt *&stmt)
 {
@@ -39,8 +40,8 @@ RC UpdateStmt::create(Db *db, const Updates &update, Stmt *&stmt)
 
   for(int i = 0 ;i<update.update_attr_num;i++){
     const TableMeta &table_meta = table->table_meta();
-    const FieldMeta *filed_meta = table_meta.field(update.attribute_name[i]);
-    if(filed_meta == nullptr){
+    const FieldMeta *field_meta = table_meta.field(update.attribute_name[i]);
+    if(field_meta == nullptr){
       LOG_WARN("The update attr[%s] doesn't exist",update.attribute_name[i]);
       return SCHEMA_FIELD_NOT_EXIST;
     }
@@ -50,7 +51,14 @@ RC UpdateStmt::create(Db *db, const Updates &update, Stmt *&stmt)
       return INVALID_ARGUMENT;
     }
 
-    if(update.value[i]->type != AttrType::UNDEFINED && filed_meta->type()!=update.value[i]->type){
+    RC rc = Typecaster::attr_cast(update.value[i],field_meta->type());
+    if (RC::TYPECAST == rc){
+      LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
+          table_name, field_meta->name(), field_meta->type(), update.value[i]->type);
+      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+    }
+
+    if(update.value[i]->type != AttrType::UNDEFINED && field_meta->type()!=update.value[i]->type){
       LOG_WARN("The update attr[%s]'s type mismatches with filed meta's",update.attribute_name[i]);
       return SCHEMA_FIELD_TYPE_MISMATCH;
     }
