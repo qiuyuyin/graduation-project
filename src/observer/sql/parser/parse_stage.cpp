@@ -95,10 +95,10 @@ std::string handle_sub_query(std::string sql) {
     while (index < sql.end()) {
       if (*index == '(') num++;
       else if (*index == ')') num--;
-      else sub_query += *index;
+      sub_query += *index;
       index++;
       if (num == 0) {
-        return sub_query;
+        return sub_query.substr(1, sub_query.length()-2);
       }
     }
   }
@@ -135,7 +135,7 @@ void ParseStage::handle_event(StageEvent *event)
   std::string old_str = sql_event->sql();
   std::string temp = handle_sub_query(sql_event->sql());
   //todo 先假设只有update-select才会走子查询，且只考虑了子查询select只有一个的情况
-  if (temp != "") {
+  while (temp != "") {
     std::string sub_query = temp + ";";
     sql_event->set_sql(sub_query.c_str());
     //先执行子查询
@@ -157,10 +157,17 @@ void ParseStage::handle_event(StageEvent *event)
     if (cell.attr_type() == CHARS || cell.attr_type() == DATES) {
       value = "'" + value + "'";
     }
-    str_replace_by_regex(new_str, "\\([ ]*" + temp + "[ ]*\\)", value);
-    sql_event->set_is_sub_query(false);
+    string k;
+    for (auto ch : temp) {
+      if (ch == '(' || ch == ')') k += "\\";
+      k += ch;
+    }
+    str_replace_by_regex(new_str, "\\([ ]*" + k + "[ ]*\\)", value);
+    old_str = new_str;
     sql_event->set_sql(new_str.c_str());
+    temp = handle_sub_query(sql_event->sql());
   }
+  sql_event->set_is_sub_query(false);
   handle(sql_event, false);
   LOG_TRACE("Exit\n");
   return;

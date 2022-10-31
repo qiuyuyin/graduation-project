@@ -1,0 +1,13 @@
+create table t(id int, value int);
+create table t1(id int, value int);
+create table t2(id int, value int);
+
+insert into t values(1, 1);
+
+insert into t1 values(2, 2);
+insert into t1 values(3, 3);
+
+insert into t2 values(2, 2);
+insert into t2 values(3, 3);
+
+update t set id=(select max(value) from t1), value=(select min(value) from t2) where id=1;
