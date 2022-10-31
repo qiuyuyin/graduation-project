@@ -153,7 +153,11 @@ void ParseStage::handle_event(StageEvent *event)
     TupleCell cell;
     sub_select_tuples[0]->cell_at(0, cell);
     string new_str = old_str;
-    str_replace_by_regex(new_str, "\\([ ]*" + temp + "[ ]*\\)", cell.to_string());
+    string value = cell.to_string();
+    if (cell.attr_type() == CHARS || cell.attr_type() == DATES) {
+      value = "'" + value + "'";
+    }
+    str_replace_by_regex(new_str, "\\([ ]*" + temp + "[ ]*\\)", value);
     sql_event->set_is_sub_query(false);
     sql_event->set_sql(new_str.c_str());
   }
