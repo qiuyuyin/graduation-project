@@ -27,7 +27,15 @@ RC UpdateOperator::open() {
     }
     RowTuple *rowTuple = static_cast<RowTuple*>(tuple);
     Record &record = rowTuple->record();
-    table->update_record(nullptr, &record, update_stmt_->update_attr(), update_stmt_->values());
+    int val_amount = update_stmt_->value_amount();
+    vector<std::string > to_update_attr_name = update_stmt_->update_attr();
+    vector<Value *> to_update_attr_val = update_stmt_->values();
+    for(int i = 0 ;i < val_amount ; i++){
+      const char * attr_name = to_update_attr_name[i].c_str();
+      table->update_record(nullptr,&record,attr_name,to_update_attr_val[i]);
+    }
+    //for(int i = 0 ;i<update_stmt_->)
+    //table->update_record(nullptr, &record, update_stmt_->update_attr(), update_stmt_->values());
     if (rc != SUCCESS) {
       LOG_WARN("Failed to update record: %s.", strrc(rc));
       return rc;
