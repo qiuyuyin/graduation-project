@@ -26,6 +26,7 @@ See the Mulan PSL v2 for more details. */
 #include "event/sql_event.h"
 #include "sql/parser/parse.h"
 
+
 using namespace common;
 
 //! Constructor
@@ -83,30 +84,96 @@ void ParseStage::cleanup()
   LOG_TRACE("Exit");
 }
 
+std::string handle_sub_query(std::string sql) {
+  std::smatch result;
+  std::regex pattern("\\([ ]*[Ss][Ee][Ll][Ee][Cc][Tt] ");
+  std::string::const_iterator iterStart = sql.begin(), iterEnd = sql.end();
+  if (std::regex_search(iterStart, iterEnd, result, pattern)) {
+    std::string sub_query;
+    auto index = result[0].first;
+    int num = 0;
+    while (index < sql.end()) {
+      if (*index == '(') num++;
+      else if (*index == ')') num--;
+      sub_query += *index;
+      index++;
+      if (num == 0) {
+        return sub_query.substr(1, sub_query.length()-2);
+      }
+    }
+  }
+  return "";
+}
+
 void ParseStage::handle_event(StageEvent *event)
 {
+  auto handle = [&](SQLStageEvent *sql_event, bool sub_query) {
+    RC rc = handle_request(sql_event);
+    if (RC::SUCCESS != rc) {
+      callback_event(sql_event, nullptr);
+      return rc;
+    }
+    if (!sub_query) {
+      CompletionCallback *cb = new (std::nothrow) CompletionCallback(this, nullptr);
+      if (cb == nullptr) {
+        LOG_ERROR("Failed to new callback for SQLStageEvent");
+        callback_event(sql_event, nullptr);
+        return INTERNAL;
+      }
+      sql_event->push_callback(cb);
+      resolve_stage_->handle_event(event);
+      sql_event->done_immediate();
+    } else {
+      resolve_stage_->handle_event(event);
+    }
+    return SUCCESS;
+  };
+
+  RC rc = SUCCESS;
   LOG_TRACE("Enter\n");
-
-  RC rc = handle_request(event);
-  if (RC::SUCCESS != rc) {
-    callback_event(event, nullptr);
-    return;
+  auto sql_event = static_cast<SQLStageEvent *>(event);
+  std::string old_str = sql_event->sql();
+  std::string temp = handle_sub_query(sql_event->sql());
+  //todo 先假设只有update-select才会走子查询，且只考虑了子查询select只有一个的情况
+  while (temp != "") {
+    std::string sub_query = temp + ";";
+    sql_event->set_sql(sub_query.c_str());
+    //先执行子查询
+    sql_event->set_is_sub_query(true);
+    if((rc = handle(sql_event, true)) != SUCCESS) {
+      return;
+    }
+    auto sub_select_tuples = sql_event->sub_query_res();
+    //子查询的结果应该只有一个值
+    if (sub_select_tuples.size() == 0 || sub_select_tuples.size() > 1 || sub_select_tuples[0]->cell_num() != 1) {
+      sql_event->session_event()->set_response("FAILURE\n");
+      callback_event(sql_event, nullptr);
+      return;
+    }
+    TupleCell cell;
+    sub_select_tuples[0]->cell_at(0, cell);
+    string new_str = old_str;
+    string value = cell.to_string();
+    if (cell.attr_type() == CHARS || cell.attr_type() == DATES) {
+      value = "'" + value + "'";
+    }
+    string k;
+    for (auto ch : temp) {
+      if (ch == '(' || ch == ')') k += "\\";
+      k += ch;
+    }
+    str_replace_by_regex(new_str, "\\([ ]*" + k + "[ ]*\\)", value);
+    old_str = new_str;
+    sql_event->set_sql(new_str.c_str());
+    temp = handle_sub_query(sql_event->sql());
   }
-
-  CompletionCallback *cb = new (std::nothrow) CompletionCallback(this, nullptr);
-  if (cb == nullptr) {
-    LOG_ERROR("Failed to new callback for SQLStageEvent");
-    callback_event(event, nullptr);
-    return;
-  }
-
-  event->push_callback(cb);
-  resolve_stage_->handle_event(event);
-  event->done_immediate();
-
+  sql_event->set_is_sub_query(false);
+  handle(sql_event, false);
   LOG_TRACE("Exit\n");
   return;
 }
+
+
 
 void ParseStage::callback_event(StageEvent *event, CallbackContext *context)
 {

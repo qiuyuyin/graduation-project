@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 #include "common/seda/stage_event.h"
+#include "sql/expr/tuple.h"
+#include <vector>
 
 class SessionEvent;
 class Stmt;
@@ -36,16 +38,21 @@ public:
   const std::string &sql() const { return sql_; }
   Query *query() const { return query_; }
   Stmt *stmt() const { return stmt_; }
-
   void set_sql(const char *sql) { sql_ = sql; }
   void set_query(Query *query) { query_ = query; }
   void set_stmt(Stmt *stmt) { stmt_ = stmt; }
+  bool is_sub_query(){return is_sub_query_; }
+  vector<VTuple*> sub_query_res(){ return sub_query_res_; }
+  void set_is_sub_query(bool is_sub_query) {is_sub_query_ = is_sub_query;}
+  void set_sub_query_res(vector<VTuple*> res) {sub_query_res_ = res;}
 
 private:
   SessionEvent *session_event_ = nullptr;
   std::string sql_;
   Query *query_ = nullptr;
   Stmt *stmt_ = nullptr;
+  bool is_sub_query_ = false;
+  std::vector<VTuple*> sub_query_res_;
 };
 
 #endif  //__SRC_OBSERVER_SQL_EVENT_SQLEVENT_H__

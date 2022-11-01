@@ -461,7 +461,7 @@ delete:		/*  delete 语句的语法解析树*/
     }
     ;
 update:			/*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where SEMICOLON
+    UPDATE ID SET ID EQ value more_update where SEMICOLON
 		{
 			CONTEXT->ssql->flag = SCF_UPDATE;//"update";
 			Value *value = &CONTEXT->values[0];
@@ -470,6 +470,18 @@ update:			/*  update 语句的语法解析树*/
 			CONTEXT->condition_length = 0;
 		}
     ;
+
+more_update:
+    /* empty */
+    |COMMA ID EQ value more_update
+        {
+            Value *value = &CONTEXT->values[CONTEXT->value_length-1-CONTEXT->ssql->sstr.update.update_attr_num];
+            updates_append(&CONTEXT->ssql->sstr.update,$2,value);
+            printf("%d",CONTEXT->value_length-1);
+        }
+    ;
+
+
 select:				/*  select 语句的语法解析树*/
     SELECT select_list FROM rel where group_by having order_by SEMICOLON
 		{
