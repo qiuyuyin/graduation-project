@@ -696,23 +696,42 @@ RC Table::create_index(Trx *trx, const char *index_name, std::vector<std::string
   return rc;
 }
 
-RC Table::update_record(Trx *trx, Record *record, const char *attribute_name, const Value *value)
+RC Table::update_record(Trx *trx, Record *record, std::vector<std::string> attr_names, std::vector<Value *> attr_values)
 {
   // parameter
-  if (attribute_name == nullptr || value == nullptr) {
-    LOG_WARN("[Table::update_record] attribute_name or value is nullptr");
-    return GENERIC_ERROR;
+  for(int i = 0 ; i < attr_names.size();i++){
+    const char *attribute_name = attr_names[i].c_str();
+    Value * value = attr_values[i];
+    if (attribute_name == nullptr || value == nullptr) {
+      LOG_WARN("[Table::update_record] attribute_name or value is nullptr");
+      return GENERIC_ERROR;
+    }
+    const FieldMeta *field = table_meta_.field(attribute_name);
+    if (field == nullptr) {
+      LOG_WARN("[Table::update_record] find field by attribute_name[%s] error", attribute_name);
+      return GENERIC_ERROR;
+    }
+    if (value->type != UNDEFINED && field->type() != value->type) {
+      LOG_WARN(
+          "[table::update_record] the type of attribute[%s] and value[%s] are different", field->type(), value->type);
+      return GENERIC_ERROR;
+    }
   }
-  const FieldMeta *field = table_meta_.field(attribute_name);
-  if (field == nullptr) {
-    LOG_WARN("[Table::update_record] find field by attribute_name[%s] error", attribute_name);
-    return GENERIC_ERROR;
-  }
-  if (value->type != UNDEFINED && field->type() != value->type) {
-    LOG_WARN(
-        "[table::update_record] the type of attribute[%s] and value[%s] are different", field->type(), value->type);
-    return GENERIC_ERROR;
-  }
+//  if (attribute_name == nullptr || value == nullptr) {
+//    LOG_WARN("[Table::update_record] attribute_name or value is nullptr");
+//    return GENERIC_ERROR;
+//  }
+//  const FieldMeta *field = table_meta_.field(attribute_name);
+//  if (field == nullptr) {
+//    LOG_WARN("[Table::update_record] find field by attribute_name[%s] error", attribute_name);
+//    return GENERIC_ERROR;
+//  }
+//  if (value->type != UNDEFINED && field->type() != value->type) {
+//    LOG_WARN(
+//        "[table::update_record] the type of attribute[%s] and value[%s] are different", field->type(), value->type);
+//    return GENERIC_ERROR;
+//  }
+
 
   if (trx != nullptr) {
     LOG_WARN("[Table::update_record] not support method with trx");
@@ -725,21 +744,46 @@ RC Table::update_record(Trx *trx, Record *record, const char *attribute_name, co
     auto old_data = new char[record_size];
     memcpy(old_data, record_data, record_size);
     int* null_value_map = (int*)(record_data + table_meta_.field(1)->offset());
-    if (value->type == UNDEFINED) {
-      *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), true);
-    } else {
-      *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), false);
-    }
-    if (value->type != UNDEFINED) {
-      size_t copy_len = field->len();
-      if (field->type() == CHARS) {
-        const size_t data_len = strlen((const char *)value->data);
-        if (copy_len > data_len) {
-          copy_len = data_len + 1;
+
+    for(int i = 0; i < attr_names.size(); i++){
+      const char *attribute_name = attr_names[i].c_str();
+      Value * value = attr_values[i];
+      const FieldMeta *field = table_meta_.field(attribute_name);
+      if (value->type == UNDEFINED) {
+        *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), true);
+      } else {
+        *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), false);
+      }
+      if(value->type != UNDEFINED){
+        if (value->type != UNDEFINED) {
+          size_t copy_len = field->len();
+          if (field->type() == CHARS) {
+            const size_t data_len = strlen((const char *)value->data);
+            if (copy_len > data_len) {
+              copy_len = data_len + 1;
+            }
+          }
+          memcpy(record_data + field->offset(), value->data, copy_len);
         }
       }
-      memcpy(record_data + field->offset(), value->data, copy_len);
+
     }
+//    if (value->type == UNDEFINED) {
+//      *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), true);
+//    } else {
+//      *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), false);
+//    }
+
+//    if (value->type != UNDEFINED) {
+//      size_t copy_len = field->len();
+//      if (field->type() == CHARS) {
+//        const size_t data_len = strlen((const char *)value->data);
+//        if (copy_len > data_len) {
+//          copy_len = data_len + 1;
+//        }
+//      }
+//      memcpy(record_data + field->offset(), value->data, copy_len);
+//    }
     record->set_data(record_data);
 
     if((rc = update_entry_of_indexes(old_data, record_data, record->rid())) == RC::SUCCESS){

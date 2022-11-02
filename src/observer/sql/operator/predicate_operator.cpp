@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "storage/common/field.h"
 #include "util/comparator.h"
+#include "util/util.h"
 
 RC PredicateOperator::open()
 {
@@ -82,10 +83,39 @@ bool PredicateOperator::do_predicate(Tuple* t1)
       if ((rc = left->get_value(*t1, left_cell)) != SUCCESS) {
         return false;
       }
-      if ((rc = right->get_value(*t1, right_cell)) != SUCCESS) {
+      if (comp != IN && comp != NOT_IN && (rc = right->get_value(*t1, right_cell)) != SUCCESS) {
        return false;
       }
     }
+
+    if (comp == IN || comp == NOT_IN) {
+      if (left_cell.is_null()) {
+        return false;
+      }
+      bool has_in = false;
+      if (right->type() == ExprType::CALCULATE) {
+        auto expr = (CalculateExpr*)right;
+        for (auto item : expr->expr_cells()) {
+          if (item == "null") return false;
+          if (expr->get_expr_cell_type(item) == ExprCellType::FLOAT) {
+            item = double2string(atof(item.c_str()));
+          }
+          if (left_cell.to_string() == item) {
+            has_in = true;
+            break;
+          }
+        }
+      } else if (right->type() == ExprType::VALUE) {
+        auto expr = (ValueExpr*)right;
+        TupleCell right_cell;
+        expr->get_value(VTuple{}, right_cell);
+        if (right_cell.is_null()) return false;
+        has_in = (left_cell.to_string() == right_cell.to_string());
+      }
+      if ((comp == IN && has_in == false) || (comp == NOT_IN && has_in == true)) return false;
+      continue;
+    }
+
     if (comp == LIKE || comp == NOT_LIKE) {
       if (left_cell.attr_type() == AttrType::CHARS && right_cell.attr_type() == AttrType::CHARS) {
         bool flag = compare_string((void *)left_cell.data(), left_cell.length(), (void *)right_cell.data(), right_cell.length(), true);

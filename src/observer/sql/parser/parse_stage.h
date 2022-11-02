@@ -18,6 +18,13 @@ See the Mulan PSL v2 for more details. */
 #include "common/seda/stage.h"
 #include "rc.h"
 
+enum class SubQueryOper {
+  IN,
+  EXIST,
+  COMPARE,
+  NO_OPER
+};
+
 class ParseStage : public common::Stage {
 public:
   ~ParseStage();
@@ -34,7 +41,7 @@ protected:
   void callback_event(common::StageEvent *event, common::CallbackContext *context);
 
 protected:
-  RC handle_request(common::StageEvent *event);
+  RC handle_request(common::StageEvent *event, bool sub_query);
 
 private:
   Stage *optimize_stage_ = nullptr;
