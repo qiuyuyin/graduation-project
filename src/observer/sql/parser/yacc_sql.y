@@ -608,6 +608,9 @@ rel:
    | ID AS ID rel_list {
             selects_append_relation(&CONTEXT->ssql->sstr.selection, $1, $3);
    }
+   | ID ID rel_list{
+            selects_append_relation(&CONTEXT->ssql->sstr.selection, $1, $2);
+   }
    ;
 
 rel_list:
@@ -618,18 +621,27 @@ rel_list:
     | COMMA ID AS ID rel_list {
             selects_append_relation(&CONTEXT->ssql->sstr.selection, $2, $4);
         }
+    | COMMA ID ID rel_list {
+                selects_append_relation(&CONTEXT->ssql->sstr.selection, $2, $3);
+            }
     | INNER JOIN ID rel_list {
               selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, NULL);
           }
     | INNER JOIN ID AS ID rel_list {
             selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, $5);
           }
+    | INNER JOIN ID ID rel_list {
+                selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, $4);
+              }
     | INNER JOIN ID ON condition condition_list rel_list {
                 selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, NULL);
           }
     | INNER JOIN ID AS ID ON condition condition_list rel_list {
             selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, $5);
         }
+    | INNER JOIN ID ID ON condition condition_list rel_list {
+                selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, $4);
+            }
     ;
 
 where:
