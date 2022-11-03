@@ -296,47 +296,80 @@ void ParseStage::handle_event(StageEvent *event)
       while(getline(tmp,tmp_str,',')){
         alias_str.push_back(tmp_str.substr(tmp_str.find_first_not_of(' '),tmp_str.find_last_not_of(' ')-tmp_str.find_first_not_of(' ')+1));
       }
+      std::unordered_map<std::string,std::string> possible_alias_map;
       for(auto alias_s : alias_str){
+
         if(alias_s.find(' ')==alias_s.npos){
           continue ;
         }else{
           int space_pos = alias_s.find(' ');
           std::string origin_t_name = alias_s.substr(0,space_pos);
           std::string alias_t_name = alias_s.substr(space_pos+1,alias_s.size()-space_pos-1);
-
-          for(int i = 0 ; i < query_temp->sstr.selection.condition_num; i++){
-            if(query_temp->sstr.selection.conditions[i].left_type == 2){
-              std::string left_attr_rel_name = query_temp->sstr.selection.conditions[i].left_attr.relation_name;
-              if(left_attr_rel_name == alias_t_name){
-                query_temp->sstr.selection.conditions[i].left_attr.relation_name =  strdup(origin_t_name.c_str());
-              }
-            }
-            if(query_temp->sstr.selection.conditions[i].right_type == 2){
-              std::string right_attr_rel_name = query_temp->sstr.selection.conditions[i].right_attr.relation_name;
-              if(right_attr_rel_name == alias_t_name){
-                query_temp->sstr.selection.conditions[i].right_attr.relation_name =  strdup(origin_t_name.c_str());
-              }
-            }
-          }
+          possible_alias_map.insert(pair<std::string,std::string>(alias_t_name,origin_t_name));
+//          for(int i = 0 ; i < query_temp->sstr.selection.condition_num; i++){
+//            if(query_temp->sstr.selection.conditions[i].left_type == 2){
+//              std::string left_attr_rel_name = query_temp->sstr.selection.conditions[i].left_attr.relation_name;
+//              if(left_attr_rel_name == alias_t_name){
+//                query_temp->sstr.selection.conditions[i].left_attr.relation_name =  strdup(origin_t_name.c_str());
+//              }
+//            }
+//            if(query_temp->sstr.selection.conditions[i].right_type == 2){
+//              std::string right_attr_rel_name = query_temp->sstr.selection.conditions[i].right_attr.relation_name;
+//              if(right_attr_rel_name == alias_t_name){
+//                query_temp->sstr.selection.conditions[i].right_attr.relation_name =  strdup(origin_t_name.c_str());
+//              }
+//            }
+//          }
         }
       }
+      for(int i = 0;i<query_temp->sstr.selection.relation_num;i++){
+        if(query_temp->sstr.selection.relations[i].alias!= nullptr){
+          possible_alias_map.insert(pair<std::string,std::string>(string(query_temp->sstr.selection.relations[i].alias),string(query_temp->sstr.selection.relations[i].name)));
+        }
+      }
+
       string relation_name = query_temp->sstr.selection.relations[0].name;
       string attr_name ;
       if(query_temp->sstr.selection.attributes[0].relation_name == nullptr){
         attr_name = string(query_temp->sstr.selection.attributes[0].attribute_name);
       } else {
-        attr_name = string(query_temp->sstr.selection.attributes[0].relation_name) + '.' + string(query_temp->sstr.selection.attributes[0].attribute_name);
+        auto iter = possible_alias_map.find(query_temp->sstr.selection.attributes[0].relation_name);
+        if(iter != possible_alias_map.end()){
+          attr_name = iter->second + '.' + string(query_temp->sstr.selection.attributes[0].attribute_name);
+        }else{
+          attr_name = string(query_temp->sstr.selection.attributes[0].relation_name) + '.' + string(query_temp->sstr.selection.attributes[0].attribute_name);
+        }
       }
       vector<string> tables = {relation_name};
       vector<string> fields = {attr_name};
       for (int i = 0; i < query_temp->sstr.selection.condition_num; ++i) {
         auto condition = query_temp->sstr.selection.conditions[i];
         if (condition.left_type == 2 && condition.left_attr.relation_name != nullptr && string(condition.left_attr.relation_name) != relation_name) {
-          tables.push_back(string(condition.left_attr.relation_name));
+          auto iter = possible_alias_map.find(string(condition.left_attr.relation_name));
+          if(iter != possible_alias_map.end()){
+            if(std::count(tables.begin(),tables.end(),iter->second)==0){
+              tables.push_back(iter->second);
+            }
+          }else{
+            if(std::count(tables.begin(),tables.end(),string(condition.left_attr.relation_name))){
+              tables.push_back(string(condition.left_attr.relation_name));
+            }
+          }
+
           //fields.push_back(string(condition.left_attr.relation_name) + "." + string(condition.left_attr.attribute_name));
         }
         if (condition.right_type == 2 && condition.right_attr.relation_name != nullptr && string(condition.right_attr.relation_name) != relation_name) {
-          tables.push_back(string(condition.right_attr.relation_name));
+          auto iter = possible_alias_map.find(string(condition.right_attr.relation_name));
+          if(iter != possible_alias_map.end()){
+            if(std::count(tables.begin(),tables.end(),iter->second)==0){
+              tables.push_back(iter->second);
+            }
+          }else{
+            if(std::count(tables.begin(),tables.end(),string(condition.right_attr.relation_name))){
+              tables.push_back(string(condition.right_attr.relation_name));
+            }
+          }
+
           //fields.push_back(string(condition.right_attr.relation_name) + "." + string(condition.right_attr.attribute_name));
         }
       }
@@ -355,6 +388,9 @@ void ParseStage::handle_event(StageEvent *event)
       if(std::regex_search(temp,s_w_pattern)){
         str_replace_by_regex(temp, "[Ss][Ee][Ll][Ee][Cc][Tt].*[Ww][Hh][Ee][Rr][Ee]", "");
         sub_str += "where " + temp;
+        for(auto iter:possible_alias_map){
+          str_replace_by_regex(sub_str,iter.first+".",iter.second+".");
+        }
       }else{
         //;
       }
