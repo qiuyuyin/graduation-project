@@ -69,6 +69,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   vector<Table*> tables;
   unordered_map<std::string, Table*> table_map;
   unordered_map<string, string> alias_map;
+  unordered_map<string,string> alias_map_reverse;
   for (size_t i = 0; i < select_sql.relation_num; i++) {
     const char *table_name = select_sql.relations[i].name;
     if (nullptr == table_name) {
@@ -84,6 +85,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     tables.insert(tables.begin(), table);
     if (select_sql.relations[i].alias != nullptr) {
       alias_map.insert(pair<string, string>(table_name, select_sql.relations[i].alias));
+      alias_map.insert(pair<string,string>(select_sql.relations[i].alias,table_name));
     }
     table_map.insert(std::pair<std::string, Table*>(table_name, table));
   }
@@ -98,7 +100,19 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
         continue;
       }
     } else {
-      table = table_map[attr.relation_name];
+      //table = table_map[attr.relation_name];
+      auto iter = table_map.find(attr.relation_name);
+      if(iter == table_map.end()){
+        auto iter2 = alias_map.find(attr.relation_name);
+        if(iter2 == alias_map.end()){
+          LOG_WARN("NON-EXISTENCE ALIAS TABLE");
+          return RC::SCHEMA_TABLE_NOT_EXIST;
+        }else{
+          table = table_map[iter2->second];
+        }
+      }else{
+        table = iter->second;
+      }
     }
     if (table->table_meta().field(attr.attribute_name) == nullptr) {
       LOG_WARN("the attribute name isn't in the tables' filed");
