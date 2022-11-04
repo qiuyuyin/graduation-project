@@ -46,6 +46,8 @@ static vector<QueryField> get_query_field(string sql, bool multi_table) {
 
   auto parse = [](string temp, bool multi_table){
     QueryField queryField;
+    temp = trim(temp);
+    str_replace_by_regex(temp, " ", " as ");
     auto pos = temp.find(" as ");
     if (pos == temp.npos) {
       string name = trim(temp);
