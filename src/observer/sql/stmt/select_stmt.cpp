@@ -168,8 +168,12 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
         if (parse_field.name.find(".") != parse_field.name.npos) {
           for (auto a : alias_map) {
             if (table_map.count(a.first) == 0) {
-              alias_name = expr_name;
+              string temp = expr_name;
               str_replace_by_regex(expr_name, a.first + ".", a.second + ".");
+              if (temp != expr_name) {
+                alias_name = temp;
+                break;
+              }
             }
           }
         }
