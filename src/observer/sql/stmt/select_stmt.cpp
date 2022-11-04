@@ -169,7 +169,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
           for (auto a : alias_map) {
             if (table_map.count(a.first) == 0) {
               alias_name = expr_name;
-              str_replace_by_regex(expr_name, a.first, a.second);
+              str_replace_by_regex(expr_name, a.first + ".", a.second + ".");
             }
           }
         }
