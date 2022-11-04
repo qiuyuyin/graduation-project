@@ -344,6 +344,7 @@ void ParseStage::handle_event(StageEvent *event)
       vector<string> fields = {attr_name};
       string need_more_cond_table_name = "";
       string need_more_cond_attr_name = "";
+      bool need_more_cond_flag = false;
 
       std::regex where_in("[Ww][Hh][Ee][Rr][Ee].*[Ii][Nn]");
       smatch rs;
@@ -399,16 +400,26 @@ void ParseStage::handle_event(StageEvent *event)
         else sub_str += (tables[i] + ",");
       }
       string temp = sub_query_pair.first;
-      string more_cond = need_more_cond_table_name + "." + need_more_cond_attr_name + " = "
-                         + query_temp->sstr.selection.attributes->relation_name + "." +
-                         + query_temp->sstr.selection.attributes->attribute_name;
+//      string more_cond = need_more_cond_table_name + "." + need_more_cond_attr_name + " = "
+//                         + query_temp->sstr.selection.attributes->relation_name + "." +
+//                         + query_temp->sstr.selection.attributes->attribute_name;
+      string more_cond;
+      if(need_more_cond_table_name != ""){
+        if(query_temp->sstr.selection.attributes[0].attribute_name != nullptr && string(query_temp->sstr.selection.attributes[0].attribute_name)!="*"){
+          need_more_cond_flag = true;
+          more_cond = need_more_cond_table_name + "." + need_more_cond_attr_name + " = "
+                             + query_temp->sstr.selection.attributes->relation_name + "." +
+                             + query_temp->sstr.selection.attributes->attribute_name;
+
+        }
+      }
 
       std::regex s_w_pattern("[Ss][Ee][Ll][Ee][Cc][Tt].*[Ww][Hh][Ee][Rr][Ee]");
       if(std::regex_search(temp,s_w_pattern)){
         str_replace_by_regex(temp, "[Ss][Ee][Ll][Ee][Cc][Tt].*[Ww][Hh][Ee][Rr][Ee]", "");
         sub_str += "where " + temp;
 
-        if(need_more_cond_table_name!=""){
+        if(need_more_cond_flag){
           sub_str += " and "+more_cond;
         }
 
@@ -416,7 +427,7 @@ void ParseStage::handle_event(StageEvent *event)
           str_replace_by_regex(sub_str,iter.first+".",iter.second+".");
         }
       }else{
-        if(need_more_cond_table_name != ""){
+        if(need_more_cond_flag){
           sub_str += " where " + more_cond;
         }
       }
