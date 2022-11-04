@@ -156,12 +156,21 @@ RC ParseStage::handle_request(StageEvent *event, bool sub_query)
     return RC::INTERNAL;
   }
   std::unordered_map<std::string,std::string> alias_m;
+  int num = 0;
 
   for (size_t i = 0; i < query_result->sstr.selection.relation_num; i++) {
     const char *t_name = query_result->sstr.selection.relations[i].name;
     if (query_result->sstr.selection.relations[i].alias != nullptr) {
+      num++;
       alias_m.insert(pair<string,string>(query_result->sstr.selection.relations[i].alias,t_name));
     }
+  }
+
+  if (alias_m.size() != num) {
+    sql_event->session_event()->set_response("FAILURE\n");
+    query_destroy(query_result);
+    callback_event(sql_event, nullptr);
+    return RC::INTERNAL;
   }
 
   for(int i = 0 ; i < query_result->sstr.selection.condition_num; i++ ){
