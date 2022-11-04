@@ -166,11 +166,11 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
       } else {
         string expr_name = parse_field.name;
         if (parse_field.name.find(".") != parse_field.name.npos) {
-          auto s = split(parse_field.name, ".");
-          string table_name = s[0];
-          if (table_map.count(table_name) == 0 && alias_map.count(table_name) == 1) {
-            alias_name = expr_name;
-            expr_name = alias_map[table_name] + "." + s[1];
+          for (auto a : alias_map) {
+            if (table_map.count(a.first) == 0) {
+              alias_name = expr_name;
+              str_replace_by_regex(expr_name, a.first, a.second);
+            }
           }
         }
         expr = new VarExpr(expr_name, AttrType::UNDEFINED);
@@ -196,7 +196,11 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     }
     string key, name;
     if (attribute.relation_name != nullptr) {
-      name = string(attribute.relation_name) + "." + attribute.attribute_name;
+      string rel_name = attribute.relation_name;
+      if (table_map.count(rel_name) == 0 && alias_map.count(rel_name) == 1) {
+        rel_name = alias_map[rel_name];
+      }
+      name = rel_name + "." + attribute.attribute_name;
       key = string(aggregate_type_to_string(attribute.aggregation_type)) + "(" + name + ")";
     } else {
       name = attribute.attribute_name;

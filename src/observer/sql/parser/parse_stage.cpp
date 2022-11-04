@@ -181,6 +181,10 @@ RC ParseStage::handle_request(StageEvent *event, bool sub_query)
 
   sql_event->set_query(query_result);
   resolve_stage_->handle_event(sql_event);
+  if (strcmp(sql_event->session_event()->get_response(), "FAILURE\n") == 0) {
+    callback_event(sql_event, nullptr);
+    return INTERNAL;
+  }
   return RC::SUCCESS;
 }
 
