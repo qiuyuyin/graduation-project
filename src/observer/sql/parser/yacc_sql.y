@@ -577,6 +577,9 @@ expr_cell:
     ID {
             set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 1, $1, NULL, NULL);
        }
+    | ID DOT STAR {
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 2, $1, "*", NULL);
+       }
     | ID DOT ID {
             set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 2, $1, $3, NULL);
        }
