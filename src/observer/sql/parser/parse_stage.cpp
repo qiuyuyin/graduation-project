@@ -342,6 +342,18 @@ void ParseStage::handle_event(StageEvent *event)
       }
       vector<string> tables = {relation_name};
       vector<string> fields = {attr_name};
+      string need_more_cond_table_name = "";
+      string need_more_cond_attr_name = "";
+
+      std::regex where_in("[Ww][Hh][Ee][Rr][Ee].*[Ii][Nn]");
+      smatch rs;
+      if(regex_search(old_str,rs,where_in)){
+        string tmp;
+        tmp = rs[0].str().substr(5,rs[0].str().size()-7);
+        str_replace_by_regex(tmp,"[Nn][Oo][Tt]","");
+        need_more_cond_attr_name = tmp.substr(tmp.find_first_not_of(' '),tmp.find_last_not_of(' ')-tmp.find_first_not_of(' ')+1);
+      }
+
       for (int i = 0; i < query_temp->sstr.selection.condition_num; ++i) {
         auto condition = query_temp->sstr.selection.conditions[i];
         if (condition.left_type == 2 && condition.left_attr.relation_name != nullptr && string(condition.left_attr.relation_name) != relation_name) {
@@ -349,10 +361,12 @@ void ParseStage::handle_event(StageEvent *event)
           if(iter != possible_alias_map.end()){
             if(std::count(tables.begin(),tables.end(),iter->second)==0){
               tables.push_back(iter->second);
+              need_more_cond_table_name = iter->second;
             }
           }else{
             if(std::count(tables.begin(),tables.end(),string(condition.left_attr.relation_name))){
               tables.push_back(string(condition.left_attr.relation_name));
+              need_more_cond_table_name = string(condition.left_attr.relation_name);
             }
           }
 
@@ -363,10 +377,12 @@ void ParseStage::handle_event(StageEvent *event)
           if(iter != possible_alias_map.end()){
             if(std::count(tables.begin(),tables.end(),iter->second)==0){
               tables.push_back(iter->second);
+              need_more_cond_table_name = iter->second;
             }
           }else{
             if(std::count(tables.begin(),tables.end(),string(condition.right_attr.relation_name))){
               tables.push_back(string(condition.right_attr.relation_name));
+              need_more_cond_table_name = string(condition.right_attr.relation_name);
             }
           }
 
@@ -383,16 +399,26 @@ void ParseStage::handle_event(StageEvent *event)
         else sub_str += (tables[i] + ",");
       }
       string temp = sub_query_pair.first;
+      string more_cond = need_more_cond_table_name + "." + need_more_cond_attr_name + " = "
+                         + query_temp->sstr.selection.attributes->relation_name + "." +
+                         + query_temp->sstr.selection.attributes->attribute_name;
 
       std::regex s_w_pattern("[Ss][Ee][Ll][Ee][Cc][Tt].*[Ww][Hh][Ee][Rr][Ee]");
       if(std::regex_search(temp,s_w_pattern)){
         str_replace_by_regex(temp, "[Ss][Ee][Ll][Ee][Cc][Tt].*[Ww][Hh][Ee][Rr][Ee]", "");
         sub_str += "where " + temp;
+
+        if(need_more_cond_table_name!=""){
+          sub_str += " and "+more_cond;
+        }
+
         for(auto iter:possible_alias_map){
           str_replace_by_regex(sub_str,iter.first+".",iter.second+".");
         }
       }else{
-        //;
+        if(need_more_cond_table_name != ""){
+          sub_str += " where " + more_cond;
+        }
       }
       //str_replace_by_regex(temp, "[Ss][Ee][Ll][Ee][Cc][Tt].*[Ww][Hh][Ee][Rr][Ee]", "");
       //sub_str += "where " + temp;
