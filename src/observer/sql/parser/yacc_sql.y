@@ -544,6 +544,14 @@ selects_expression_all:
             clear_buffer_expr_cell_list(&CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
             CONTEXT->expr_cell_buffer_num = 0;
         }
+    | expr ID {
+            append_buffer_expr_to_select_attribute(&CONTEXT->ssql->sstr.selection, &CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+            append_buffer_expr_to_select_exprlist(&CONTEXT->ssql->sstr.selection.expr_list, &CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+            append_alias_to_expr(&CONTEXT->ssql->sstr.selection.expr_list, $2);
+            CONTEXT->ssql->sstr.selection.expr_list.exprs_num++;
+            clear_buffer_expr_cell_list(&CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+            CONTEXT->expr_cell_buffer_num = 0;
+        }
     | selects_expression_all COMMA selects_expression_all {
         }
     ;
