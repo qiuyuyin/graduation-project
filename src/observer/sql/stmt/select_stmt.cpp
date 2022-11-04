@@ -44,7 +44,7 @@ static void wildcard_fields(Table *table, std::vector<shared_ptr<TupleCellSpec>>
     }
     auto expr = new VarExpr(name, table_meta.field(i)->type());
     auto tuple_cell_spec = make_shared<TupleCellSpec>(expr);
-    if (alias_map.count(table->name()) == 1) {
+    if (multi_table && alias_map.count(table->name()) == 1) {
       tuple_cell_spec->set_alias(string(alias_map[string(table->name())] + "." + table_meta.field(i)->name()).c_str());
     }
     query_fields.push_back(tuple_cell_spec);
@@ -141,7 +141,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
         }
         continue;
       }
-      if (parse_fields[i].name.find("*") != parse_fields[i].name.npos) {
+      if (parse_fields[i].name.find(".*") != parse_fields[i].name.npos) {
         auto arr = split(parse_fields[i].name, ".");
         Table* table = nullptr;
         if (table_map.count(arr[0]) == 1) {
