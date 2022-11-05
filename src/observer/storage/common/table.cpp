@@ -719,51 +719,93 @@ RC Table::update_record(Trx *trx, Record *record, std::vector<std::string> attr_
   }
 
   if (trx != nullptr) {
-    LOG_WARN("[Table::update_record] not support method with trx");
-    return UNIMPLENMENT;
-  } else {
-    RC rc;
-    // update record
-    int record_size = table_meta_.record_size();
-    char *record_data = record->data();
-    auto old_data = new char[record_size];
-    auto new_data = new char[record_size];
-    memcpy(old_data, record_data, record_size);
-    memcpy(new_data, record_data, record_size);
-    int *null_value_map = (int *)(new_data + table_meta_.field(1)->offset());
+    trx->init_trx_info(this, *record);
+  }
+  RC rc;
+  // update record
+  int record_size = table_meta_.record_size();
+  char *record_data = record->data();
+  auto old_data = new char[record_size];
+  auto new_data = new char[record_size];
+  memcpy(old_data, record_data, record_size);
+  memcpy(new_data, record_data, record_size);
+  int *null_value_map = (int *)(new_data + table_meta_.field(1)->offset());
 
-    for (int i = 0; i < attr_names.size(); i++) {
-      const char *attribute_name = attr_names[i].c_str();
-      Value *value = attr_values[i];
-      const FieldMeta *field = table_meta_.field(attribute_name);
-      if (value->type == UNDEFINED) {
-        *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), true);
-      } else {
-        *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), false);
-      }
+  for (int i = 0; i < attr_names.size(); i++) {
+    const char *attribute_name = attr_names[i].c_str();
+    Value *value = attr_values[i];
+    const FieldMeta *field = table_meta_.field(attribute_name);
+    if (value->type == UNDEFINED) {
+      *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), true);
+    } else {
+      *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), false);
+    }
+    if (value->type != UNDEFINED) {
       if (value->type != UNDEFINED) {
-        if (value->type != UNDEFINED) {
-          size_t copy_len = field->len();
-          if (field->type() == CHARS) {
-            const size_t data_len = strlen((const char *)value->data);
-            if (copy_len > data_len) {
-              copy_len = data_len + 1;
-            }
+        size_t copy_len = field->len();
+        if (field->type() == CHARS) {
+          const size_t data_len = strlen((const char *)value->data);
+          if (copy_len > data_len) {
+            copy_len = data_len + 1;
           }
-          memcpy(new_data + field->offset(), value->data, copy_len);
         }
+        memcpy(new_data + field->offset(), value->data, copy_len);
       }
     }
+  }
 
-    if ((rc = update_entry_of_indexes(old_data, new_data, record->rid())) == RC::SUCCESS) {
-      record->set_data(new_data);
-      if ((rc = record_handler_->update_record(record)) != SUCCESS) {
-        LOG_WARN("[Table::update_record] record_handler更新record失败");
-      }
+  rc = update_entry_of_indexes(old_data, new_data, record->rid());
+
+  if(rc != RC::SUCCESS){
+    LOG_ERROR("Update record failed. table name = %s, rc=%d:%s", table_meta_.name(), rc, strrc(rc));
+    return rc;
+  }
+  record->set_data(new_data);
+  rc = record_handler_->update_record(record);
+  if (rc != SUCCESS) {
+    LOG_WARN("[Table::update_record] record_handler更新record失败");
+    record->set_data(old_data);
+    delete[] new_data;
+    RC rollback = record_handler_->update_record(record);
+    if(rollback != RC::SUCCESS){
+      LOG_WARN("[Table::update_record] record_handler rollback record fail.");
+      return rc;
     }
     return rc;
   }
-  return SUCCESS;
+
+  delete[] old_data;
+
+  if(trx != nullptr) {
+    rc = trx->update_record(this, record);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to log operation(update) to trx");
+
+      RC rc2 = record_handler_->delete_record(&record->rid());
+      if (rc2 != RC::SUCCESS) {
+        LOG_ERROR("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
+                  name(),
+                  rc2,
+                  strrc(rc2));
+      }
+      return rc;
+    }
+  }
+  if (trx != nullptr) {
+    // append clog record
+    CLogRecord *clog_record = nullptr;
+    rc = clog_manager_->clog_gen_record(
+        CLogType::REDO_UPDATE, trx->get_current_id(), clog_record, name(), table_meta_.record_size(), record);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to create a clog record. rc=%d:%s", rc, strrc(rc));
+      return rc;
+    }
+    rc = clog_manager_->clog_append_record(clog_record);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+  }
+  return rc;
 }
 
 RC Table::update_record(Trx *trx, const char *attribute_name, const Value *value, int condition_num,
@@ -1140,4 +1182,19 @@ RC Table::sync()
   }
   LOG_INFO("Sync table over. table=%s", name());
   return rc;
+}
+RC Table::commit_update(Trx *trx, RID &rid)
+{
+    Record record;
+    RC rc = record_handler_->get_record(&rid, &record);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to get record %s: %s", this->name(), rid.to_string().c_str());
+      return rc;
+    }
+
+    return trx->commit_update(this, record);
+}
+RC Table::recover_update_record(Record *record)
+{
+  return record_handler_->update_record(record);
 }

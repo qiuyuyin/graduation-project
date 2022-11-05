@@ -83,6 +83,10 @@ public:
     return record_handler_;
   }
 
+  RC commit_update(Trx *trx, RID &rid);
+
+  RC recover_update_record(Record *record);
+
 public:
   const char *name() const;
 

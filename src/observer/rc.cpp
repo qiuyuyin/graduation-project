@@ -192,6 +192,7 @@ const char *strrc(RC rc)
 
     RC_CASE_STRING(LOGBUF_FULL);
     RC_CASE_STRING(LOGBUF_EMPTY);
+    RC_CASE_STRING(UNIQUE_KEY_EXIST);
     default: {
       return "UNKNOWN";
     }

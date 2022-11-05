@@ -93,6 +93,20 @@ RC Trx::insert_record(Table *table, Record *record)
   return rc;
 }
 
+RC Trx::update_record(Table *table, Record *record)
+{
+  RC rc = RC::SUCCESS;
+  start_if_not_started();
+  Operation *old_oper = find_operation(table, record->rid());
+  if(old_oper != nullptr) {
+    if(old_oper->type() != Operation::Type::UNDEFINED) {
+      delete_operation(table, record->rid());
+      return RC::SUCCESS;
+    }
+  }
+  insert_operation(table, Operation::Type::UPDATE, record->rid());
+}
+
 RC Trx::delete_record(Table *table, Record *record)
 {
   RC rc = RC::SUCCESS;
@@ -192,6 +206,13 @@ RC Trx::commit()
                 "Failed to commit delete operation. rid=%d.%d, rc=%d:%s", rid.page_num, rid.slot_num, rc, strrc(rc));
           }
         } break;
+        case Operation::Type::UPDATE: {
+          rc = table->commit_update(this, rid);
+          if (rc != RC::SUCCESS) {
+            LOG_ERROR(
+                "Failed to commit update operation. rid=%d.%d, rc=%d:%s", rid.page_num, rid.slot_num, rc, strrc(rc));
+          }
+        } break;
         default: {
           LOG_PANIC("Unknown operation. type=%d", (int)operation.type());
         } break;
@@ -281,4 +302,9 @@ void Trx::start_if_not_started()
   if (trx_id_ == 0) {
     trx_id_ = next_trx_id();
   }
+}
+RC Trx::commit_update(Table *table, Record &record)
+{
+  set_record_trx_id(table, record, 0, false);
+  return RC::SUCCESS;
 }
