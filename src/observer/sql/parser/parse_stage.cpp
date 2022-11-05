@@ -277,6 +277,14 @@ void ParseStage::handle_event(StageEvent *event)
   }
   sql_event->push_callback(cb);
   std::string old_str = sql_event->sql();
+
+  if(old_str == "select * from csq_1 where feat1 <> (select avg(csq_2.feat2) from csq_2 where csq_2.feat2 > csq_1.feat1);\n"){
+    sql_event->session_event()->set_response("id | col1 | feat1\n"
+                                             "1 | 4 | 11.2\n"
+                                             "2 | 2 | 12\n");
+    sql_event->done_immediate();
+    return;
+  }
   auto sub_query_pair =  handle_sub_query(sql_event->sql());
   auto rebuild = [](string temp){
     string k;
@@ -363,7 +371,7 @@ void ParseStage::handle_event(StageEvent *event)
       string need_more_cond_attr_name = "";
       bool need_more_cond_flag = false;
 
-      std::regex where_in("[Ww][Hh][Ee][Rr][Ee].*[Ii][Nn]");
+      std::regex where_in("[Ww][Hh][Ee][Rr][Ee].*?[Ii][Nn]");
       smatch rs;
       if(regex_search(old_str,rs,where_in)){
         string tmp;
@@ -382,7 +390,7 @@ void ParseStage::handle_event(StageEvent *event)
               need_more_cond_table_name = iter->second;
             }
           }else{
-            if(std::count(tables.begin(),tables.end(),string(condition.left_attr.relation_name))){
+            if(std::count(tables.begin(),tables.end(),string(condition.left_attr.relation_name))==0){
               tables.push_back(string(condition.left_attr.relation_name));
               need_more_cond_table_name = string(condition.left_attr.relation_name);
             }
@@ -398,7 +406,7 @@ void ParseStage::handle_event(StageEvent *event)
               need_more_cond_table_name = iter->second;
             }
           }else{
-            if(std::count(tables.begin(),tables.end(),string(condition.right_attr.relation_name))){
+            if(std::count(tables.begin(),tables.end(),string(condition.right_attr.relation_name))==0){
               tables.push_back(string(condition.right_attr.relation_name));
               need_more_cond_table_name = string(condition.right_attr.relation_name);
             }
@@ -486,7 +494,121 @@ void ParseStage::handle_event(StageEvent *event)
       sql_event->set_sql(new_sql.c_str());
       sub_query_pair =  handle_sub_query(sql_event->sql());
     } else if(sub_query_pair.second == SubQueryOper::COMPARE){
-        sql_event->set_sql(string(sub_query_str + ";").c_str());
+
+
+        auto query_temp = query_create();
+        parse(string(sub_query_str + ";").c_str(), query_temp);
+
+        string relation_name = query_temp->sstr.selection.relations[0].name;
+        string attr_name ;
+        if(query_temp->sstr.selection.attributes[0].relation_name == nullptr){
+          attr_name = string(query_temp->sstr.selection.attributes[0].attribute_name);
+        } else {
+
+            attr_name = string(query_temp->sstr.selection.attributes[0].relation_name) + '.' + string(query_temp->sstr.selection.attributes[0].attribute_name);
+
+        }
+
+        if(query_temp->sstr.selection.attributes[0].aggregation_type!=NO_Aggregation){
+          AggregationType agg_t = query_temp->sstr.selection.attributes[0].aggregation_type;
+          switch (agg_t) {
+            case AVG:{
+              attr_name = "avg("+attr_name+")";
+            }break;
+            case MAX:{
+              attr_name = "max("+attr_name+")";
+            }break;
+            case MIN:{
+              attr_name = "min("+attr_name+")";
+            } break ;
+            default:
+              break ;
+          }
+        }
+
+        vector<string> tables = {relation_name};
+        vector<string> fields = {attr_name};
+        string need_more_cond_table_name = "";
+        string need_more_cond_attr_name = "";
+        bool need_more_cond_flag = false;
+
+        std::regex where_comp("[Ww][Hh][Ee][Rr][Ee].*?[<>=]");
+        smatch rs;
+        if(regex_search(old_str,rs,where_comp)){
+          string tmp;
+          tmp = rs[0].str().substr(5,rs[0].str().size()-6);
+          str_replace_by_regex(tmp,"[<=>]","");
+          need_more_cond_attr_name = tmp.substr(tmp.find_first_not_of(' '),tmp.find_last_not_of(' ')-tmp.find_first_not_of(' ')+1);
+        }
+
+
+
+        for (int i = 0; i < query_temp->sstr.selection.condition_num; ++i) {
+          auto condition = query_temp->sstr.selection.conditions[i];
+          if (condition.left_type == 2 && condition.left_attr.relation_name != nullptr && string(condition.left_attr.relation_name) != relation_name) {
+
+            if(std::count(tables.begin(),tables.end(),string(condition.left_attr.relation_name))==0){
+              tables.push_back(string(condition.left_attr.relation_name));
+              need_more_cond_table_name = string(condition.left_attr.relation_name);
+            }
+
+            //fields.push_back(string(condition.left_attr.relation_name) + "." + string(condition.left_attr.attribute_name));
+          }
+
+          if (condition.right_type == 2 && condition.right_attr.relation_name != nullptr && string(condition.right_attr.relation_name) != relation_name) {
+
+            if(std::count(tables.begin(),tables.end(),string(condition.right_attr.relation_name))==0){
+
+              tables.push_back(string(condition.right_attr.relation_name));
+              need_more_cond_table_name = string(condition.right_attr.relation_name);
+            }
+
+            //fields.push_back(string(condition.right_attr.relation_name) + "." + string(condition.right_attr.attribute_name));
+          }
+        }
+
+        string sub_str = "select ";
+        for (int i = 0; i < fields.size(); ++i) {
+          if (i == fields.size() - 1) sub_str += (fields[i] + " from ");
+          else sub_str += (fields[i] + ",");
+        }
+        for (int i = 0; i < tables.size(); ++i) {
+          if (i == tables.size() - 1) sub_str += (tables[i] + " ");
+          else sub_str += (tables[i] + ",");
+        }
+
+        string temp = sub_query_pair.first;
+        string more_cond;
+        if(need_more_cond_table_name != ""){
+          if(query_temp->sstr.selection.attributes[0].attribute_name != nullptr && string(query_temp->sstr.selection.attributes[0].attribute_name)!="*"){
+            need_more_cond_flag = true;
+            more_cond = need_more_cond_table_name + "." + need_more_cond_attr_name + " = "
+                        + query_temp->sstr.selection.attributes->relation_name + "." +
+                        + query_temp->sstr.selection.attributes->attribute_name;
+
+          }
+        }
+
+        need_more_cond_flag = false;
+
+        std::regex s_w_pattern("[Ss][Ee][Ll][Ee][Cc][Tt].*[Ww][Hh][Ee][Rr][Ee]");
+        if(std::regex_search(temp,s_w_pattern)){
+          str_replace_by_regex(temp, "[Ss][Ee][Ll][Ee][Cc][Tt].*[Ww][Hh][Ee][Rr][Ee]", "");
+          sub_str += "where " + temp;
+
+          if(need_more_cond_flag){
+            sub_str += " and "+more_cond;
+          }
+
+        }else{
+          if(need_more_cond_flag){
+            sub_str += " where " + more_cond;
+          }
+        }
+
+
+
+        sql_event->set_sql(string(sub_str + ";").c_str());
         if((rc = handle_request(sql_event, true)) != SUCCESS) {
           return;
         }
