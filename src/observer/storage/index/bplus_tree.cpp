@@ -1739,8 +1739,8 @@ RC BplusTreeHandler::delete_entry(const std::vector<const char *> &user_key, con
   mem_pool_item_->free(key);
   return RC::SUCCESS;
 }
-RC BplusTreeHandler::update_entry(
-    const std::vector<const char *> &old_user_key, const std::vector<const char *> &new_user_key, const RID *rid)
+RC BplusTreeHandler::update_entry(const std::vector<const char *> &old_user_key,
+    const std::vector<const char *> &new_user_key, const RID *rid, bool need_to_del_old, bool need_to_ins_new)
 {
   bool eq = true;
   for(int i = 0; i < file_header_.attr_nums && eq; i++){
@@ -1754,11 +1754,17 @@ RC BplusTreeHandler::update_entry(
   if(file_header_.is_unique_ && entry_exists(new_user_key)){
     return RC::UNIQUE_KEY_EXIST;
   }
-  if(delete_entry(old_user_key, rid) == RC::SUCCESS){
-    return insert_entry(new_user_key, rid);
-  }else {
-    return insert_entry(old_user_key, rid);
+  // TODO: take nullable fields into account
+  RC rc = RC::SUCCESS;
+  if(need_to_del_old){
+    if(delete_entry(old_user_key, rid) != RC::SUCCESS){
+      return insert_entry(old_user_key, rid);
+    }
   }
+  if(need_to_ins_new){
+    rc = insert_entry(new_user_key, rid);
+  }
+  return rc;
 }
 
 BplusTreeScanner::BplusTreeScanner(BplusTreeHandler &tree_handler) : tree_handler_(tree_handler)

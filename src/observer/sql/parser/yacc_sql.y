@@ -544,6 +544,14 @@ selects_expression_all:
             clear_buffer_expr_cell_list(&CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
             CONTEXT->expr_cell_buffer_num = 0;
         }
+    | expr ID {
+            append_buffer_expr_to_select_attribute(&CONTEXT->ssql->sstr.selection, &CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+            append_buffer_expr_to_select_exprlist(&CONTEXT->ssql->sstr.selection.expr_list, &CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+            append_alias_to_expr(&CONTEXT->ssql->sstr.selection.expr_list, $2);
+            CONTEXT->ssql->sstr.selection.expr_list.exprs_num++;
+            clear_buffer_expr_cell_list(&CONTEXT->expr_cells, CONTEXT->expr_cell_buffer_num);
+            CONTEXT->expr_cell_buffer_num = 0;
+        }
     | selects_expression_all COMMA selects_expression_all {
         }
     ;
@@ -568,6 +576,9 @@ expr:   expr PLUS  expr    {set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->e
 expr_cell:
     ID {
             set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 1, $1, NULL, NULL);
+       }
+    | ID DOT STAR {
+            set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 2, $1, "*", NULL);
        }
     | ID DOT ID {
             set_buffer_expr_cell(&CONTEXT->expr_cells[CONTEXT->expr_cell_buffer_num++], 2, $1, $3, NULL);
@@ -608,6 +619,9 @@ rel:
    | ID AS ID rel_list {
             selects_append_relation(&CONTEXT->ssql->sstr.selection, $1, $3);
    }
+   | ID ID rel_list{
+            selects_append_relation(&CONTEXT->ssql->sstr.selection, $1, $2);
+   }
    ;
 
 rel_list:
@@ -618,18 +632,27 @@ rel_list:
     | COMMA ID AS ID rel_list {
             selects_append_relation(&CONTEXT->ssql->sstr.selection, $2, $4);
         }
+    | COMMA ID ID rel_list {
+                selects_append_relation(&CONTEXT->ssql->sstr.selection, $2, $3);
+            }
     | INNER JOIN ID rel_list {
               selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, NULL);
           }
     | INNER JOIN ID AS ID rel_list {
             selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, $5);
           }
+    | INNER JOIN ID ID rel_list {
+                selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, $4);
+              }
     | INNER JOIN ID ON condition condition_list rel_list {
                 selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, NULL);
           }
     | INNER JOIN ID AS ID ON condition condition_list rel_list {
             selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, $5);
         }
+    | INNER JOIN ID ID ON condition condition_list rel_list {
+                selects_append_relation(&CONTEXT->ssql->sstr.selection, $3, $4);
+            }
     ;
 
 where:

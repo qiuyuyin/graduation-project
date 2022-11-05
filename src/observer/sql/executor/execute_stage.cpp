@@ -232,13 +232,27 @@ void end_trx_if_need(Session *session, Trx *trx, bool all_right)
   }
 }
 
-void print_tuple_header(std::ostream &os, const ProjectOperator &oper)
+void print_tuple_header(std::ostream &os, const ProjectOperator &oper,std::unordered_map<std::string,std::string> table_alias_map)
 {
   for (int i = 0; i < oper.projections().size(); ++i) {
     if (oper.projections().at(i)->alias() != nullptr) {
       os << oper.projections().at(i)->alias();
     } else {
-      os << oper.projections().at(i)->expr_name();
+      std::string expr_name_str = oper.projections().at(i)->expr_name();
+      string::size_type pos = expr_name_str.find_first_of(".");
+      if(pos == expr_name_str.npos){
+        os << expr_name_str;
+      }else{
+        auto iter = table_alias_map.find(expr_name_str.substr(0,pos));
+        if(iter == table_alias_map.end()){
+          os << expr_name_str;
+        }else{
+          std::string table_alias = iter->second;
+          std::string name_with_table_alias = table_alias+expr_name_str.substr(pos,expr_name_str.size()-pos);
+          os << name_with_table_alias;
+        }
+      }
+      // os << oper.projections().at(i)->expr_name();
     }
     if (i == oper.projections().size() - 1) {
       os << "\n";

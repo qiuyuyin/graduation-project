@@ -94,7 +94,7 @@ private:
 };
 
 IndexScanOperator *try_to_create_index_scan_operator(std::vector<FilterUnit*>& filter_units, char* target_table_name = nullptr);
-void print_tuple_header(std::ostream &os, const ProjectOperator &oper);
+void print_tuple_header(std::ostream &os, const ProjectOperator &oper, std::unordered_map<std::string,std::string> table_alias_map);
 void tuple_to_string(std::ostream &os, const Tuple &tuple);
 
 #endif  //__OBSERVER_SQL_EXECUTE_STAGE_H__

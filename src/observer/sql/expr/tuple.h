@@ -50,7 +50,7 @@ public:
 
   void set_alias(const char *alias)
   {
-    this->alias_ = alias;
+    this->alias_ = strdup(alias);
   }
   const char *alias() const
   {
@@ -307,22 +307,6 @@ public:
       }
       case ExprType::VAR: {
         string name = spec.expr_name();
-        RC rc;
-        if (spec.table_name() != "") {
-          name = get_full_name(&spec);
-          rc = get_cell_by_full_name(name, cell);
-          if (rc != SUCCESS) {
-            return get_cell_by_expr_name(name, cell);
-          }
-          return rc;
-        }
-        if (name.find(".") != name.npos) {
-          rc =  get_cell_by_full_name(name, cell);
-          if (rc != SUCCESS) {
-            return get_cell_by_expr_name(name, cell);
-          }
-          return rc;
-        }
         return get_cell_by_expr_name(name, cell);
       }
       case ExprType::CALCULATE: {
@@ -439,7 +423,15 @@ public:
       if (schema_[i]->expr_name() == col_name) {
         cell_at(i, out);
         return SUCCESS;
-      } else if (schema_[i]->expr_name().find(".") != schema_[i]->expr_name().npos) {
+      }
+      if (schema_[i]->expression_->type() == ExprType::FIELD) {
+        auto field_expr = (FieldExpr*)schema_[i]->expression_;
+        if (col_name == string(field_expr->field().table_name()) + "." + field_expr->field().field_name()) {
+          cell_at(i, out);
+          return SUCCESS;
+        }
+      }
+      if (schema_[i]->expr_name().find(".") != schema_[i]->expr_name().npos) {
         auto begin = schema_[i]->expr_name().find(".");
         auto field_name = schema_[i]->expr_name().substr(begin+1, schema_[i]->expr_name().npos);
         if (field_name == col_name) {

@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/parse.h"
 #include "unordered_set"
 #include <algorithm>
+#include "util/util.h"
 
 using namespace std;
 
@@ -32,7 +33,7 @@ SelectStmt::~SelectStmt()
   }
 }
 
-static void wildcard_fields(Table *table, std::vector<shared_ptr<TupleCellSpec>> &query_fields, bool multi_table)
+static void wildcard_fields(Table *table, std::vector<shared_ptr<TupleCellSpec>> &query_fields, unordered_map<string, string>& alias_map, bool multi_table)
 {
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num();
@@ -43,6 +44,9 @@ static void wildcard_fields(Table *table, std::vector<shared_ptr<TupleCellSpec>>
     }
     auto expr = new VarExpr(name, table_meta.field(i)->type());
     auto tuple_cell_spec = make_shared<TupleCellSpec>(expr);
+    if (multi_table && alias_map.count(table->name()) == 1) {
+      tuple_cell_spec->set_alias(string(alias_map[string(table->name())] + "." + table_meta.field(i)->name()).c_str());
+    }
     query_fields.push_back(tuple_cell_spec);
   }
 }
@@ -69,6 +73,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   vector<Table*> tables;
   unordered_map<std::string, Table*> table_map;
   unordered_map<string, string> alias_map;
+  unordered_map<string,string> alias_map_reverse;
   for (size_t i = 0; i < select_sql.relation_num; i++) {
     const char *table_name = select_sql.relations[i].name;
     if (nullptr == table_name) {
@@ -84,6 +89,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     tables.insert(tables.begin(), table);
     if (select_sql.relations[i].alias != nullptr) {
       alias_map.insert(pair<string, string>(table_name, select_sql.relations[i].alias));
+      alias_map.insert(pair<string,string>(select_sql.relations[i].alias,table_name));
     }
     table_map.insert(std::pair<std::string, Table*>(table_name, table));
   }
@@ -94,11 +100,23 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     Table* table = nullptr;
     if (common::is_blank(attr.relation_name)) {
       table = tables[0];
-      if (strcmp(attr.attribute_name, "*") == 0 || strcmp(attr.attribute_name, "1") == 0) {
-        continue;
-      }
     } else {
-      table = table_map[attr.relation_name];
+      //table = table_map[attr.relation_name];
+      auto iter = table_map.find(attr.relation_name);
+      if(iter == table_map.end()){
+        auto iter2 = alias_map.find(attr.relation_name);
+        if(iter2 == alias_map.end()){
+          LOG_WARN("NON-EXISTENCE ALIAS TABLE");
+          return RC::SCHEMA_TABLE_NOT_EXIST;
+        }else{
+          table = table_map[iter2->second];
+        }
+      }else{
+        table = iter->second;
+      }
+    }
+    if (strcmp(attr.attribute_name, "*") == 0 || strcmp(attr.attribute_name, "1") == 0) {
+      continue;
     }
     if (table->table_meta().field(attr.attribute_name) == nullptr) {
       LOG_WARN("the attribute name isn't in the tables' filed");
@@ -112,18 +130,32 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
   if (select_sql.attr_num == 1 && common::is_blank(select_sql.attributes[0].relation_name) && 0 == strcmp(select_sql.attributes[0].attribute_name, "*") && select_sql.attributes[0].aggregation_type == AggregationType::NO_Aggregation) {
     bool multi_table = (tables.size() > 1);
     for (auto table : tables) {
-      wildcard_fields(table, query_fields, multi_table);
+      wildcard_fields(table, query_fields, alias_map, multi_table);
     }
   } else {
     vector<QueryField> parse_fields = get_query_field(sql_string, tables.size() > 1);
     for (int i = 0; i < parse_fields.size(); ++i) {
       if (parse_fields[i].name == "*") {
         for (auto table : tables) {
-          wildcard_fields(table, query_fields, tables.size() > 1);
+          wildcard_fields(table, query_fields, alias_map, tables.size() > 1);
         }
         continue;
       }
+      if (parse_fields[i].name.find(".*") != parse_fields[i].name.npos) {
+        auto arr = split(parse_fields[i].name, ".");
+        Table* table = nullptr;
+        if (table_map.count(arr[0]) == 1) {
+          table = table_map[arr[0]];
+        } else if (alias_map.count(arr[0]) == 1 && table_map.count(alias_map[arr[0]]) == 1) {
+          table = table_map[alias_map[arr[0]]];
+        } else {
+          return INVALID_ARGUMENT;
+        }
+        wildcard_fields(table, query_fields, alias_map, true);
+        continue;
+      }
       auto parse_field = parse_fields[i];
+      string alias_name = "";
       Expression* expr = nullptr;
       if (select_sql.expr_list.exprs[i].expr_cell_num > 1) {
         vector<string> expr_cells;
@@ -132,9 +164,25 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
         }
         expr = new CalculateExpr(parse_field.name, expr_cells, AttrType::UNDEFINED);
       } else {
-        expr = new VarExpr(parse_field.name, AttrType::UNDEFINED);
+        string expr_name = parse_field.name;
+        if (parse_field.name.find(".") != parse_field.name.npos) {
+          for (auto a : alias_map) {
+            if (table_map.count(a.first) == 0) {
+              string temp = expr_name;
+              str_replace_by_regex(expr_name, a.first + ".", a.second + ".");
+              if (temp != expr_name) {
+                alias_name = temp;
+                break;
+              }
+            }
+          }
+        }
+        expr = new VarExpr(expr_name, AttrType::UNDEFINED);
       }
       auto tuple_cell_spec = make_shared<TupleCellSpec>(expr);
+      if (alias_name != "") {
+        tuple_cell_spec->set_alias(alias_name.c_str());
+      }
       if (parse_field.alias != "") {
         tuple_cell_spec->set_alias(parse_field.alias.c_str());
       }
@@ -152,7 +200,11 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
     }
     string key, name;
     if (attribute.relation_name != nullptr) {
-      name = string(attribute.relation_name) + "." + attribute.attribute_name;
+      string rel_name = attribute.relation_name;
+      if (table_map.count(rel_name) == 0 && alias_map.count(rel_name) == 1) {
+        rel_name = alias_map[rel_name];
+      }
+      name = rel_name + "." + attribute.attribute_name;
       key = string(aggregate_type_to_string(attribute.aggregation_type)) + "(" + name + ")";
     } else {
       name = attribute.attribute_name;

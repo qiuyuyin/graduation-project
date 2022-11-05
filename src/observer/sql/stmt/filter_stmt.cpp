@@ -50,6 +50,33 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   return rc;
 }
 
+//RC FilterStmt::create(Db *db,Table *default_table,std::unordered_map<std::string,Table *> *tables,
+//                      std::unordered_map<std::string,std::string> alias_m,const Condition *conditions ,int condition_num,
+//                      FilterStmt *&stmt){
+//  RC rc = RC::SUCCESS;
+//  stmt = nullptr;
+//  FilterStmt *tmp_stmt = new FilterStmt();
+//  for (int i = 0; i < condition_num; i++) {
+//    FilterUnit *filter_unit = nullptr;
+//
+//    if(conditions[i].left_type == 2){
+//      conditions[i].left_attr.relation_name = alias_m[conditions[i].left_attr.relation_name].c_str();
+//    }
+//
+//    rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
+//    if (rc != RC::SUCCESS) {
+//      delete tmp_stmt;
+//      LOG_WARN("failed to create filter unit. condition index=%d", i);
+//      return rc;
+//    }
+//    tmp_stmt->filter_units_.push_back(filter_unit);
+//  }
+//
+//  stmt = tmp_stmt;
+//  return rc;
+//
+//}
+
 RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
 		       const RelAttr &attr, Table *&table, const FieldMeta *&field)
 {
@@ -82,7 +109,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 				  const Condition &condition, FilterUnit *&filter_unit)
 {
   RC rc = RC::SUCCESS;
-  
+
   CompOp comp = condition.comp;
   if (comp < EQUAL_TO || comp >= NO_OP) {
     LOG_WARN("invalid compare operator : %d", comp);

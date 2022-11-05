@@ -48,23 +48,23 @@ INSERT INTO null_table VALUES (null, 15, 30.0, '2021-01-31');
 -- sort SELECT * FROM null_table WHERE '2021-01-31'<null;
 
 -- echo 4. SELECT WITH COLUMN
--- sort SELECT * FROM null_table where birthday is not null;
--- sort SELECT * FROM null_table where birthday is null;
--- sort SELECT * FROM null_table where birthday = null;
--- sort SELECT * FROM null_table where null = birthday;
--- sort SELECT * FROM null_table where birthday <> null;
--- sort SELECT * FROM null_table where birthday > null;
--- sort SELECT * FROM null_table where birthday < null;
+SELECT * FROM null_table where birthday is not null;
+SELECT * FROM null_table where birthday is null;
+SELECT * FROM null_table where birthday = null;
+SELECT * FROM null_table where null = birthday;
+SELECT * FROM null_table where birthday <> null;
+SELECT * FROM null_table where birthday > null;
+SELECT * FROM null_table where birthday < null;
 
--- sort SELECT * FROM null_table where num is not null;
--- sort SELECT * FROM null_table where num is null;
--- sort SELECT * FROM null_table where num = null;
--- sort SELECT * FROM null_table where null = num;
--- sort SELECT * FROM null_table where num <> null;
--- sort SELECT * FROM null_table where num > null;
--- sort SELECT * FROM null_table where num < null;
+SELECT * FROM null_table where num is not null;
+SELECT * FROM null_table where num is null;
+SELECT * FROM null_table where num = null;
+SELECT * FROM null_table where null = num;
+SELECT * FROM null_table where num <> null;
+SELECT * FROM null_table where num > null;
+SELECT * FROM null_table where num < null;
 
--- sort SELECT null_table.num,null_table2.num,null_table.birthday FROM null_table,null_table2 where null_table.num=null_table2.num;
+SELECT null_table.num,null_table2.num,null_table.birthday FROM null_table,null_table2 where null_table.num=null_table2.num;
 
 -- echo 5. aggregation
 SELECT count(*) FROM null_table;
@@ -80,3 +80,17 @@ SELECT count(num) FROM null_table3;
 SELECT min(num) FROM null_table3;
 SELECT max(num) FROM null_table3;
 SELECT avg(num) FROM null_table3;
+
+CREATE TABLE null_unique_table(id int, num int nullable, birthday date nullable);
+CREATE UNIQUE INDEX unique_test ON null_unique_table(id, num);
+-- should success
+INSERT INTO null_unique_table VALUES(1, 1, '2020-02-01');
+INSERT INTO null_unique_table VALUES(2, 1, '2020-02-12');
+INSERT INTO null_unique_table VALUES(3, 1, '2020-02-12');
+
+-- insert NULL data
+INSERT INTO null_unique_table VALUES(1, NULL, '2020-02-02');
+INSERT INTO null_unique_table VALUES(1, NULL, '2020-02-03');
+-- update null to not null
+DELETE FROM null_unique_table WHERE birthday='2020-02-03';
+UPDATE null_unique_table SET num = 1 WHERE birthday='2020-02-03';

@@ -42,6 +42,7 @@ protected:
 
 protected:
   RC handle_request(common::StageEvent *event, bool sub_query);
+  RC handle_request(common::StageEvent *event, bool sub_query,std::string main_sql);
 
 private:
   Stage *optimize_stage_ = nullptr;

@@ -199,7 +199,7 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
   }
 
   //正常查询
-  print_tuple_header(ss, *oper);
+  print_tuple_header(ss, *oper,select_stmt->alias_map());
   while ((rc = oper->next()) == RC::SUCCESS) {
     Tuple * tuple = oper->current_tuple();
     if (nullptr == tuple) {
