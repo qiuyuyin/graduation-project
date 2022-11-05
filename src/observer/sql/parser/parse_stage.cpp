@@ -88,10 +88,14 @@ void ParseStage::cleanup()
 }
 
 pair<string, SubQueryOper> handle_sub_query(std::string sql) {
-  std::smatch result;
+  std::smatch temp, result;
   std::regex pattern("\\([ ]*[Ss][Ee][Ll][Ee][Cc][Tt] ");
   std::string::const_iterator iterStart = sql.begin(), iterEnd = sql.end();
-  if (std::regex_search(iterStart, iterEnd, result, pattern)) {
+  while (std::regex_search(iterStart, iterEnd, temp, pattern)) {
+    result = temp;
+    iterStart = result[0].second;
+  }
+  if (!result.empty()) {
     std::string sub_query;
     auto index = result[0].first;
     int num = 0;
