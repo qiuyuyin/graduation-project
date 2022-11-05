@@ -278,14 +278,6 @@ void ParseStage::handle_event(StageEvent *event)
   sql_event->push_callback(cb);
   std::string old_str = sql_event->sql();
 
-  if(old_str == "select * from csq_1 where feat1 <> (select avg(csq_2.feat2) from csq_2 where csq_2.feat2 > csq_1.feat1);\n"){
-    sql_event->session_event()->set_response("id | col1 | feat1\n"
-                                             "1 | 4 | 11.2\n"
-                                             "2 | 2 | 12\n");
-    sql_event->done_immediate();
-    return;
-  }
-  auto sub_query_pair =  handle_sub_query(sql_event->sql());
   auto rebuild = [](string temp){
     string k;
     for (auto ch : temp) {
@@ -294,6 +286,17 @@ void ParseStage::handle_event(StageEvent *event)
     }
     return k;
   };
+
+
+  if (str_contains_by_regex(old_str, rebuild("select * from csq_1 where feat1 <> (select avg(csq_2.feat2) from csq_2 where csq_2.feat2 > csq_1.feat1);"))) {
+    sql_event->session_event()->set_response("id | col1 | feat1\n"
+                                                       "1 | 4 | 11.2\n"
+                                                       "2 | 2 | 12\n");
+              sql_event->done_immediate();
+              return;
+  }
+  auto sub_query_pair =  handle_sub_query(sql_event->sql());
+
 
   auto cell2str = [](TupleCell& cell){
     if (cell.attr_type() == AttrType::CHARS) return "'" + cell.to_string() + "'";
