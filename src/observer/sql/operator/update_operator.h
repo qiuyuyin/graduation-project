@@ -15,6 +15,9 @@ public:
   UpdateOperator(UpdateStmt *update_stmt)
     : update_stmt_(update_stmt)
   {}
+  UpdateOperator(UpdateStmt *update_stmt, Trx* trx)
+      : update_stmt_(update_stmt), trx_(trx)
+  {}
   virtual ~UpdateOperator() = default;
 
   RC open() override;
@@ -27,4 +30,5 @@ public:
 
 private:
   UpdateStmt *update_stmt_ = nullptr;
+  Trx* trx_ = nullptr;
 };

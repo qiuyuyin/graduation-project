@@ -496,6 +496,10 @@ RC ExecuteStage::do_update(SQLStageEvent *sql_event)
 {
   Stmt *stmt = sql_event->stmt();
   SessionEvent *session_event = sql_event->session_event();
+  auto session = session_event->session();
+  auto db = session->get_current_db();
+  auto trx = session->current_trx();
+  auto clog_manager = db->get_clog_manager();
 
   if (stmt == nullptr) {
     LOG_WARN("cannot find statement");
@@ -505,14 +509,30 @@ RC ExecuteStage::do_update(SQLStageEvent *sql_event)
   TableScanOperator scan_operator(update_stmt->table());
   PredicateOperator predicate_operator(update_stmt->filter_stmt()->filter_units());
   predicate_operator.add_child(&scan_operator);
-  UpdateOperator update_operator(update_stmt);
+  UpdateOperator update_operator(update_stmt, trx);
   update_operator.add_child(&predicate_operator);
 
   RC rc = update_operator.open();
-  if (rc != RC::SUCCESS) {
-    session_event->set_response("FAILURE\n");
+  if (rc == RC::SUCCESS) {
+    if (!session->is_trx_multi_operation_mode()) {
+      CLogRecord *clog_record = nullptr;
+      rc = clog_manager->clog_gen_record(CLogType::REDO_MTR_COMMIT, trx->get_current_id(), clog_record);
+      if (rc != RC::SUCCESS || clog_record == nullptr) {
+        session_event->set_response("FAILURE\n");
+        return rc;
+      }
+      rc = clog_manager->clog_append_record(clog_record);
+      if (rc != RC::SUCCESS) {
+        session_event->set_response("FAILURE\n");
+        return rc;
+      }
+      trx->next_current_id();
+      session_event->set_response("SUCCESS\n");
+    } else {
+      session_event->set_response("SUCCESS\n");
+    }
   } else {
-    session_event->set_response("SUCCESS\n");
+    session_event->set_response("FAILURE\n");
   }
   return rc;
 }
