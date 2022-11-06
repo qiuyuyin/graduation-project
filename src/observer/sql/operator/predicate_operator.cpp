@@ -66,7 +66,9 @@ bool PredicateOperator::do_predicate(Tuple* t1)
     return true;
   }
   RC rc = SUCCESS;
+  bool is_or = false;
   for (auto filter_unit : filter_units_) {
+    is_or = filter_unit->is_or;
     TupleCell left_cell, right_cell;
     auto left = filter_unit->left();
     auto right = filter_unit->right();
@@ -88,97 +90,105 @@ bool PredicateOperator::do_predicate(Tuple* t1)
       }
     }
 
+    bool result;
+
     if (comp == IN || comp == NOT_IN) {
       if (left_cell.is_null()) {
-        return false;
-      }
-      bool has_in = false;
-      if (right->type() == ExprType::CALCULATE) {
-        auto expr = (CalculateExpr*)right;
-        for (auto item : expr->expr_cells()) {
-          if (item == "null") return false;
-          if (expr->get_expr_cell_type(item) == ExprCellType::FLOAT) {
-            item = double2string(atof(item.c_str()));
+        result = false;
+      } else {
+        bool has_in = false;
+        if (right->type() == ExprType::CALCULATE) {
+          auto expr = (CalculateExpr*)right;
+          for (auto item : expr->expr_cells()) {
+            if (item == "null") return false;
+            if (expr->get_expr_cell_type(item) == ExprCellType::FLOAT) {
+              item = double2string(atof(item.c_str()));
+            }
+            if (left_cell.to_string() == item) {
+              has_in = true;
+              break;
+            }
           }
-          if (left_cell.to_string() == item) {
-            has_in = true;
-            break;
-          }
+        } else if (right->type() == ExprType::VALUE) {
+          auto expr = (ValueExpr*)right;
+          TupleCell right_cell;
+          expr->get_value(VTuple{}, right_cell);
+          if (right_cell.is_null()) return false;
+          has_in = (left_cell.to_string() == right_cell.to_string());
         }
-      } else if (right->type() == ExprType::VALUE) {
-        auto expr = (ValueExpr*)right;
-        TupleCell right_cell;
-        expr->get_value(VTuple{}, right_cell);
-        if (right_cell.is_null()) return false;
-        has_in = (left_cell.to_string() == right_cell.to_string());
+        if ((comp == IN && has_in == false) || (comp == NOT_IN && has_in == true)) {
+          result = false;
+        } else {
+          result = true;
+        }
       }
-      if ((comp == IN && has_in == false) || (comp == NOT_IN && has_in == true)) return false;
-      continue;
-    }
-
-    if (comp == LIKE || comp == NOT_LIKE) {
+    } else if (comp == LIKE || comp == NOT_LIKE) {
       if (left_cell.attr_type() == AttrType::CHARS && right_cell.attr_type() == AttrType::CHARS) {
         bool flag = compare_string((void *)left_cell.data(), left_cell.length(), (void *)right_cell.data(), right_cell.length(), true);
         if ((comp == LIKE && !flag) || (comp == NOT_LIKE && flag)) {
-          return false;
+          result =  false;
+        } else {
+          result = true;
         }
       } else {
         LOG_WARN("invalid data type, only the chars can use like");
         return INVALID_ARGUMENT;
       }
-      continue;
+    } else {
+      // check null compare
+      auto compare_null = [](TupleCell& c1, TupleCell& c2, CompOp op){
+        if (op == IS) return c1.is_null();
+        if (op == IS_NOT) return !c1.is_null();
+        return false;
+      };
+
+      auto is_null = [](TupleCell& cell){
+        return cell.attr_type() == UNDEFINED || cell.is_null();
+      };
+
+      if (is_null(left_cell) && is_null(right_cell)) {
+        if (comp == IS) result = true;
+        else if (comp == IS_NOT) result = false;
+        else result = false;
+      } else if (!is_null(left_cell) && is_null(right_cell)) {
+        result = compare_null(left_cell, right_cell, comp);
+      } else if (is_null(left_cell) && !is_null(right_cell)) {
+        result =  compare_null(right_cell, left_cell, comp);
+      } else {
+        const int compare = left_cell.compare(right_cell);
+        bool filter_result = false;
+        switch (comp) {
+          case EQUAL_TO: {
+            filter_result = (0 == compare);
+          } break;
+          case LESS_EQUAL: {
+            filter_result = (compare <= 0);
+          } break;
+          case NOT_EQUAL: {
+            filter_result = (compare != 0);
+          } break;
+          case LESS_THAN: {
+            filter_result = (compare < 0);
+          } break;
+          case GREAT_EQUAL: {
+            filter_result = (compare >= 0);
+          } break;
+          case GREAT_THAN: {
+            filter_result = (compare > 0);
+          } break;
+          default: {
+            LOG_WARN("invalid compare type: %d", comp);
+          } break;
+        }
+        if (!filter_result) {
+          result =  false;
+        } else {
+          result = true;
+        }
+      }
     }
-
-    // check null compare
-    auto compare_null = [](TupleCell& c1, TupleCell& c2, CompOp op){
-      if (op == IS) return c1.is_null();
-      if (op == IS_NOT) return !c1.is_null();
-      return false;
-    };
-
-    auto is_null = [](TupleCell& cell){
-      return cell.attr_type() == UNDEFINED || cell.is_null();
-    };
-
-    if (is_null(left_cell) && is_null(right_cell)) {
-      if (comp == IS) return true;
-      if (comp == IS_NOT) return false;
-      return false;
-    } else if (!is_null(left_cell) && is_null(right_cell)) {
-      return compare_null(left_cell, right_cell, comp);
-    } else if (is_null(left_cell) && !is_null(right_cell)) {
-      return compare_null(right_cell, left_cell, comp);
-    }
-
-
-    const int compare = left_cell.compare(right_cell);
-    bool filter_result = false;
-    switch (comp) {
-      case EQUAL_TO: {
-        filter_result = (0 == compare);
-      } break;
-      case LESS_EQUAL: {
-        filter_result = (compare <= 0);
-      } break;
-      case NOT_EQUAL: {
-        filter_result = (compare != 0);
-      } break;
-      case LESS_THAN: {
-        filter_result = (compare < 0);
-      } break;
-      case GREAT_EQUAL: {
-        filter_result = (compare >= 0);
-      } break;
-      case GREAT_THAN: {
-        filter_result = (compare > 0);
-      } break;
-      default: {
-        LOG_WARN("invalid compare type: %d", comp);
-      } break;
-    }
-    if (!filter_result) {
-      return false;
-    }
+    if (filter_unit->is_or == false && result == false) return false;
+    if (filter_unit->is_or == true && result == true) return true;
   }
-  return true;
+  return !is_or;
 }

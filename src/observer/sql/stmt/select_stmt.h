@@ -131,6 +131,7 @@ public:
   const std::vector<shared_ptr<TupleCellSpec>> &groupby_fields() const { return groupby_fields_; }
   const std::vector<OrderByField> &orderby_fields() const {return orderby_fields_;}
   FilterStmt *filter_stmt() const { return filter_stmt_; }
+  bool is_or = false;
 
 private:
   //project operator

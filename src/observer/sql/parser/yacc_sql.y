@@ -103,6 +103,7 @@ ParserContext *get_context(yyscan_t scanner)
         JOIN
         WHERE
         AND
+        OR
         SET
         ON
         LOAD
@@ -678,6 +679,9 @@ condition_list:
     | AND condition condition_list {
                 // CONTEXT->conditions[CONTEXT->condition_length++]=*$2;
             }
+    | OR condition condition_list {
+            CONTEXT->ssql->sstr.selection.is_or = 1;
+        }
     ;
     
 having:

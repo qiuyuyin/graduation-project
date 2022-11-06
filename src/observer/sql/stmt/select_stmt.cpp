@@ -310,6 +310,7 @@ RC SelectStmt::create(Db *db, const string sql_string, const Selects &select_sql
 
 //  // everything alright
   SelectStmt *select_stmt = new SelectStmt();
+  select_stmt->is_or = select_sql.is_or == 1;
   select_stmt->query_fields_.swap(query_fields);
   select_stmt->aggregate_fields_.swap(aggregate_fields);
   select_stmt->groupby_fields_.swap(groupby_fields);

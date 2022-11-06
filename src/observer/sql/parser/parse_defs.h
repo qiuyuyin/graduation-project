@@ -124,6 +124,8 @@ typedef struct {
 } Expr;
 
 typedef struct _Condition {
+  int is_or;
+
   int left_type;    // 1代表是Value 2代表RelAttr 3代表计算表达式(单一聚合函数也属于这一类)
 
   Value left_value;    // left-hand side value if left_type = FALSE
@@ -180,6 +182,7 @@ typedef struct {
   Relation relations[MAX_NUM]; // relations in From clause
   size_t condition_num;           // Length of conditions in Where clause
   Condition conditions[MAX_NUM];  // conditions in Where clause
+  int is_or;
   GroupBy group_by;
   OrderBy order_by;
   size_t e_length;
