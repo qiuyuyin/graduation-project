@@ -38,6 +38,7 @@ RC ExecuteStage::do_select(SQLStageEvent *sql_event)
   }
   //分配filter_units
   for (auto filter_unit : select_stmt->filter_stmt()->filter_units()) {
+    filter_unit->is_or = select_stmt->is_or;
     auto left_type = filter_unit->left()->type();
     auto right_type = filter_unit->right()->type();
     if (left_type == ExprType::VALUE && right_type == ExprType::VALUE) {
