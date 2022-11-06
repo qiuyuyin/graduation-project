@@ -97,6 +97,7 @@ RC Trx::update_record(Table *table, Record *record)
 {
   RC rc = RC::SUCCESS;
   start_if_not_started();
+  /*
   Operation *old_oper = find_operation(table, record->rid());
   if(old_oper != nullptr) {
     if(old_oper->type() == Operation::Type::INSERT ||
@@ -106,7 +107,9 @@ RC Trx::update_record(Table *table, Record *record)
       return RC::GENERIC_ERROR;
     }
   }
+  */
   insert_operation(table, Operation::Type::UPDATE, record->rid());
+  return rc;
 }
 
 RC Trx::delete_record(Table *table, Record *record)
