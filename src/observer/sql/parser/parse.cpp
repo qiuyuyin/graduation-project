@@ -312,7 +312,6 @@ void value_init_string(Value *value, const char *v)
 void value_destroy(Value *value)
 {
   value->type = UNDEFINED;
-  free(value->data);
   value->data = nullptr;
 }
 

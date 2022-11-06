@@ -733,7 +733,7 @@ RC Table::update_record(Trx *trx, Record *record, std::vector<std::string> attr_
 
   for (int i = 0; i < attr_names.size(); i++) {
     const char *attribute_name = attr_names[i].c_str();
-    Value *value = attr_values[i];
+    const Value *value = attr_values[i];
     const FieldMeta *field = table_meta_.field(attribute_name);
     if (value->type == UNDEFINED) {
       *null_value_map = set_bit(*null_value_map, table_meta_.field_index(attribute_name), true);
