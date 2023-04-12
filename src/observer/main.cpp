@@ -148,6 +148,7 @@ void quit_signal_handle(int signum)
 
 int main(int argc, char **argv)
 {
+  // set CTRL + C exit
   setSignalHandler(quit_signal_handle);
 
   parse_parameter(argc, argv);

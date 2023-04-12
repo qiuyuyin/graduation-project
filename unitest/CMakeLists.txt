@@ -9,7 +9,7 @@ MESSAGE("${CMAKE_COMMON_FLAGS}")
 
 
 #INCLUDE_DIRECTORIES([AFTER|BEFORE] [SYSTEM] dir1 dir2 ...)
-INCLUDE_DIRECTORIES(. ${PROJECT_SOURCE_DIR}/../deps ${PROJECT_SOURCE_DIR}/../src/observer /usr/local/include SYSTEM)
+INCLUDE_DIRECTORIES(. ${PROJECT_SOURCE_DIR}/../deps ${PROJECT_SOURCE_DIR}/../src/observer ${PROJECT_SOURCE_DIR}/../src/olap /usr/local/include SYSTEM)
 # 父cmake 设置的include_directories 和link_directories并不传导到子cmake里面
 #INCLUDE_DIRECTORIES(BEFORE ${CMAKE_INSTALL_PREFIX}/include)
 LINK_DIRECTORIES(/usr/local/lib /usr/local/lib64 ${PROJECT_BINARY_DIR}/../lib)
@@ -41,7 +41,7 @@ FOREACH (F ${ALL_SRC})
     MESSAGE("Build ${prjName} according to ${F}")
     ADD_EXECUTABLE(${prjName} ${F})
     # 不是所有的单测都需要链接observer_static
-    TARGET_LINK_LIBRARIES(${prjName} common pthread dl gtest gtest_main observer_static)
+    TARGET_LINK_LIBRARIES(${prjName} common pthread dl gtest gtest_main observer_static miniolap_static)
     gtest_discover_tests(${prjName})
 ENDFOREACH (F)
 

@@ -27,7 +27,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/persist/persist.h"
 #include "rc.h"
 
-//固定文件大小 TODO: 循环文件组
+// 固定文件大小 TODO: 循环文件组
 #define CLOG_FILE_SIZE 48 * 1024 * 1024
 #define CLOG_BUFFER_SIZE 4 * 1024 * 1024
 #define TABLE_NAME_MAX_LEN 20  // TODO: 表名不要超过20字节
@@ -58,10 +58,10 @@ struct CLogRecordHeader {
 };
 
 struct CLogInsertRecord {
-  CLogRecordHeader hdr_;
-  char table_name_[TABLE_NAME_MAX_LEN];
-  RID rid_;
-  int data_len_;
+  CLogRecordHeader hdr_;                 // Record Header
+  char table_name_[TABLE_NAME_MAX_LEN];  // Record table name
+  RID rid_;                              // Record modify place, slot and page num in it
+  int data_len_;                         // Record datalen
   char *data_;
 
   bool operator==(const CLogInsertRecord &other) const
@@ -241,7 +241,7 @@ public:
 
   RC clog_gen_record(CLogType flag, int32_t trx_id, CLogRecord *&log_rec, const char *table_name = nullptr,
       int data_len = 0, Record *rec = nullptr);
-  //追加写到log_buffer
+  // 追加写到log_buffer
   RC clog_append_record(CLogRecord *log_rec);
   // 通常不需要在外部调用
   RC clog_sync();

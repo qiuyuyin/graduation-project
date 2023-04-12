@@ -120,11 +120,16 @@ RC CLogRecord::copy_record(void *dest, int start_off, int copy_len)
     memcpy(dest, (char *)log_rec + start_off, copy_len);
   } else {
     if (start_off > CLOG_INS_REC_NODATA_SIZE) {
+      // 将剩余的data放到buffer中
       memcpy(dest, log_rec->ins.data_ + start_off - CLOG_INS_REC_NODATA_SIZE, copy_len);
     } else if (start_off + copy_len <= CLOG_INS_REC_NODATA_SIZE) {
+      // 代表不会将data放进去，所以直接放copy_len即可
       memcpy(dest, (char *)log_rec + start_off, copy_len);
     } else {
+      // put the header into the buffer
       memcpy(dest, (char *)log_rec + start_off, CLOG_INS_REC_NODATA_SIZE - start_off);
+
+      // put the data into the buffer
       memcpy((char *)dest + CLOG_INS_REC_NODATA_SIZE - start_off,
           log_rec->ins.data_,
           copy_len - (CLOG_INS_REC_NODATA_SIZE - start_off));
@@ -344,6 +349,7 @@ done:
   return RC::SUCCESS;
 }
 
+//  blcok is the file block, return log_rec
 RC CLogFile::block_recover(CLogBlock *block, int16_t &offset, CLogRecordBuf *logrec_buf, CLogRecord *&log_rec)
 {
   if (offset == CLOG_BLOCK_HDR_SIZE &&
