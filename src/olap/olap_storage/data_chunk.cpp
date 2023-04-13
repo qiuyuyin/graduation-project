@@ -1,5 +1,8 @@
-#include "./data_chunk.h"
+#include <fstream>
+
+#include "olap_storage/data_chunk.h"
 #include "zstd.h"
+#include "common/io/io.h"
 
 void ColumnBuilder::flush(FieldMeta fm)
 {
@@ -15,6 +18,7 @@ void ColumnBuilder::flush(FieldMeta fm)
   auto afterLen = this->compress(allLen);
   std::cout << "before compress: " << allLen << std::endl;
   std::cout << "after compress: " << afterLen << std::endl;
+  this->length = afterLen;
 }
 
 size_t ColumnBuilder::compress(int allLen)
@@ -28,6 +32,7 @@ size_t ColumnBuilder::compress(int allLen)
     std::cerr << "Error: " << ZSTD_getErrorName(compressResult) << std::endl;
     return 1;
   }
+  this->compressData = outBuff;
   return compressResult;
 }
 
@@ -38,7 +43,7 @@ EncodedRowset RowsetBuilder::flush()
   for (int i = 0; i < builders_.size(); i++) {
     builders_[i].flush(fields_[i]);
     EncodedColumn ec;
-    ec.index = builders_[i].index;
+    ec.length = builders_[i].length;
     ec.data = builders_[i].compressData;
     encodedColumns.push_back(ec);
   }
@@ -49,3 +54,15 @@ EncodedRowset RowsetBuilder::flush()
 
   return er;
 }
+
+void StorageMemRowset::write_to_file(std::string path) {
+  auto vec = this->rowset_builder_.builders_;
+  
+  for (int i = 0; i < vec.size(); i++) {
+    auto index = std::to_string(i+1);
+    auto filename = path + "/" + index + ".col";
+    std::ofstream file(filename, std::ios::out | std::ios::trunc);
+    common::writeToFile(filename, vec[i].compressData, vec[i].length, "w");
+  }
+}
+

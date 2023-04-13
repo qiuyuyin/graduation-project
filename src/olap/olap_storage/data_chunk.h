@@ -2,24 +2,25 @@
 #include <memory>
 #include <vector>
 #include <cstring>
+#include <string>
 #include <sql/parser/parse_defs.h>
 #include <storage/common/table_meta.h>
 
-typedef struct _Value {
-  AttrType type;  // type of value
-  void *data;     // value
-} Value;
+// typedef struct _Value {
+//   AttrType type;  // type of value
+//   void *data;     // value
+// } Value;
 
-typedef enum
-{
-  UNDEFINED,
-  CHARS,
-  INTS,
-  FLOATS,
-  DATES,
-  TEXTS,
-  NULLS
-} AttrType;
+// typedef enum
+// {
+//   UNDEFINED,
+//   CHARS,
+//   INTS,
+//   FLOATS,
+//   DATES,
+//   TEXTS,
+//   NULLS
+// } AttrType;
 
 // 定义ArrayImpl类型
 struct ArrayImpl {
@@ -124,7 +125,7 @@ struct ColumnMemTable {
 
 class ColumnBuilder {
 public:
-  int index;
+  int length;
   char *data;
   char *compressData;
   ArrayImpl arrayImpl;
@@ -133,29 +134,33 @@ public:
   size_t compress(int allLen);
 };
 
+class EncodedColumn {
+public:
+  int length;
+  char *data;
+};
+
+class EncodedRowset {
+public:
+  size_t size;
+  std::vector<EncodedColumn> columns;
+};
+
+// File Encode
+
 class RowsetBuilder {
 public:
   std::vector<FieldMeta> fields_;
   std::vector<ColumnBuilder> builders_;
 
   EncodedRowset flush();
-}
+};
 
 class StorageMemRowset {
 public:
   ColumnMemTable mem_table_;
   RowsetBuilder rowset_builder_;
 
-  void write_to_file(string path);
-}
-
-// File Encode
-struct EncodedColumn {
-  int index;
-  char *data;
-};
-
-struct EncodedRowset {
-  size_t size;
-  std::vector<EncodedColumn>  ;
+  void write_to_file(std::string path);
+  StorageMemRowset() : mem_table_(0), rowset_builder_() {}
 };

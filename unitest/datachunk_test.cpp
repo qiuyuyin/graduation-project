@@ -5,6 +5,11 @@
 #include <algorithm>
 #include <cstdlib>
 #include <ctime>
+#include <sstream>
+#include <fstream>
+#include <filesystem>
+#include <cstdio>
+
 
 #include "common/defs.h"
 #include "storage/common/table.h"
@@ -173,4 +178,52 @@ TEST(DataChunkTest, GetArrayWithIncorrectIndex)
 
   // 验证返回值是否为nullptr
   ASSERT_EQ(array, nullptr);
+}
+
+TEST(StorageMemRowsetTest, WriteToFileTest2) {
+  // Create a temporary directory for testing
+  // std::string temp_dir = std::filesystem::temp_directory_path().string();
+  std::string temp_dir = "/home/yinqiuyu/hust-bishe/miniob-2022/build";
+  std::string test_dir = temp_dir + "/tmp";
+  std::filesystem::create_directory(test_dir);
+
+  // Create a sample DataChunk
+  std::vector<ArrayImpl> arrays;
+  ArrayBuilderImpl int_builder;
+  for(int i=0;i < 200;i++) {
+    int_builder.push({AttrType::INTS, new int(i)});
+  }
+  
+  arrays.push_back(int_builder.build());
+  DataChunk data_chunk(arrays);
+
+  // Create a ColumnMemTable and append the sample DataChunk
+  ColumnMemTable mem_table(1);
+  mem_table.append(data_chunk);
+
+  // Create a RowsetBuilder and a ColumnBuilder
+  RowsetBuilder rowset_builder;
+  ColumnBuilder column_builder;
+  column_builder.arrayImpl = mem_table.flush()->arrays[0];
+  rowset_builder.builders_.push_back(column_builder);
+  FieldMeta fm1;
+  fm1.init("test_field", INTS, 0, 4, true, true, 0);
+  rowset_builder.fields_.push_back(fm1);
+  rowset_builder.flush();
+  // Create a StorageMemRowset and write to file
+  StorageMemRowset mem_rowset;
+  mem_rowset.rowset_builder_ = rowset_builder;
+  mem_rowset.write_to_file(test_dir);
+
+  // Check if the file was written correctly
+  std::string filename = test_dir + "/1.col";
+  std::ifstream file(filename, std::ios::in | std::ios::binary);
+  ASSERT_TRUE(file.good());
+  char buffer[1024];
+  file.read(buffer, sizeof(buffer));
+  EXPECT_EQ(file.gcount(), rowset_builder.builders_[0].length);
+  EXPECT_EQ(std::memcmp(buffer, rowset_builder.builders_[0].compressData, rowset_builder.builders_[0].length), 0);
+
+  // Clean up the temporary directory
+  // std::filesystem::remove_all(test_dir);
 }
