@@ -179,7 +179,8 @@ RC Db::recover()
     uint32_t max_trx_id = 0;
     CLogMTRManager *mtr_manager = clog_manager_->get_mtr_manager();
     for (auto it = mtr_manager->log_redo_list.begin(); it != mtr_manager->log_redo_list.end(); it++) {
-      CLogRecord *clog_record = *it;
+      CLogRecord
+       *clog_record = *it;
       if (clog_record->get_log_type() != CLogType::REDO_INSERT && clog_record->get_log_type() != CLogType::REDO_DELETE) {
         delete clog_record;
         continue;

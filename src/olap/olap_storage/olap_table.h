@@ -1,17 +1,19 @@
-class olap_table
-{
+// 在列存初始化的时候会读取行存中已经存在的table元数据，包含有每个列的属性
+#include <string.h>
+#include <storage/common/table_meta.h>
 
+
+class OlapTable {
 public:
-    olap_table(/* args */);
-    ~olap_table();
+  OlapTable(/* args */);
+  ~OlapTable();
 
-    
+  std::string base_dir_;
+  TableMeta table_meta_;
 };
 
-olap_table::olap_table(/* args */)
-{
-}
+OlapTable::OlapTable(/* args */)
+{}
 
-olap_table::~olap_table()
-{
-}
+OlapTable::~OlapTable()
+{}

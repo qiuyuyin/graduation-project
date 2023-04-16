@@ -183,7 +183,7 @@ TEST(DataChunkTest, GetArrayWithIncorrectIndex)
 TEST(StorageMemRowsetTest, WriteToFileTest2) {
   // Create a temporary directory for testing
   // std::string temp_dir = std::filesystem::temp_directory_path().string();
-  std::string temp_dir = "/home/yinqiuyu/hust-bishe/miniob-2022/build";
+  std::string temp_dir = "";
   std::string test_dir = temp_dir + "/tmp";
   std::filesystem::create_directory(test_dir);
 
