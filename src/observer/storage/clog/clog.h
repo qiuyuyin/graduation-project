@@ -153,7 +153,7 @@ public:
   }
   ///
 
-protected:
+public:
   CLogType flag_;
   CLogRecords log_record_;
 };
