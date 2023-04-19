@@ -17,6 +17,7 @@ void OlapDB::init(std::string olap_path, std::string oltp_path)
   if (!common::is_directory(olap_path.c_str())) {
     return;
   }
+
   if (!common::is_directory(oltp_path.c_str())) {
     return;
   }
@@ -39,7 +40,7 @@ void OlapDB::open_all_tables()
 
   for (const std::string &filename : table_meta_files) {
     OlapTable *table = new OlapTable();
-    table->open(filename.c_str(), oltp_path_.c_str(), clog_manager_);
+    table->open(filename.c_str(), oltp_path_.c_str(), olap_path_, clog_manager_);
     // if (rc != RC::SUCCESS) {
     //   delete table;
     //   LOG_ERROR("Failed to open table. filename=%s", filename.c_str());
@@ -50,7 +51,6 @@ void OlapDB::open_all_tables()
     //   delete table;
     // }
     table->base_dir_ = oltp_path_;
-    table->storage_dir_ = olap_path_ + common::FILE_PATH_SPLIT_STR + table->name_;
     opened_tables_[table->name_] = table;
     // LOG_INFO("Open table: %s, file: %s", table->name(), filename.c_str());
   }
@@ -83,6 +83,12 @@ void OlapDB::recover()
       delete clog_record;
       continue;
     }
+
+    if (this->trx_ > clog_record->get_trx_id()) {
+      delete clog_record;
+      continue;
+    }
+
     OlapTable *table = find_table(clog_record->log_record_.ins.table_name_);
     if (table == nullptr) {
       delete clog_record;
@@ -119,9 +125,13 @@ void OlapDB::recover()
       default: {
       }
     }
+
+    this->trx_ = clog_record->get_trx_id();
+    delete clog_record;
   }
-  for (const auto& pair : this->opened_tables_) {
-    if(pair.second->is_recovering_) {
+
+  for (const auto &pair : this->opened_tables_) {
+    if (pair.second->is_recovering_) {
       pair.second->end_recover();
     }
   }

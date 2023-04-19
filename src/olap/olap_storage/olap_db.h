@@ -19,6 +19,7 @@ public:
   std::string oltp_path_;
   std::unordered_map<std::string, OlapTable *> opened_tables_;
   CLogManager *clog_manager_ = nullptr;
+  int trx_ = 0;
 
   OlapDB() = default;
   ~OlapDB() = default ;

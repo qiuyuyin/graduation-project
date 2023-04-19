@@ -11,10 +11,14 @@
 #include "common/log/log.h"
 #include "common/lang/string.h"
 #include "storage/clog/clog.h"
+#include "common/os/path.h"
+#include "common/io/io.h"
 
-void OlapTable::open(const char *meta_file, const char *base_dir, CLogManager *clog_manager)
+
+void OlapTable::open(const char *meta_file, const char *base_dir, std::string storage_dir, CLogManager *clog_manager)
 {
   this->clog_manager_ = clog_manager;
+  this->storage_dir_ = storage_dir;
   TableMeta table_meta;
   std::fstream fs;
   std::string meta_file_path = std::string(base_dir) + common::FILE_PATH_SPLIT_STR + meta_file;
@@ -29,6 +33,14 @@ void OlapTable::open(const char *meta_file, const char *base_dir, CLogManager *c
   fs.close();
   this->name_ = table_meta.name();
   this->table_meta_ = table_meta;
+  this->storage_dir_ = storage_dir + common::FILE_PATH_SPLIT_STR + this->name_;
+  // find current row_set_id_
+  if (!common::is_directory(storage_dir_.c_str())) {
+      return;
+  }
+  std::vector<std::string> dirList;
+  int rc = common::getDirList(dirList, this->storage_dir_, "^[0-9]+$");
+  this->row_set_id_ = dirList.size();
 }
 
 void OlapTable::insert(std::vector<Value> values)
@@ -52,7 +64,10 @@ void OlapTable::end_recover()
   StorageMemRowset rowset(num, fields);
   auto chunk = builder_->take();
   rowset.append(*chunk);
-  rowset.flush(this->storage_dir_);
+  auto curIndex = std::to_string(this->row_set_id_+1);
+  common::check_directory(this->storage_dir_ );
+  rowset.flush(this->storage_dir_ + common::FILE_PATH_SPLIT_STR + curIndex);
+  this->row_set_id_++;
   this->is_recovering_ = false;
 }
 

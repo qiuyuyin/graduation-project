@@ -1,17 +1,3 @@
-/* Copyright (c) 2021 Xie Meiyi(xiemeiyi@hust.edu.cn) and OceanBase and/or its affiliates. All rights reserved.
-miniob is licensed under Mulan PSL v2.
-You can use this software according to the terms and conditions of the Mulan PSL v2.
-You may obtain a copy of Mulan PSL v2 at:
-         http://license.coscl.org.cn/MulanPSL2
-THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
-EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
-MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
-See the Mulan PSL v2 for more details. */
-
-//
-// Created by Longda on 2021
-//
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <netdb.h>
@@ -23,6 +9,7 @@ See the Mulan PSL v2 for more details. */
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/un.h>
+#include <sstream>
 #include <unistd.h>
 #include <termios.h>
 
@@ -121,11 +108,11 @@ int init_tcp_sock(const char *server_host, int server_port)
   return sockfd;
 }
 
-int send_msg(char *input_command, int sockfd, int send_bytes)
+int send_msg(const char *input_command, int sockfd, int send_bytes)
 {
   char send_buf[MAX_MEM_BUFFER_SIZE];
 
-  if ((send_bytes = write(sockfd, input_command, strlen(input_command) + 1)) == -1) {  // TODO writen
+  if ((send_bytes = write(sockfd, input_command, strlen(input_command) + 1)) == -1) {
     fprintf(stderr, "send error: %d:%s \n", errno, strerror(errno));
     exit(1);
   }
@@ -180,7 +167,12 @@ int main(int argc, char *argv[])
   if (sockfd < 0) {
     return 1;
   }
-  send_msg("select * from stu;", sockfd, send_bytes);
+  for (int i = 1050; i < 2000; i++) {
+    char buffer[200];
+    std::sprintf(buffer, "insert into student values (%d,'%s-%d','%s',%d);", i, "yili", i - 1000, "2002-07-01", 20);
+    std::string sql = buffer;
+    send_msg(sql.c_str(), sockfd, send_bytes);
+  }
   close(sockfd);
 
   return 0;

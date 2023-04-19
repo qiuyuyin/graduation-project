@@ -26,11 +26,13 @@ public:
   // table name
   std::string name_;
 
+  int row_set_id_ = 0;
+
   DataChunkBuilder *builder_ = nullptr;
 
   bool is_recovering_ = false;
 
-  void open(const char *meta_file, const char *base_dir, CLogManager *clog_manager);
+  void open(const char *meta_file, const char *base_dir, std::string storage_dir, CLogManager *clog_manager);
   void begin_recover();
   void insert(std::vector<Value> values);
   void end_recover();
