@@ -5,27 +5,19 @@
 #include <fstream>
 #include <filesystem>
 
-#include "olap_storage/data_chunk.h"
 #include "olap_storage/olap_db.h"
-#include "olap_storage/olap_table.h"
-#include "common/log/log.h"
-#include "common/os/path.h"
-#include "storage/common/meta_util.h"
-#include "common/defs.h"
-#include "storage/common/table.h"
-#include "storage/common/table_meta.h"
-#include "common/lang/string.h"
-#include "storage/clog/clog.h"
 
 void OlapDB::init(std::string olap_path, std::string oltp_path)
 {
   this->olap_path_ = olap_path;
   this->oltp_path_ = oltp_path;
 
+  common::check_directory(olap_path);
+
   if (!common::is_directory(olap_path.c_str())) {
     return;
   }
-   if (!common::is_directory(oltp_path.c_str())) {
+  if (!common::is_directory(oltp_path.c_str())) {
     return;
   }
 
@@ -57,11 +49,11 @@ void OlapDB::open_all_tables()
     // if (opened_tables_.count(table->name()) != 0) {
     //   delete table;
     // }
-
+    table->base_dir_ = oltp_path_;
+    table->storage_dir_ = olap_path_ + common::FILE_PATH_SPLIT_STR + table->name_;
     opened_tables_[table->name_] = table;
     // LOG_INFO("Open table: %s, file: %s", table->name(), filename.c_str());
   }
-
   //   LOG_INFO("All table have been opened. num=%d", opened_tables_.size());
 }
 
@@ -78,7 +70,6 @@ void OlapDB::recover()
 {
   clog_manager_->recover();
   CLogMTRManager *mtr_manager = clog_manager_->get_mtr_manager();
-
   for (auto it = mtr_manager->log_redo_list.begin(); it != mtr_manager->log_redo_list.end(); it++) {
     CLogRecord *clog_record = *it;
     if (clog_record->get_log_type() != CLogType::REDO_INSERT && clog_record->get_log_type() != CLogType::REDO_DELETE) {
@@ -97,8 +88,12 @@ void OlapDB::recover()
       delete clog_record;
       continue;
     }
+    if (!table->is_recovering_) {
+      table->begin_recover();
+    }
+
     auto table_meta = table->table_meta_;
-    DataChunkBuilder builder(4);
+    auto builder = table->builder_;
     switch (clog_record->get_log_type()) {
       case CLogType::REDO_INSERT: {
         char *record_data = new char[clog_record->log_record_.ins.data_len_];
@@ -114,7 +109,7 @@ void OlapDB::recover()
           memcpy(curData, record_data + field->offset(), len);
           values.push_back({field->type(), curData});
         }
-        builder.push_row(values);
+        builder->push_row(values);
         delete[] record_data;
       } break;
       case CLogType::REDO_DELETE: {
@@ -123,6 +118,11 @@ void OlapDB::recover()
       } break;
       default: {
       }
+    }
+  }
+  for (const auto& pair : this->opened_tables_) {
+    if(pair.second->is_recovering_) {
+      pair.second->end_recover();
     }
   }
 }

@@ -176,7 +176,7 @@ public:
   void write_to_file(std::string path);
   void flush(std::string path);
   // size是当前列的数目
-  StorageMemRowset(size_t size,std::vector<FieldMeta> fileds) : mem_table_(size), rowset_builder_()
+  StorageMemRowset(size_t size,const std::vector<FieldMeta> fileds) : mem_table_(size), rowset_builder_()
   {
     this->rowset_builder_.fields_ = fileds;
   }

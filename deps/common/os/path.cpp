@@ -211,4 +211,38 @@ int list_file(const char *path, const char *filter_pattern, std::vector<std::str
   return files.size();
 }
 
+void delete_directory(const std::string& path) {
+    DIR* dir = opendir(path.c_str());
+    if (dir == nullptr) {
+        std::cerr << "Failed to open directory: " << path << std::endl;
+        return;
+    }
+
+    dirent* entry;
+    while ((entry = readdir(dir)) != nullptr) {
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        std::string fullPath = path + "/" + entry->d_name;
+        if (entry->d_type == DT_DIR) {
+            delete_directory(fullPath);
+        } else {
+            int result = std::remove(fullPath.c_str());
+            if (result != 0) {
+                std::cerr << "Failed to delete file: " << fullPath << std::endl;
+                return;
+            }
+        }
+    }
+
+    closedir(dir);
+    int result = rmdir(path.c_str());
+    if (result != 0) {
+        std::cerr << "Failed to delete directory: " << path << std::endl;
+        return;
+    }
+
+}
+
 }  // namespace common

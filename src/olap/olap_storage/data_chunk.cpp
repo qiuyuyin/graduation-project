@@ -3,6 +3,8 @@
 #include "olap_storage/data_chunk.h"
 #include "zstd.h"
 #include "common/io/io.h"
+#include "common/os/path.h"
+
 
 void ColumnBuilder::flush(FieldMeta fm)
 {
@@ -83,6 +85,8 @@ void StorageMemRowset::flush(std::string path) {
   auto chunk = this->mem_table_.flush();
   this->rowset_builder_.append(chunk);
   this->rowset_builder_.flush();
+  common::check_directory(path);
+  
   this->write_to_file(path);
 }
 

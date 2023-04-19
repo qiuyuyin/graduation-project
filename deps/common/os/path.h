@@ -67,5 +67,7 @@ bool check_directory(std::string &path);
  */
 int list_file(const char *path, const char *filter_pattern, std::vector<std::string> &files);  // io/io.h::getFileList
 
+
+void delete_directory(const std::string& path);
 }  // namespace common
 #endif  //__COMMON_OS_PATH_H__

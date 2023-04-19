@@ -71,7 +71,7 @@ private:
 protected:
   RC init_sys_fields();
 
-protected:
+public:
   std::string name_;
   std::vector<FieldMeta> fields_;  // 包含sys_fields
   std::vector<IndexMeta> indexes_;
