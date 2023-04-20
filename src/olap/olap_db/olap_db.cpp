@@ -5,7 +5,7 @@
 #include <fstream>
 #include <filesystem>
 
-#include "olap_storage/olap_db.h"
+#include "olap_db/olap_db.h"
 
 void OlapDB::init(std::string olap_path, std::string oltp_path)
 {

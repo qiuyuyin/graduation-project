@@ -2,6 +2,14 @@
 #include <string.h>
 #include <storage/common/table_meta.h>
 #include <olap_storage/data_chunk.h>
+#include "common/defs.h"
+#include "storage/common/table.h"
+#include "storage/common/table_meta.h"
+#include "common/log/log.h"
+#include "common/lang/string.h"
+#include "storage/clog/clog.h"
+#include "common/os/path.h"
+#include "common/io/io.h"
 
 class CLogManager;
 
@@ -37,4 +45,7 @@ public:
   void insert(std::vector<Value> values);
   void end_recover();
   void recover();
+  void select(std::vector<std::string> cols);
+  void read_col(int col_index, std::vector<Value>& colValue);
+  std::string to_string(Value &value, const FieldMeta *filed);
 };

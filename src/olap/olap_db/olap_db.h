@@ -4,7 +4,7 @@
 
 #include "sql/parser/parse_defs.h"
 #include "storage/clog/clog.h"
-#include "olap_storage/olap_table.h"
+#include "olap_table/olap_table.h"
 #include "common/log/log.h"
 #include "common/os/path.h"
 #include "storage/common/meta_util.h"
