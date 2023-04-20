@@ -89,7 +89,7 @@ void OlapTable::select(std::vector<std::string> cols)
 
 void OlapTable::select_sql(std::string sql)
 {
-  ColumnList* columns = ColumnList::extractColumns(sql);
+
 }
 
 void OlapTable::read_col(int col_index, std::vector<Value> &colValue)

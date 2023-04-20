@@ -66,6 +66,13 @@ OlapTable *OlapDB::find_table(const char *table_name) const
   return nullptr;
 }
 
+void OlapDB::select(std::string sql)
+{
+  ColumnList *columns = ColumnList::extractColumns(sql);
+  OlapTable *table = find_table(columns->getTableName().c_str());
+  table->select(columns->getColumns());
+}
+
 void OlapDB::recover()
 {
   clog_manager_->recover();

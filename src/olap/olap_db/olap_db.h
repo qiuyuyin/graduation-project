@@ -26,5 +26,6 @@ public:
   void init(std::string olap_path,std::string oltp_path);
   void open_all_tables();
   void recover();
+  void select(std::string sql);
   OlapTable* find_table(const char *table_name) const;
 };
