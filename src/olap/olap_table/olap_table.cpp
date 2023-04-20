@@ -8,7 +8,6 @@
 // #include <string>
 #include <filesystem>
 #include <algorithm>
-#include <util/util.h>
 
 void OlapTable::open(const char *meta_file, const char *base_dir, std::string storage_dir, CLogManager *clog_manager)
 {
@@ -88,7 +87,12 @@ void OlapTable::select(std::vector<std::string> cols)
   }
 }
 
-void OlapTable::read_col(int col_index, std::vector<Value>& colValue)
+void OlapTable::select_sql(std::string sql)
+{
+  ColumnList* columns = ColumnList::extractColumns(sql);
+}
+
+void OlapTable::read_col(int col_index, std::vector<Value> &colValue)
 {
   // 首先将数据从文件中读取出来，然后解压，然后读取数据
   std::vector<std::string> dirList;
@@ -130,7 +134,7 @@ void OlapTable::read_col(int col_index, std::vector<Value>& colValue)
     for (int i = 0; i < decompressed_size / field->len(); i++) {
       Value value;
       value.type = field->type();
-      char* putData = new char[field->len()];
+      char *putData = new char[field->len()];
       memcpy(putData, decompressed_data + i * field->len(), field->len());
       value.data = putData;
       colValue.push_back(value);

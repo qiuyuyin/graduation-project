@@ -2,6 +2,7 @@
 #include <string.h>
 #include <storage/common/table_meta.h>
 #include <olap_storage/data_chunk.h>
+#include <olap_sql/select.h>
 #include "common/defs.h"
 #include "storage/common/table.h"
 #include "storage/common/table_meta.h"
@@ -10,6 +11,8 @@
 #include "storage/clog/clog.h"
 #include "common/os/path.h"
 #include "common/io/io.h"
+#include <util/util.h>
+
 
 class CLogManager;
 
@@ -47,5 +50,6 @@ public:
   void recover();
   void select(std::vector<std::string> cols);
   void read_col(int col_index, std::vector<Value>& colValue);
+  void select_sql(std::string sql);
   std::string to_string(Value &value, const FieldMeta *filed);
 };
