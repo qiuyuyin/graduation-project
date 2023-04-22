@@ -88,9 +88,7 @@ void OlapTable::select(std::vector<std::string> cols)
 }
 
 void OlapTable::select_sql(std::string sql)
-{
-
-}
+{}
 
 void OlapTable::read_col(int col_index, std::vector<Value> &colValue)
 {
@@ -109,8 +107,9 @@ void OlapTable::read_col(int col_index, std::vector<Value> &colValue)
     std::streamoff size = file.tellg();  // 获取文件大小
     size_t int_size = static_cast<size_t>(size);
     std::cout << "File size: " << size << " bytes" << std::endl;
-    char buf[int_size] = {0};
-    char *data = buf;
+    const int array_size = int_size;
+    // char buf[array_size] = {0};
+    char *data = new char[array_size];
     // 从文件中读取出来data
     common::readFromFile(filename, data, int_size);
     // 将data解压

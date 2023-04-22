@@ -91,7 +91,7 @@ void OlapDB::recover()
       continue;
     }
 
-    if (this->trx_ > clog_record->get_trx_id()) {
+    if (this->trx_ >= clog_record->get_trx_id()) {
       delete clog_record;
       continue;
     }
@@ -141,5 +141,11 @@ void OlapDB::recover()
     if (pair.second->is_recovering_) {
       pair.second->end_recover();
     }
+  }
+  // delete clog_manager_;
+  clog_manager_ = new CLogManager(this->oltp_path_.c_str());
+  if (clog_manager_ == nullptr) {
+    LOG_ERROR("Failed to init CLogManager.");
+    return;
   }
 }

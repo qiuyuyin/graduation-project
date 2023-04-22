@@ -17,7 +17,9 @@
 TEST(OlapDBTest, Init)
 {
  OlapDB db;   
- db.init("/home/yinqiuyu/hust-bishe/miniob/build/miniob/olap","/home/yinqiuyu/hust-bishe/miniob/build/miniob/db/sys");
+ db.init("./miniob/olap","./miniob/db/sys");
  db.recover();
-//  common::delete_directory("/home/yinqiuyu/hust-bishe/miniob/miniob/olap");
+ db.recover();
+
+ common::delete_directory("./miniob/olap");
 }
