@@ -83,6 +83,7 @@ void OlapDB::recover()
       delete clog_record;
       continue;
     }
+
     auto find_iter = mtr_manager->trx_commited.find(clog_record->get_trx_id());
     if (find_iter == mtr_manager->trx_commited.end()) {
       delete clog_record;
@@ -101,6 +102,7 @@ void OlapDB::recover()
       delete clog_record;
       continue;
     }
+    
     if (!table->is_recovering_) {
       table->begin_recover();
     }
