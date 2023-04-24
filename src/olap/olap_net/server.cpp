@@ -33,7 +33,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/io/io.h"
 #include "common/seda/seda_config.h"
 #include "event/session_event.h"
-#include "session/session.h"
+#include "olap_session/session.h"
 #include "ini_setting.h"
 #include <common/metrics/metrics_registry.h>
 
