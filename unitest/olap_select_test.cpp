@@ -19,9 +19,8 @@ TEST(OlapDBTest, Init)
   OlapDB db;
   db.init("/home/yinqiuyu/hust-bishe/miniob/build/miniob/olap", "/home/yinqiuyu/hust-bishe/miniob/build/miniob/db/sys");
   db.recover();
-  auto table = db.find_table("student");
-  std::vector<std::string> cols;
-  cols.push_back("id");
-  table->select(cols);
+  std::string sql = "select id from student";
+  db.select(sql);
+  db.select(sql);
   common::delete_directory("/home/yinqiuyu/hust-bishe/miniob/build/miniob/olap");
 }

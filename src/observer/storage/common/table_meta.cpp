@@ -166,6 +166,7 @@ const int TableMeta::field_index(const char* name) const {
       return i - sys_field_num();
     }
   }
+  return -1;
 }
 
 const FieldMeta *TableMeta::find_field_by_offset(int offset) const

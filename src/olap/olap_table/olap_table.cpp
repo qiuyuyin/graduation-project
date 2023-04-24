@@ -1,5 +1,6 @@
 #include "olap_table/olap_table.h"
 
+#include <string>
 #include <vector>
 #include <ctime>
 #include <sstream>
@@ -68,23 +69,54 @@ void OlapTable::end_recover()
 void OlapTable::recover()
 {}
 
-void OlapTable::select(std::vector<std::string> cols)
+std::string OlapTable::select(std::vector<std::string> cols)
 {
   std::vector<int> col2index;
 
   for (int i = 0; i < cols.size(); i++) {
-    int index = this->table_meta_.field_index(cols[i].c_str()) + this->table_meta_.sys_field_num();
+    int index = this->table_meta_.field_index(cols[i].c_str());
+    if (index == -1) {
+      return "not fount col ' " + cols[i] + " '";
+    }
+    index += this->table_meta_.sys_field_num();
     col2index.push_back(index);
   }
+  std::stringstream ss;
   for (int i = 0; i < col2index.size(); i++) {
-    std::vector<Value> colValue;
-    this->read_col(col2index[i], colValue);
-    auto filed = this->table_meta_.field(i);
-    for (int i = 0; i < colValue.size(); i++) {
-      auto str = this->to_string(colValue[i], filed);
-      std::cout << str << std::endl;
+    auto field = this->table_meta_.field(col2index[i]);
+    ss << field->name();
+    if (i < col2index.size() - 1) {
+      ss << " | ";
     }
   }
+  ss << "\n";
+  auto num = col2index.size();
+  std::vector<std::vector<std::string>> vals;
+  for (int i = 0; i < num; i++) {
+    std::vector<Value> colValue;
+    std::vector<std::string> colStr;
+    this->read_col(col2index[i], colValue);
+    auto filed = this->table_meta_.field(col2index[i]);
+    for (int j = 0; j < colValue.size(); j++) {
+      auto str = this->to_string(colValue[j], filed);
+      std::cout << str << std::endl;
+      colStr.push_back(str);
+    }
+    vals.push_back(colStr);
+  }
+  if (vals.size() > 0) {
+    // i 行 j 列
+    for (int i = 0; i < vals[0].size(); i++) {
+      for (int j = 0; j < vals.size(); j++) {
+        ss << vals[j][i];
+        if (j < vals.size() - 1) {
+          ss << " | ";
+        }
+      }
+      ss << "\n";
+    }
+  }
+  return ss.str();
 }
 
 void OlapTable::select_sql(std::string sql)
@@ -103,8 +135,8 @@ void OlapTable::read_col(int col_index, std::vector<Value> &colValue)
     auto filename = dirList[i] + "/" + index + ".col";
     std::ifstream file(filename, std::ios::binary);  // 打开文件
 
-    file.seekg(0, std::ios::end);        // 将文件指针定位到文件末尾
-    std::streamoff size = file.tellg();  // 获取文件大小
+    file.seekg(0, std::ios::end);                    // 将文件指针定位到文件末尾
+    std::streamoff size = file.tellg();              // 获取文件大小
     size_t int_size = static_cast<size_t>(size);
     std::cout << "File size: " << size << " bytes" << std::endl;
     const int array_size = int_size;

@@ -34,16 +34,17 @@ See the Mulan PSL v2 for more details. */
 #endif
 
 #define MAX_MEM_BUFFER_SIZE 8192
-#define PORT_DEFAULT 6789
+#define PORT_DEFAULT 6788
+#define OLAP_PORT_DEFAULT 6789
 
 using namespace common;
 
 #ifdef USE_READLINE
-char *my_readline(const char *prompt) 
+char *my_readline(const char *prompt)
 {
   return readline(prompt);
 }
-#else // USE_READLINE
+#else   // USE_READLINE
 char *my_readline(const char *prompt)
 {
   char *buffer = (char *)malloc(MAX_MEM_BUFFER_SIZE);
@@ -60,16 +61,15 @@ char *my_readline(const char *prompt)
   }
   return buffer;
 }
-#endif // USE_READLINE
+#endif  // USE_READLINE
 
 /* this function config a exit-cmd list, strncasecmp func truncate the command from terminal according to the number,
-   'strncasecmp("exit", cmd, 4)' means that obclient read command string from terminal, truncate it to 4 chars from 
+   'strncasecmp("exit", cmd, 4)' means that obclient read command string from terminal, truncate it to 4 chars from
    the beginning, then compare the result with 'exit', if they match, exit the obclient.
 */
-bool is_exit_command(const char *cmd) {
-  return 0 == strncasecmp("exit", cmd, 4) ||
-         0 == strncasecmp("bye", cmd, 3) ||
-         0 == strncasecmp("\\q", cmd, 2) ;
+bool is_exit_command(const char *cmd)
+{
+  return 0 == strncasecmp("exit", cmd, 4) || 0 == strncasecmp("bye", cmd, 3) || 0 == strncasecmp("\\q", cmd, 2);
 }
 
 int init_unix_sock(const char *unix_sock_path)
@@ -127,6 +127,7 @@ int main(int argc, char *argv[])
   const char *unix_socket_path = nullptr;
   const char *server_host = "127.0.0.1";
   int server_port = PORT_DEFAULT;
+  int olap_server_port = OLAP_PORT_DEFAULT;
   int opt;
   extern char *optarg;
   while ((opt = getopt(argc, argv, "s:h:p:")) > 0) {
@@ -143,14 +144,15 @@ int main(int argc, char *argv[])
     }
   }
 
-  const char *prompt_str = "miniob > ";
+  const char *prompt_str = "htap > ";
 
-  int sockfd, send_bytes;
+  int sockfd, send_bytes, olap_sockfd;
 
   if (unix_socket_path != nullptr) {
     sockfd = init_unix_sock(unix_socket_path);
   } else {
     sockfd = init_tcp_sock(server_host, server_port);
+    olap_sockfd = init_tcp_sock(server_host, olap_server_port);
   }
   if (sockfd < 0) {
     return 1;
@@ -169,37 +171,80 @@ int main(int argc, char *argv[])
       free(input_command);
       break;
     }
+    std::string prefix = "olap:";
+    std::string str = input_command;
+    if (str.compare(0, prefix.length(), prefix) == 0) {
+      size_t pos = str.find(prefix); // 查找"olap:"在字符串中的位置
 
-    if ((send_bytes = write(sockfd, input_command, strlen(input_command) + 1)) == -1) { // TODO writen
-      fprintf(stderr, "send error: %d:%s \n", errno, strerror(errno));
-      exit(1);
-    }
-    free(input_command);
-    memset(send_buf, 0, sizeof(send_buf));
+      if (pos == 0) { // 如果"olap:"在字符串开头
+          str = str.substr(prefix.length()); // 获取除了"olap:"以外的部分
+      }
+      char* cstr = new char[str.length() + 1]; // 创建一个C语言的字符串
+      strcpy(cstr, str.c_str());
+      input_command = cstr;
+      if ((send_bytes = write(olap_sockfd, input_command, strlen(input_command) + 1)) == -1) {  // TODO writen
+        fprintf(stderr, "send error: %d:%s \n", errno, strerror(errno));
+        exit(1);
+      }
+      free(input_command);
+      memset(send_buf, 0, sizeof(send_buf));
 
-    int len = 0;
-    while ((len = recv(sockfd, send_buf, MAX_MEM_BUFFER_SIZE, 0)) > 0) {
-      bool msg_end = false;
-      for (int i = 0; i < len; i++) {
-        if (0 == send_buf[i]) {
-          msg_end = true;
+      int len = 0;
+      while ((len = recv(olap_sockfd, send_buf, MAX_MEM_BUFFER_SIZE, 0)) > 0) {
+        bool msg_end = false;
+        for (int i = 0; i < len; i++) {
+          if (0 == send_buf[i]) {
+            msg_end = true;
+            break;
+          }
+          printf("%c", send_buf[i]);
+        }
+        if (msg_end) {
           break;
         }
-        printf("%c", send_buf[i]);
+        memset(send_buf, 0, MAX_MEM_BUFFER_SIZE);
       }
-      if (msg_end) {
+
+      if (len < 0) {
+        fprintf(stderr, "Connection was broken: %s\n", strerror(errno));
         break;
       }
-      memset(send_buf, 0, MAX_MEM_BUFFER_SIZE);
-    }
+      if (0 == len) {
+        printf("Connection has been closed\n");
+        break;
+      }
+    } else {
+      if ((send_bytes = write(sockfd, input_command, strlen(input_command) + 1)) == -1) {  // TODO writen
+        fprintf(stderr, "send error: %d:%s \n", errno, strerror(errno));
+        exit(1);
+      }
+      free(input_command);
+      memset(send_buf, 0, sizeof(send_buf));
 
-    if (len < 0) {
-      fprintf(stderr, "Connection was broken: %s\n", strerror(errno));
-      break;
-    }
-    if (0 == len) {
-      printf("Connection has been closed\n");
-      break;
+      int len = 0;
+      while ((len = recv(sockfd, send_buf, MAX_MEM_BUFFER_SIZE, 0)) > 0) {
+        bool msg_end = false;
+        for (int i = 0; i < len; i++) {
+          if (0 == send_buf[i]) {
+            msg_end = true;
+            break;
+          }
+          printf("%c", send_buf[i]);
+        }
+        if (msg_end) {
+          break;
+        }
+        memset(send_buf, 0, MAX_MEM_BUFFER_SIZE);
+      }
+
+      if (len < 0) {
+        fprintf(stderr, "Connection was broken: %s\n", strerror(errno));
+        break;
+      }
+      if (0 == len) {
+        printf("Connection has been closed\n");
+        break;
+      }
     }
   }
   close(sockfd);

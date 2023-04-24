@@ -48,7 +48,7 @@ public:
   void insert(std::vector<Value> values);
   void end_recover();
   void recover();
-  void select(std::vector<std::string> cols);
+  std::string select(std::vector<std::string> cols);
   void read_col(int col_index, std::vector<Value>& colValue);
   void select_sql(std::string sql);
   std::string to_string(Value &value, const FieldMeta *filed);

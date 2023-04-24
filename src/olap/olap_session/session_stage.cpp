@@ -50,6 +50,9 @@ Stage *SessionStage::make_stage(const std::string &tag)
     return nullptr;
   }
   stage->set_properties();
+  stage->db = new OlapDB();
+  stage->db->init("./miniob/olap", "./miniob/db/sys");
+  // stage->db->recover();
   return stage;
 }
 
@@ -155,15 +158,17 @@ void SessionStage::handle_request(StageEvent *event)
     return;
   }
 
-  CompletionCallback *cb = new (std::nothrow) CompletionCallback(this, nullptr);
-  if (cb == nullptr) {
-    LOG_ERROR("Failed to new callback for SessionEvent");
-
-    sev->done_immediate();
-    return;
+  auto str = this->db->select(sql);
+  str += "\n";
+  const char *response = str.c_str();
+  auto len = strlen(response) + 1;
+  Server::send(sev->get_client(), response, len);
+  if ('\0' != response[len - 1]) {
+    // 这里强制性的给发送一个消息终结符，如果需要发送多条消息，需要调整
+    char end = 0;
+    Server::send(sev->get_client(), &end, 1);
   }
-  this->callback_event(event, nullptr);
 
-  // SQLStageEvent *sql_event = new SQLStageEvent(sev, sql);
-  // plan_cache_stage_->handle_event(sql_event);
+
+  // this->callback_event(event, nullptr);
 }

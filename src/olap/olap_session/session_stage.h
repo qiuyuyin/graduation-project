@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/seda/stage.h"
 #include "net/connection_context.h"
 #include "common/metrics/metrics.h"
+#include "olap_db/olap_db.h"
 
 /**
  * seda::stage使用说明：
@@ -40,6 +41,7 @@ protected:
   void cleanup() override;
   void handle_event(common::StageEvent *event) override;
   void callback_event(common::StageEvent *event, common::CallbackContext *context) override;
+  OlapDB *db;
 
 protected:
   void handle_input(common::StageEvent *event);

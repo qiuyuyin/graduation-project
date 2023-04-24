@@ -7,7 +7,8 @@ using namespace std;
 TEST(TestSelectParser, SelectParser)
 {
   string sql = "select id, name, age from users";
-  ColumnList* columns = ColumnList::extractColumns(sql);
+  ColumnList* columns = new ColumnList();
+  columns->extractColumns(sql);
   if(columns == nullptr) {
     cout << "ERR Parse";
   }

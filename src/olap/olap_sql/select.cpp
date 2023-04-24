@@ -1,20 +1,27 @@
 #include <olap_sql/select.h>
 #include <regex>
 
-ColumnList *ColumnList::extractColumns(string sql)
+void ColumnList::extractColumns(string sql)
 {
-  ColumnList* result = new ColumnList();
+  size_t last_semicolon_pos = sql.find_last_of("\n");
+  if (last_semicolon_pos != string::npos) {
+      sql.erase(last_semicolon_pos, 1);
+  }
+  last_semicolon_pos = sql.find_last_of(";");
+  if (last_semicolon_pos != string::npos) {
+      sql.erase(last_semicolon_pos, 1);
+  }
   string select = "select";
   transform(sql.begin(), sql.end(), sql.begin(), ::tolower);
   size_t pos = sql.find(select);
   if (pos == string::npos) {
-    return nullptr;
+    return;
   }
   vector<string> fields;
   string field_str = sql.substr(pos + select.length());
   size_t from_pos = field_str.find("from");
   if (from_pos == string::npos) {
-    return nullptr;
+    return ;
   }
   string field_list = field_str.substr(0, from_pos);
   string delimiter = ",";
@@ -31,12 +38,12 @@ ColumnList *ColumnList::extractColumns(string sql)
   size_t start_pos = table_str.find_first_not_of(" \t\n\r");
   size_t end_pos = table_str.find_last_not_of(" \t\n\r");
   string table_name = table_str.substr(start_pos, end_pos - start_pos + 1);
-  result->setTableName(table_name);
+  this->setTableName(table_name);
 
   for (string field : fields) {
     std::regex pattern("^\\s+|\\s+$");
     auto str = regex_replace(field, pattern, "");
-    result->addColumn(str);
+    this->addColumn(str);
   }
-  return result;
+  return ;
 }

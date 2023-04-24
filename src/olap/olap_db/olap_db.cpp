@@ -66,11 +66,16 @@ OlapTable *OlapDB::find_table(const char *table_name) const
   return nullptr;
 }
 
-void OlapDB::select(std::string sql)
+std::string OlapDB::select(std::string sql)
 {
-  ColumnList *columns = ColumnList::extractColumns(sql);
-  OlapTable *table = find_table(columns->getTableName().c_str());
-  table->select(columns->getColumns());
+  ColumnList columns;
+  columns.extractColumns(sql);
+  OlapTable *table = find_table(columns.getTableName().c_str());
+  if (table == nullptr) {
+    return "not found table " + columns.getTableName();
+  }
+  auto str = table->select(columns.getColumns());
+  return str;
 }
 
 void OlapDB::recover()
@@ -102,7 +107,7 @@ void OlapDB::recover()
       delete clog_record;
       continue;
     }
-    
+
     if (!table->is_recovering_) {
       table->begin_recover();
     }

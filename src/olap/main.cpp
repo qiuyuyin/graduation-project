@@ -18,12 +18,15 @@ See the Mulan PSL v2 for more details. */
 #include <netinet/in.h>
 #include <unistd.h>
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 #include "init.h"
 #include "common/os/process.h"
 #include "common/os/signal.h"
 #include "olap_net/server.h"
 #include "olap_net/server_param.h"
+#include "olap_db/olap_db.h"
 
 using namespace common;
 
@@ -146,11 +149,30 @@ void quit_signal_handle(int signum)
   pthread_create(&tid, nullptr, quit_thread_func, (void *)(intptr_t)signum);
 }
 
+void *printfunc(void *_signum)
+{
+  OlapDB db;
+  db.init("/home/yinqiuyu/hust-bishe/miniob/build/miniob/olap", "/home/yinqiuyu/hust-bishe/miniob/build/miniob/db/sys");
+  while (true) {
+    std::cout << "sync from oltp" << std::endl;
+    db.recover();
+    this_thread::sleep_for(std::chrono::seconds(1));
+  }
+}
+
+void test_write()
+{
+  pthread_t tid;
+  pthread_create(&tid, nullptr, printfunc, nullptr);
+}
+
 int main(int argc, char **argv)
 {
   setSignalHandler(quit_signal_handle);
 
   parse_parameter(argc, argv);
+
+  common::delete_directory("./miniob/olap");
 
   int rc = STATUS_SUCCESS;
   rc = init(the_process_param());
@@ -159,14 +181,12 @@ int main(int argc, char **argv)
     cleanup();
     return rc;
   }
-
+  test_write();
   g_server = init_server();
   Server::init();
   g_server->serve();
-
   LOG_INFO("Server stopped");
 
   cleanup();
-
   delete g_server;
 }

@@ -17,7 +17,7 @@ public:
     void setTableName(string table) {
         table_name = table;
     }
-    static ColumnList* extractColumns(string sql);
+    void extractColumns(string sql);
 private:
     vector<string> columns;
     string table_name;
