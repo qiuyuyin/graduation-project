@@ -26,3 +26,6 @@ cd build
 bin/obclient
 ```
 
+在obclient中输入正常的sql语句可以对OLTP进行修改
+目前仅支持insert的同步，后续会增加update和delete的同步
+在更改OLTP数据库之后，可以通过在obclient输入olap:select id from tablename;来查询列存中的数据

@@ -39,19 +39,18 @@ void OlapDB::open_all_tables()
   }
 
   for (const std::string &filename : table_meta_files) {
-    OlapTable *table = new OlapTable();
-    table->open(filename.c_str(), oltp_path_.c_str(), olap_path_, clog_manager_);
-    // if (rc != RC::SUCCESS) {
-    //   delete table;
-    //   LOG_ERROR("Failed to open table. filename=%s", filename.c_str());
-    //   return rc;
-    // }
+    std::string delimiter = ".";
 
-    // if (opened_tables_.count(table->name()) != 0) {
-    //   delete table;
-    // }
-    table->base_dir_ = oltp_path_;
-    opened_tables_[table->name_] = table;
+    size_t pos = filename.find(delimiter);
+    std::string first = filename.substr(0, pos);
+    std::string second = filename.substr(pos + delimiter.length());
+    auto find_table = this->find_table(first.c_str());
+    if (find_table == nullptr) {
+      OlapTable *table = new OlapTable();
+      table->open(filename.c_str(), oltp_path_.c_str(), olap_path_, clog_manager_);
+      table->base_dir_ = oltp_path_;
+      opened_tables_[table->name_] = table;
+    }
     // LOG_INFO("Open table: %s, file: %s", table->name(), filename.c_str());
   }
   //   LOG_INFO("All table have been opened. num=%d", opened_tables_.size());

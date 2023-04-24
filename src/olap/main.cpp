@@ -33,6 +33,7 @@ using namespace common;
 #define NET "NET"
 
 static Server *g_server = nullptr;
+OlapDB db;
 
 void usage()
 {
@@ -151,10 +152,9 @@ void quit_signal_handle(int signum)
 
 void *printfunc(void *_signum)
 {
-  OlapDB db;
-  db.init("/home/yinqiuyu/hust-bishe/miniob/build/miniob/olap", "/home/yinqiuyu/hust-bishe/miniob/build/miniob/db/sys");
   while (true) {
     std::cout << "sync from oltp" << std::endl;
+    db.open_all_tables();
     db.recover();
     this_thread::sleep_for(std::chrono::seconds(1));
   }
@@ -181,6 +181,7 @@ int main(int argc, char **argv)
     cleanup();
     return rc;
   }
+  db.init("./miniob/olap", "./miniob/db/sys");
   test_write();
   g_server = init_server();
   Server::init();
