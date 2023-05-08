@@ -90,9 +90,6 @@ void OlapDB::recover()
       continue;
     }
 
-    if (clog_record->get_log_type() == CLogType::REDO_APSYNCDE) {
-      std::cout << "test" << std::endl;
-    }
     auto find_iter = mtr_manager->trx_commited.find(clog_record->get_trx_id());
     if (find_iter == mtr_manager->trx_commited.end()) {
       delete clog_record;
@@ -101,7 +98,7 @@ void OlapDB::recover()
       continue;
     }
 
-    if (this->trx_ >= clog_record->get_trx_id()) {
+    if (this->trx_ >= clog_record->get_lsn()) {
       delete clog_record;
       continue;
     }
@@ -133,6 +130,11 @@ void OlapDB::recover()
           memcpy(curData, record_data + field->offset(), len);
           values.push_back({field->type(), curData});
         }
+        for (int i = 0; i < field_num; i++) {
+          const FieldMeta *field = table_meta.field(i);
+          auto str = table->to_string(values[i], field);
+          std::cout << str << std::endl;
+        }
         builder->push_row(values);
         delete[] record_data;
       } break;
@@ -150,6 +152,7 @@ void OlapDB::recover()
           memcpy(curData, record_data + field->offset(), len);
           values.push_back({field->type(), curData});
         }
+
         builder->push_row(values);
         delete[] record_data;
       } break;
@@ -172,15 +175,13 @@ void OlapDB::recover()
           auto str = table->to_string(values[i], field);
           std::cout << str << std::endl;
         }
-
-        // builder->push_row(values);
         delete[] record_data;
       } break;
       default: {
       }
     }
 
-    this->trx_ = clog_record->get_trx_id();
+    this->trx_ = clog_record->get_lsn();
     delete clog_record;
   }
 
