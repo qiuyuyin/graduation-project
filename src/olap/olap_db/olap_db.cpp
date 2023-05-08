@@ -83,11 +83,16 @@ void OlapDB::recover()
   CLogMTRManager *mtr_manager = clog_manager_->get_mtr_manager();
   for (auto it = mtr_manager->log_redo_list.begin(); it != mtr_manager->log_redo_list.end(); it++) {
     CLogRecord *clog_record = *it;
-    if (clog_record->get_log_type() != CLogType::REDO_INSERT && clog_record->get_log_type() != CLogType::REDO_DELETE) {
+    if (clog_record->get_log_type() != CLogType::REDO_INSERT && clog_record->get_log_type() != CLogType::REDO_DELETE &&
+        clog_record->get_log_type() != CLogType::REDO_UPDATE &&
+        clog_record->get_log_type() != CLogType::REDO_APSYNCDE) {
       delete clog_record;
       continue;
     }
 
+    if (clog_record->get_log_type() == CLogType::REDO_APSYNCDE) {
+      std::cout << "test" << std::endl;
+    }
     auto find_iter = mtr_manager->trx_commited.find(clog_record->get_trx_id());
     if (find_iter == mtr_manager->trx_commited.end()) {
       delete clog_record;
@@ -131,9 +136,45 @@ void OlapDB::recover()
         builder->push_row(values);
         delete[] record_data;
       } break;
-      case CLogType::REDO_DELETE: {
-        Record record;
-        record.set_rid(clog_record->log_record_.del.rid_);
+      case CLogType::REDO_UPDATE: {
+        char *record_data = new char[clog_record->log_record_.ins.data_len_];
+        memcpy(record_data, clog_record->log_record_.ins.data_, clog_record->log_record_.ins.data_len_);
+        const int sys_field_num = table_meta.sys_field_num();
+        const int field_num = table_meta.field_num();
+        int count = field_num - sys_field_num;
+        std::vector<Value> values;
+        for (int i = 0; i < field_num; i++) {
+          const FieldMeta *field = table_meta.field(i);
+          int len = field->len();
+          char *curData = new char[len];
+          memcpy(curData, record_data + field->offset(), len);
+          values.push_back({field->type(), curData});
+        }
+        builder->push_row(values);
+        delete[] record_data;
+      } break;
+      case CLogType::REDO_APSYNCDE: {
+        char *record_data = new char[clog_record->log_record_.ins.data_len_];
+        memcpy(record_data, clog_record->log_record_.ins.data_, clog_record->log_record_.ins.data_len_);
+        const int sys_field_num = table_meta.sys_field_num();
+        const int field_num = table_meta.field_num();
+        int count = field_num - sys_field_num;
+        std::vector<Value> values;
+        for (int i = 0; i < field_num; i++) {
+          const FieldMeta *field = table_meta.field(i);
+          int len = field->len();
+          char *curData = new char[len];
+          memcpy(curData, record_data + field->offset(), len);
+          values.push_back({field->type(), curData});
+        }
+        for (int i = 0; i < field_num; i++) {
+          const FieldMeta *field = table_meta.field(i);
+          auto str = table->to_string(values[i], field);
+          std::cout << str << std::endl;
+        }
+
+        // builder->push_row(values);
+        delete[] record_data;
       } break;
       default: {
       }

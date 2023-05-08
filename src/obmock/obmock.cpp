@@ -21,7 +21,7 @@
 #endif
 
 #define MAX_MEM_BUFFER_SIZE 8192
-#define PORT_DEFAULT 6789
+#define PORT_DEFAULT 6788
 
 using namespace common;
 

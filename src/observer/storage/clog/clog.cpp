@@ -71,6 +71,22 @@ CLogRecord::CLogRecord(CLogType flag, int32_t trx_id, const char *table_name /* 
         ins.hdr_.lsn_ = CLogManager::get_next_lsn(ins.hdr_.logrec_len_);
       }
     } break;
+    case REDO_APSYNCDE: {
+      if (!rec || !rec->data()) {
+        LOG_ERROR("Record is null");
+      } else {
+        auto &ins = log_record_.ins;
+        ins.hdr_.trx_id_ = trx_id;
+        ins.hdr_.type_ = flag;
+        strcpy(ins.table_name_, table_name);
+        ins.rid_ = rec->rid();
+        ins.data_len_ = data_len;
+        ins.hdr_.logrec_len_ = _align8(CLOG_INS_REC_NODATA_SIZE + data_len);
+        ins.data_ = new char[ins.hdr_.logrec_len_ - CLOG_INS_REC_NODATA_SIZE];
+        memcpy(ins.data_, rec->data(), data_len);
+        ins.hdr_.lsn_ = CLogManager::get_next_lsn(ins.hdr_.logrec_len_);
+      }
+    } break;
     case REDO_DELETE: {
       if (!rec) {
         LOG_ERROR("Record is null");
@@ -98,6 +114,18 @@ CLogRecord::CLogRecord(char *data)
     case REDO_MTR_BEGIN:
     case REDO_MTR_COMMIT: {
       log_record_.mtr.hdr_ = *hdr;
+    } break;
+    case REDO_APSYNCDE: {
+      log_record_.ins.hdr_ = *hdr;
+      data += sizeof(CLogRecordHeader);
+      strcpy(log_record_.ins.table_name_, data);
+      data += TABLE_NAME_MAX_LEN;
+      log_record_.ins.rid_ = *(RID *)data;
+      data += sizeof(RID);
+      log_record_.ins.data_len_ = *(int *)data;
+      data += sizeof(int);
+      log_record_.ins.data_ = new char[log_record_.ins.hdr_.logrec_len_ - CLOG_INS_REC_NODATA_SIZE];
+      memcpy(log_record_.ins.data_, data, log_record_.ins.data_len_);
     } break;
     case REDO_INSERT: {
       log_record_.ins.hdr_ = *hdr;
@@ -148,6 +176,9 @@ CLogRecord::~CLogRecord()
   if (REDO_UPDATE == flag_) {
     delete[] log_record_.up.data_;
   }
+  if (REDO_APSYNCDE == flag_) {
+    delete[] log_record_.ins.data_;
+  }
 }
 
 RC CLogRecord::copy_record(void *dest, int start_off, int copy_len)
@@ -188,6 +219,19 @@ RC CLogRecord::copy_record(void *dest, int start_off, int copy_len)
                  copy_len - (CLOG_UP_REC_NODATA_SIZE - start_off));
         }
       } break;
+      case REDO_APSYNCDE: {
+        // logically data_ follows after other data
+        if (start_off > CLOG_UP_REC_NODATA_SIZE) {
+          memcpy(dest, log_rec->up.data_ + start_off - CLOG_UP_REC_NODATA_SIZE, copy_len);
+        } else if (start_off + copy_len <= CLOG_UP_REC_NODATA_SIZE){
+          memcpy(dest, (char *)log_rec + start_off, copy_len);
+        } else {
+          memcpy(dest, (char *)log_rec + start_off, CLOG_UP_REC_NODATA_SIZE - start_off);
+          memcpy((char *)dest + CLOG_UP_REC_NODATA_SIZE - start_off,
+                 log_rec->ins.data_,
+                 copy_len - (CLOG_UP_REC_NODATA_SIZE - start_off));
+        }
+      } break;
     }
   }
   return RC::SUCCESS;
@@ -203,6 +247,8 @@ int CLogRecord::cmp_eq(CLogRecord *other)
       case REDO_MTR_COMMIT:
         return log_record_.mtr == other_logrec->mtr;
       case REDO_INSERT:
+        return log_record_.ins == other_logrec->ins;
+      case REDO_APSYNCDE:
         return log_record_.ins == other_logrec->ins;
       case REDO_DELETE:
         return log_record_.del == other_logrec->del;

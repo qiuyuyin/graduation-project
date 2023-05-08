@@ -890,6 +890,16 @@ RC Table::delete_record(Trx *trx, Record *record)
     if (rc != RC::SUCCESS) {
       return rc;
     }
+    CLogRecord *clog_record2 = nullptr;
+    rc = clog_manager_->clog_gen_record(CLogType::REDO_APSYNCDE, trx->get_current_id(), clog_record2, name(), table_meta_.record_size(), record);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to create a clog record. rc=%d:%s", rc, strrc(rc));
+      return rc;
+    }
+    rc = clog_manager_->clog_append_record(clog_record2);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
   }
 
   return rc;
