@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include <zstd.h>
+#include <unordered_set>
 // #include <string>
 #include <filesystem>
 #include <algorithm>
@@ -64,6 +65,93 @@ void OlapTable::end_recover()
   rowset.flush(this->storage_dir_ + common::FILE_PATH_SPLIT_STR + curIndex);
   this->row_set_id_++;
   this->is_recovering_ = false;
+  // 判断是否compact
+  if (this->row_set_id_ > 2) {
+    this->compact();
+  }
+}
+
+void OlapTable::compact()
+{
+  auto num = this->table_meta_.field_num();
+  vector<std::string> cols;
+  std::unordered_set<int> id_set;
+  std::unordered_set<int> no_display_set;
+  // 将已经删除的id写入到集合中
+  for (int i = 0; i < this->delete_list.size(); i++) {
+    id_set.insert(this->delete_list[i]);
+  }
+  for (int i = 0; i < this->table_meta_.fields_.size(); i++) {
+    cols.push_back(this->table_meta_.fields_[i].name());
+  }
+  auto it = std::find(cols.begin(), cols.end(), "id");
+  int id_index;
+  if (it != cols.end()) {
+    // 使用std::distance函数计算指定元素的索引
+    id_index = std::distance(cols.begin(), it);
+  } else {
+    return;
+  }
+  std::vector<std::vector<Value>> vals;
+  for (int i = 0; i < num; i++) {
+    std::vector<Value> colValue;
+    this->read_col(i, colValue);
+    vals.push_back(colValue);
+    if (i == id_index) {
+      for (int j = colValue.size() - 1; j >= 0; j--) {
+        int _id = *(int *)colValue[j].data;
+        auto it = id_set.find(_id);
+        if (it != id_set.end()) {
+          // 代表集合中存在，则不显示，将行号加入到set中
+          no_display_set.insert(j);
+        } else {
+          id_set.insert(_id);
+        }
+      }
+    }
+  }
+  // 删除指定数列的数据
+  for (auto &row : vals) {
+    std::vector<Value> new_row;
+    for (int i = 0; i < row.size(); i++) {
+      if (no_display_set.count(i) == 0) {
+        new_row.push_back(row[i]);
+      }
+    }
+    row = new_row;
+  }
+  // 先删除之前的所有rowset
+  // 得到所有数据之后将数据重新写入到rowset中
+  for (int i = 2; i < vals.size(); i++) {
+    auto field = this->table_meta_.field(i);
+    std::cout << field->name() << " | ";
+    for (auto data : vals[i]) {
+      auto str = this->to_string(data, field);
+      std::cout << str << " | ";
+    }
+    std::cout << std::endl;
+  }
+  this->builder_ = new DataChunkBuilder(this->table_meta_.field_num());
+  common::delete_directory(this->storage_dir_);
+
+  common::check_directory(this->storage_dir_);
+  std::vector<std::vector<Value>> transposed(vals[0].size(), std::vector<Value>(vals.size()));
+  for (int i = 0; i < vals.size(); i++) {
+    for (int j = 0; j < vals[i].size(); j++) {
+      transposed[j][i] = vals[i][j];
+    }
+  }
+  for (auto row :transposed) {
+    this->builder_->push_row(row);
+  }
+  std::vector<FieldMeta> fields = this->table_meta_.fields_;
+  StorageMemRowset rowset(num, fields);
+  auto chunk = builder_->take();
+  rowset.append(*chunk);
+  auto curIndex = std::to_string(1);
+  rowset.flush(this->storage_dir_ + common::FILE_PATH_SPLIT_STR + curIndex);
+  this->row_set_id_ = 1;
+  this->delete_list.clear();
 }
 
 void OlapTable::recover()
@@ -72,6 +160,20 @@ void OlapTable::recover()
 std::string OlapTable::select(std::vector<std::string> cols)
 {
   std::vector<int> col2index;
+  std::unordered_set<int> id_set;
+  std::unordered_set<int> no_display_set;
+  // 将已经删除的id写入到集合中
+  for (int i = 0; i < this->delete_list.size(); i++) {
+    id_set.insert(this->delete_list[i]);
+  }
+  auto it = std::find(cols.begin(), cols.end(), "id");
+  int id_index;
+  if (it != cols.end()) {
+    // 使用std::distance函数计算指定元素的索引
+    id_index = std::distance(cols.begin(), it);
+  } else {
+    return "need id col";
+  }
 
   for (int i = 0; i < cols.size(); i++) {
     int index = this->table_meta_.field_index(cols[i].c_str());
@@ -97,7 +199,17 @@ std::string OlapTable::select(std::vector<std::string> cols)
     std::vector<std::string> colStr;
     this->read_col(col2index[i], colValue);
     auto filed = this->table_meta_.field(col2index[i]);
-    for (int j = 0; j < colValue.size(); j++) {
+    for (int j = colValue.size() - 1; j >= 0; j--) {
+      if (i == id_index) {
+        int _id = *(int *)colValue[j].data;
+        auto it = id_set.find(_id);
+        if (it != id_set.end()) {
+          // 代表集合中存在，则不显示，将行号加入到set中
+          no_display_set.insert(j);
+        } else {
+          id_set.insert(_id);
+        }
+      }
       auto str = this->to_string(colValue[j], filed);
       std::cout << str << std::endl;
       colStr.push_back(str);
@@ -106,7 +218,12 @@ std::string OlapTable::select(std::vector<std::string> cols)
   }
   if (vals.size() > 0) {
     // i 行 j 列
-    for (int i = 0; i < vals[0].size(); i++) {
+    for (int i = vals[0].size() - 1; i >= 0; i--) {
+      auto it = no_display_set.find(vals[0].size() - i - 1);
+      if (it != no_display_set.end()) {
+        // 代表集合中存在，则不显示
+        continue;
+      }
       for (int j = 0; j < vals.size(); j++) {
         ss << vals[j][i];
         if (j < vals.size() - 1) {

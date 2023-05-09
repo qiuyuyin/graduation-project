@@ -19,8 +19,11 @@ TEST(OlapDBTest, Init)
   OlapDB db;
   db.init("/home/yinqiuyu/hust-bishe/miniob/build/miniob/olap", "/home/yinqiuyu/hust-bishe/miniob/build/miniob/db/sys");
   db.recover();
-  std::string sql = "select id from student";
-  db.select(sql);
-  db.select(sql);
-  common::delete_directory("/home/yinqiuyu/hust-bishe/miniob/build/miniob/olap");
+  // std::string sql = "select id,name from student";
+  // db.select(sql);
+
+  OlapTable *table = db.find_table("test");
+  table->compact();
+
+  // common::delete_directory("/home/yinqiuyu/hust-bishe/miniob/build/miniob/olap");
 }

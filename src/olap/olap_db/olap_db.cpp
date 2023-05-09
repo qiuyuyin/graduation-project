@@ -7,6 +7,8 @@
 
 #include "olap_db/olap_db.h"
 
+OlapDB __db;
+
 void OlapDB::init(std::string olap_path, std::string oltp_path)
 {
   this->olap_path_ = olap_path;
@@ -83,8 +85,7 @@ void OlapDB::recover()
   CLogMTRManager *mtr_manager = clog_manager_->get_mtr_manager();
   for (auto it = mtr_manager->log_redo_list.begin(); it != mtr_manager->log_redo_list.end(); it++) {
     CLogRecord *clog_record = *it;
-    if (clog_record->get_log_type() != CLogType::REDO_INSERT && clog_record->get_log_type() != CLogType::REDO_DELETE &&
-        clog_record->get_log_type() != CLogType::REDO_UPDATE &&
+    if (clog_record->get_log_type() != CLogType::REDO_INSERT && clog_record->get_log_type() != CLogType::REDO_UPDATE &&
         clog_record->get_log_type() != CLogType::REDO_APSYNCDE) {
       delete clog_record;
       continue;
@@ -130,17 +131,17 @@ void OlapDB::recover()
           memcpy(curData, record_data + field->offset(), len);
           values.push_back({field->type(), curData});
         }
-        for (int i = 0; i < field_num; i++) {
-          const FieldMeta *field = table_meta.field(i);
-          auto str = table->to_string(values[i], field);
-          std::cout << str << std::endl;
-        }
+        // for (int i = 0; i < field_num; i++) {
+        //   const FieldMeta *field = table_meta.field(i);
+        //   auto str = table->to_string(values[i], field);
+        //   std::cout << str << std::endl;
+        // }
         builder->push_row(values);
         delete[] record_data;
       } break;
       case CLogType::REDO_UPDATE: {
-        char *record_data = new char[clog_record->log_record_.ins.data_len_];
-        memcpy(record_data, clog_record->log_record_.ins.data_, clog_record->log_record_.ins.data_len_);
+        char *record_data = new char[clog_record->log_record_.up.data_len_];
+        memcpy(record_data, clog_record->log_record_.up.data_, clog_record->log_record_.up.data_len_);
         const int sys_field_num = table_meta.sys_field_num();
         const int field_num = table_meta.field_num();
         int count = field_num - sys_field_num;
@@ -152,7 +153,11 @@ void OlapDB::recover()
           memcpy(curData, record_data + field->offset(), len);
           values.push_back({field->type(), curData});
         }
-
+        for (int i = 0; i < field_num; i++) {
+          const FieldMeta *field = table_meta.field(i);
+          auto str = table->to_string(values[i], field);
+          std::cout << str << std::endl;
+        }
         builder->push_row(values);
         delete[] record_data;
       } break;
@@ -175,6 +180,11 @@ void OlapDB::recover()
           auto str = table->to_string(values[i], field);
           std::cout << str << std::endl;
         }
+        auto id_index = table->table_meta_.field_index("id") + table->table_meta_.sys_field_num();
+        if (field_num > 0) {
+          auto _id = *(int *)values[id_index].data;
+          table->delete_list.push_back(_id);
+        }
         delete[] record_data;
       } break;
       default: {
@@ -196,4 +206,6 @@ void OlapDB::recover()
     LOG_ERROR("Failed to init CLogManager.");
     return;
   }
+
+  
 }

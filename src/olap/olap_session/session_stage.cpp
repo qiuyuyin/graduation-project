@@ -29,6 +29,8 @@ See the Mulan PSL v2 for more details. */
 #include "net/server.h"
 #include "session/session.h"
 
+// OlapDB __db;
+
 using namespace common;
 
 const std::string SessionStage::SQL_METRIC_TAG = "SessionStage.sql";
@@ -50,8 +52,8 @@ Stage *SessionStage::make_stage(const std::string &tag)
     return nullptr;
   }
   stage->set_properties();
-  stage->db = new OlapDB();
-  stage->db->init("./miniob/olap", "./miniob/db/sys");
+  stage->db = &__db;
+  // stage->db->init("./miniob/olap", "./miniob/db/sys");
   // stage->db->recover();
   return stage;
 }

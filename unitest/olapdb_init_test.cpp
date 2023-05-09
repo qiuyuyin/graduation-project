@@ -19,7 +19,6 @@ TEST(OlapDBTest, Init)
   OlapDB db;
   db.init("./miniob/olap", "./miniob/db/sys");
   db.recover();
-  db.recover();
 
   common::delete_directory("./miniob/olap");
 }

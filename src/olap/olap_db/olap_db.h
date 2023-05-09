@@ -30,4 +30,4 @@ public:
   OlapTable *find_table(const char *table_name) const;
 };
 
-static OlapDB __db;
+extern OlapDB __db;

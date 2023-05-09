@@ -43,11 +43,14 @@ public:
 
   bool is_recovering_ = false;
 
+  vector<int> delete_list;
+
   void open(const char *meta_file, const char *base_dir, std::string storage_dir, CLogManager *clog_manager);
   void begin_recover();
   void insert(std::vector<Value> values);
   void end_recover();
   void recover();
+  void compact();
   std::string select(std::vector<std::string> cols);
   void read_col(int col_index, std::vector<Value>& colValue);
   void select_sql(std::string sql);
