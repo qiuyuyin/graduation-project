@@ -20,5 +20,6 @@ See the Mulan PSL v2 for more details. */
 
 int init(common::ProcessParam *processParam);
 void cleanup();
+extern std::string compress_algo;
 
 #endif  //__OLAP_INIT_H__

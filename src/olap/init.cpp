@@ -39,6 +39,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/default/disk_buffer_pool.h"
 #include "storage/default/default_handler.h"
 
+std::string compress_algo;
+
 using namespace common;
 
 bool *&_get_init()

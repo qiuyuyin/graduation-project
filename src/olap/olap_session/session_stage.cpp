@@ -55,6 +55,13 @@ Stage *SessionStage::make_stage(const std::string &tag)
   stage->db = &__db;
   // stage->db->init("./miniob/olap", "./miniob/db/sys");
   // stage->db->recover();
+  std::map<std::string, std::string> compress = get_properties()->get("Compression");
+  std::string compress_algo;
+  std::map<std::string, std::string>::iterator compress_it = compress.find(ALGORITHM);
+  if (compress_it != compress.end()) {
+    compress_algo = compress_it->second;
+  }
+  stage->db->compress_algo = compress_algo;
   return stage;
 }
 

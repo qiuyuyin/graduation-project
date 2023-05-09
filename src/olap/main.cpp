@@ -31,6 +31,7 @@ See the Mulan PSL v2 for more details. */
 using namespace common;
 
 #define NET "NET"
+#define Compression "Compression"
 
 static Server *g_server = nullptr;
 // OlapDB __db;
@@ -114,6 +115,12 @@ Server *init_server()
       std::string str = it->second;
       str_to_val(str, port);
     }
+  }
+
+  std::map<std::string, std::string> compress = get_properties()->get(Compression);
+  std::map<std::string, std::string>::iterator compress_it = compress.find(ALGORITHM);
+  if (compress_it != compress.end()) {
+    compress_algo = compress_it->second;
   }
 
   ServerParam server_param;

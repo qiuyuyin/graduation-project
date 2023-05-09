@@ -40,7 +40,7 @@ RC DeleteOperator::open()
       LOG_WARN("failed to get current record: %s", strrc(rc));
       return rc;
     }
-
+    
     RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
     Record &record = row_tuple->record();
     rc = table->delete_record(trx_, &record);

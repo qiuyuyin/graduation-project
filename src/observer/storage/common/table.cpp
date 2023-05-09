@@ -346,7 +346,7 @@ RC Table::insert_record(Trx *trx, int value_num, const Value *values)
     LOG_ERROR("Invalid argument. table name: %s, value num=%d, values=%p", name(), value_num, values);
     return RC::INVALID_ARGUMENT;
   }
-
+  
   char *record_data;
   RC rc = make_record(value_num, values, record_data);
   if (rc != RC::SUCCESS) {

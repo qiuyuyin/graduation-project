@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include <zstd.h>
+#include <init.h>
 #include <unordered_set>
 // #include <string>
 #include <filesystem>
@@ -141,7 +142,7 @@ void OlapTable::compact()
       transposed[j][i] = vals[i][j];
     }
   }
-  for (auto row :transposed) {
+  for (auto row : transposed) {
     this->builder_->push_row(row);
   }
   std::vector<FieldMeta> fields = this->table_meta_.fields_;
@@ -252,8 +253,8 @@ void OlapTable::read_col(int col_index, std::vector<Value> &colValue)
     auto filename = dirList[i] + "/" + index + ".col";
     std::ifstream file(filename, std::ios::binary);  // 打开文件
 
-    file.seekg(0, std::ios::end);                    // 将文件指针定位到文件末尾
-    std::streamoff size = file.tellg();              // 获取文件大小
+    file.seekg(0, std::ios::end);        // 将文件指针定位到文件末尾
+    std::streamoff size = file.tellg();  // 获取文件大小
     size_t int_size = static_cast<size_t>(size);
     std::cout << "File size: " << size << " bytes" << std::endl;
     const int array_size = int_size;
@@ -261,29 +262,30 @@ void OlapTable::read_col(int col_index, std::vector<Value> &colValue)
     char *data = new char[array_size];
     // 从文件中读取出来data
     common::readFromFile(filename, data, int_size);
-    // 将data解压
-    ZSTD_DCtx *dctx = ZSTD_createDCtx();
-    if (!dctx) {
-      std::cerr << "Failed to create ZSTD decompression context." << std::endl;
+
+    int all_szie;
+    char *all_data;
+    if (compress_algo == "zstd") {
+      // 将data解压
+      ZSTD_DCtx *dctx = ZSTD_createDCtx();
+      // 获取解压缩后的数据大小
+      const size_t decompressed_size = ZSTD_getFrameContentSize(data, int_size);
+      // 分配解压缩后的数据缓冲区
+      char decompressed_data[decompressed_size];
+      ZSTD_decompressDCtx(dctx, decompressed_data, decompressed_size, data, int_size);
+      all_szie = decompressed_size;
+      all_data = decompressed_data;
+    } else {
+      // 没有进行压缩
+      all_szie = int_size;
+      all_data = data;
     }
 
-    // 获取解压缩后的数据大小
-    const size_t decompressed_size = ZSTD_getFrameContentSize(data, int_size);
-    if (decompressed_size == ZSTD_CONTENTSIZE_ERROR || decompressed_size == ZSTD_CONTENTSIZE_UNKNOWN) {
-      std::cerr << "Failed to get decompressed size." << std::endl;
-    }
-
-    // 分配解压缩后的数据缓冲区
-    char decompressed_data[decompressed_size];
-    const size_t decompressed_bytes = ZSTD_decompressDCtx(dctx, decompressed_data, decompressed_size, data, int_size);
-    if (ZSTD_isError(decompressed_bytes)) {
-      std::cerr << "Failed to decompress data: " << ZSTD_getErrorName(decompressed_bytes) << std::endl;
-    }
-    for (int i = 0; i < decompressed_size / field->len(); i++) {
+    for (int i = 0; i < all_szie / field->len(); i++) {
       Value value;
       value.type = field->type();
       char *putData = new char[field->len()];
-      memcpy(putData, decompressed_data + i * field->len(), field->len());
+      memcpy(putData, all_data + i * field->len(), field->len());
       value.data = putData;
       colValue.push_back(value);
     }

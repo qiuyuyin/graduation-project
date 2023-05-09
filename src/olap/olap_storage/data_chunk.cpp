@@ -1,10 +1,11 @@
 #include <fstream>
+#include <map>
 
 #include "olap_storage/data_chunk.h"
 #include "zstd.h"
+#include "init.h"
 #include "common/io/io.h"
 #include "common/os/path.h"
-
 
 void ColumnBuilder::flush(FieldMeta fm)
 {
@@ -25,22 +26,29 @@ void ColumnBuilder::flush(FieldMeta fm)
 
 size_t ColumnBuilder::compress(int allLen)
 {
-  size_t inSize = allLen;
-  size_t outSize = ZSTD_compressBound(inSize);
+  if (compress_algo == "zstd") {
+    size_t inSize = allLen;
+    size_t outSize = ZSTD_compressBound(inSize);
 
-  char *outBuff = new char[outSize];
-  size_t const compressResult = ZSTD_compress(outBuff, outSize, this->data, inSize, 22);
-  if (ZSTD_isError(compressResult)) {
-    std::cerr << "Error: " << ZSTD_getErrorName(compressResult) << std::endl;
-    return 1;
+    char *outBuff = new char[outSize];
+    size_t const compressResult = ZSTD_compress(outBuff, outSize, this->data, inSize, 22);
+    if (ZSTD_isError(compressResult)) {
+      std::cerr << "Error: " << ZSTD_getErrorName(compressResult) << std::endl;
+      return 1;
+    }
+    this->compressData = outBuff;
+    return compressResult;
+  } else if (compress_algo == "no") {
+    this->compressData = this->data;
+    return allLen;
   }
-  this->compressData = outBuff;
-  return compressResult;
+  return 0;
+  // compress_algo += "tes";
 }
 
 void RowsetBuilder::append(DataChunk chunk)
 {
-  for(int i=0;i < chunk.arrays.size();i++) {
+  for (int i = 0; i < chunk.arrays.size(); i++) {
     ColumnBuilder column_builder;
     column_builder.arrayImpl = chunk.arrays[i];
     this->builders_.push_back(column_builder);
@@ -66,28 +74,29 @@ EncodedRowset RowsetBuilder::flush()
   return er;
 }
 
-void StorageMemRowset::write_to_file(std::string path) {
+void StorageMemRowset::write_to_file(std::string path)
+{
   auto vec = this->rowset_builder_.builders_;
-  
+
   for (int i = 0; i < vec.size(); i++) {
-    auto index = std::to_string(i+1);
+    auto index = std::to_string(i + 1);
     auto filename = path + "/" + index + ".col";
     std::ofstream file(filename, std::ios::out | std::ios::trunc);
     common::writeToFile(filename, vec[i].compressData, vec[i].length, "w");
   }
 }
 
-void StorageMemRowset::append(DataChunk columns) {
+void StorageMemRowset::append(DataChunk columns)
+{
   this->mem_table_.append(columns);
 }
 
-void StorageMemRowset::flush(std::string path) {
+void StorageMemRowset::flush(std::string path)
+{
   auto chunk = this->mem_table_.flush();
   this->rowset_builder_.append(chunk);
   this->rowset_builder_.flush();
   common::check_directory(path);
-  
+
   this->write_to_file(path);
 }
-
-
