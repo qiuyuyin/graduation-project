@@ -141,7 +141,7 @@ public:
   ArrayImpl arrayImpl;
 
   void flush(FieldMeta fm);
-  size_t compress(int allLen);
+  size_t compressColumn(int allLen);
 };
 
 class EncodedColumn {

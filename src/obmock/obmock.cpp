@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
   if (sockfd < 0) {
     return 1;
   }
-  for (int i = 1050; i < 2000; i++) {
+  for (int i = 2000; i < 20000; i++) {
     char buffer[200];
     std::sprintf(buffer, "insert into student values (%d,'%s-%d','%s',%d);", i, "yili", i - 1000, "2002-07-01", 20);
     std::string sql = buffer;

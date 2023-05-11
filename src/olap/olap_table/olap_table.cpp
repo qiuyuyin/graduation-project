@@ -6,6 +6,7 @@
 #include <sstream>
 #include <fstream>
 #include <zstd.h>
+#include <zlib.h>
 #include <init.h>
 #include <unordered_set>
 // #include <string>
@@ -67,7 +68,7 @@ void OlapTable::end_recover()
   this->row_set_id_++;
   this->is_recovering_ = false;
   // 判断是否compact
-  if (this->row_set_id_ > 2) {
+  if (this->row_set_id_ > 5) {
     this->compact();
   }
 }
@@ -160,6 +161,8 @@ void OlapTable::recover()
 
 std::string OlapTable::select(std::vector<std::string> cols)
 {
+  auto start = std::chrono::high_resolution_clock::now();
+
   std::vector<int> col2index;
   std::unordered_set<int> id_set;
   std::unordered_set<int> no_display_set;
@@ -212,7 +215,7 @@ std::string OlapTable::select(std::vector<std::string> cols)
         }
       }
       auto str = this->to_string(colValue[j], filed);
-      std::cout << str << std::endl;
+      // std::cout << str << std::endl;
       colStr.push_back(str);
     }
     vals.push_back(colStr);
@@ -234,6 +237,11 @@ std::string OlapTable::select(std::vector<std::string> cols)
       ss << "\n";
     }
   }
+  auto end = std::chrono::high_resolution_clock::now();
+
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  auto count_time = duration.count();
+  ss << count_time << " ns";
   return ss.str();
 }
 
@@ -253,8 +261,8 @@ void OlapTable::read_col(int col_index, std::vector<Value> &colValue)
     auto filename = dirList[i] + "/" + index + ".col";
     std::ifstream file(filename, std::ios::binary);  // 打开文件
 
-    file.seekg(0, std::ios::end);        // 将文件指针定位到文件末尾
-    std::streamoff size = file.tellg();  // 获取文件大小
+    file.seekg(0, std::ios::end);                    // 将文件指针定位到文件末尾
+    std::streamoff size = file.tellg();              // 获取文件大小
     size_t int_size = static_cast<size_t>(size);
     std::cout << "File size: " << size << " bytes" << std::endl;
     const int array_size = int_size;
@@ -275,6 +283,22 @@ void OlapTable::read_col(int col_index, std::vector<Value> &colValue)
       ZSTD_decompressDCtx(dctx, decompressed_data, decompressed_size, data, int_size);
       all_szie = decompressed_size;
       all_data = decompressed_data;
+    } else if (compress_algo == "gzip") {
+      uLong destLen = 1024 * 20;
+
+      const size_t decompressed_data_size = destLen;
+      char *decompressed_data = new char[decompressed_data_size];
+
+      // 解压缩数据
+      auto result = uncompress(
+          reinterpret_cast<Bytef *>(decompressed_data), &destLen, reinterpret_cast<const Bytef *>(data), int_size);
+      if (result != Z_OK) {
+        std::cerr << "Decompression failed: " << result << std::endl;
+        return;
+      }
+      all_szie = destLen;
+      all_data = decompressed_data;
+      std::cout << "Gzip压缩后" << all_szie << std::endl;
     } else {
       // 没有进行压缩
       all_szie = int_size;

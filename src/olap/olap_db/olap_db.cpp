@@ -76,6 +76,8 @@ std::string OlapDB::select(std::string sql)
     return "not found table " + columns.getTableName();
   }
   auto str = table->select(columns.getColumns());
+  auto end = std::chrono::high_resolution_clock::now();
+  
   return str;
 }
 
@@ -205,7 +207,5 @@ void OlapDB::recover()
   if (clog_manager_ == nullptr) {
     LOG_ERROR("Failed to init CLogManager.");
     return;
-  }
-
-  
+  } 
 }

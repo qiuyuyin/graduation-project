@@ -3,6 +3,7 @@
 
 #include "olap_storage/data_chunk.h"
 #include "zstd.h"
+#include "zlib.h"
 #include "init.h"
 #include "common/io/io.h"
 #include "common/os/path.h"
@@ -18,13 +19,13 @@ void ColumnBuilder::flush(FieldMeta fm)
     std::memcpy(arrayData + i * len, vec[i].data, len);
   }
   this->data = arrayData;
-  auto afterLen = this->compress(allLen);
+  auto afterLen = this->compressColumn(allLen);
   std::cout << "before compress: " << allLen << std::endl;
   std::cout << "after compress: " << afterLen << std::endl;
   this->length = afterLen;
 }
 
-size_t ColumnBuilder::compress(int allLen)
+size_t ColumnBuilder::compressColumn(int allLen)
 {
   if (compress_algo == "zstd") {
     size_t inSize = allLen;
@@ -38,7 +39,22 @@ size_t ColumnBuilder::compress(int allLen)
     }
     this->compressData = outBuff;
     return compressResult;
-  } else if (compress_algo == "no") {
+  } else if (compress_algo == "gzip") {
+    // 分配内存来存储压缩后的数据
+    const size_t bufferSize = compressBound(allLen);
+    char *compressedData = new char[bufferSize];
+
+    // 压缩数据
+    uLongf compressedSize = bufferSize;
+    int result = compress2((Bytef *)compressedData, &compressedSize, (const Bytef *)data, allLen, Z_BEST_COMPRESSION);
+
+    if (result != Z_OK) {
+      std::cerr << "压缩数据失败" << std::endl;
+      return 1;
+    }
+    this->compressData = compressedData;
+    return compressedSize;
+  } else {
     this->compressData = this->data;
     return allLen;
   }

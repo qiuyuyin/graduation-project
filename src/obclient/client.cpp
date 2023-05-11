@@ -188,7 +188,6 @@ int main(int argc, char *argv[])
       }
       free(input_command);
       memset(send_buf, 0, sizeof(send_buf));
-
       int len = 0;
       while ((len = recv(olap_sockfd, send_buf, MAX_MEM_BUFFER_SIZE, 0)) > 0) {
         bool msg_end = false;

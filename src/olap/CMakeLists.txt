@@ -3,7 +3,7 @@ MESSAGE("Begin to build " ${PROJECT_NAME})
 MESSAGE(STATUS "This is PROJECT_BINARY_DIR dir " ${PROJECT_BINARY_DIR})
 MESSAGE(STATUS "This is PROJECT_SOURCE_DIR dir " ${PROJECT_SOURCE_DIR})
 
-
+find_package(ZLIB)
 #INCLUDE_DIRECTORIES([AFTER|BEFORE] [SYSTEM] dir1 dir2 ...)
 INCLUDE_DIRECTORIES(. ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/../../deps ${PROJECT_SOURCE_DIR}/../observer /usr/local/include SYSTEM)
 # 父cmake 设置的include_directories 和link_directories并不传导到子cmake里面
@@ -24,7 +24,7 @@ FOREACH (F ${ALL_SRC})
 
 ENDFOREACH (F)
 
-SET(LIBRARIES common pthread dl observer_static zstd)
+SET(LIBRARIES common pthread dl observer_static zstd ZLIB::ZLIB)
 
 # 指定目标文件位置
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/../../bin)
